@@ -20,7 +20,7 @@ import SignUpPage from '../pages/auth/Signup';
             element: <LoginPage />,
         },
         {
-            path: '/signUp',
+            path: '/signup',
             element: <SignUpPage />,
         },
         {

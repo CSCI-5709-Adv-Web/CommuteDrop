@@ -21,4 +21,4 @@ jobs:
 
       - name: Start AWS CodeBuild
         run: |
-          aws codebuild start-build --project-name Commute-Drop-Frontend
+          aws codebuild start-build --project-name CommuteDrop

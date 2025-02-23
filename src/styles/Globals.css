@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+[data-animate] {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  @layer utilities {
+    /* Custom Scrollbar */
+    .scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+  
+    .scrollbar::-webkit-scrollbar-track {
+      border-radius: 100vh;
+      background: #f3f4f6;
+    }
+  
+    .scrollbar::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 100vh;
+      border: 2px solid #f3f4f6;
+    }
+  
+    .scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+  
+    /* Firefox support */
+    .scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: #d1d5db #f3f4f6;
+    }
+  }

@@ -1,4 +1,4 @@
-Thought for 2 seconds### Commune Drop Frontend
+### Commune Drop Frontend
 
 ## Overview
 

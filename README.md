@@ -98,7 +98,7 @@ yarn build
 
 Key environment variables:
 
-```plaintext
+```env
 NEXT_PUBLIC_API_BASE_URL=https://api.communedrop.com
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 NEXT_PUBLIC_SOCKET_URL=wss://socket.communedrop.com

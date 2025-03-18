@@ -1,50 +1,148 @@
-# React + TypeScript + Vite
+Thought for 2 seconds### Commune Drop Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+The Commune Drop Frontend is the client-side application for the Commune Drop delivery platform. It provides a user-friendly interface for customers to book deliveries, track orders, and manage their accounts, as well as for carriers to manage their deliveries.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- User registration and authentication
+- Delivery booking with address selection
+- Real-time order tracking
+- Payment processing
+- Order history and management
+- Carrier assignment and tracking
+- User profile management
+- Notifications and alerts
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-- Configure the top-level `parserOptions` property like this:
+## Technology Stack
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- Framework: React.js / Next.js
+- State Management: Redux / Context API
+- Styling: Tailwind CSS / Styled Components
+- Maps: Google Maps / Mapbox
+- Real-time Updates: WebSockets / Socket.io
+- HTTP Client: Axios / Fetch API
+- Form Handling: Formik / React Hook Form
+
+
+## Backend Integration
+
+The frontend communicates with these backend services:
+
+- Auth Service: For user authentication and profile management
+- Order Service: For creating and managing delivery orders
+- Location Service: For address selection and order tracking
+- Payment Service: For processing payments
+- Notification Service: For real-time alerts
+- Valuation Service: For delivery price calculation
+- Carrier Service: For carrier information and ratings
+
+
+## Setup
+
+### Prerequisites
+
+- Node.js v16+
+- npm or yarn
+- Backend services running (or configured API endpoints)
+
+
+### Quick Start
+
+1. Clone the repository
+
+
+```shellscript
+git clone https://github.com/commune-drop/frontend.git
+cd frontend
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+2. Install dependencies
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```shellscript
+npm install
+# or
+yarn install
 ```
+
+3. Configure environment variables
+
+
+```shellscript
+cp .env.example .env.local
+# Edit .env.local with your configuration
+```
+
+4. Start the development server
+
+
+```shellscript
+npm run dev
+# or
+yarn dev
+```
+
+5. Build for production
+
+
+```shellscript
+npm run build
+# or
+yarn build
+```
+
+## Configuration
+
+Key environment variables:
+
+```plaintext
+NEXT_PUBLIC_API_BASE_URL=https://api.communedrop.com
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+NEXT_PUBLIC_SOCKET_URL=wss://socket.communedrop.com
+```
+
+## Application Structure
+
+- `/pages`: Application routes and pages
+- `/components`: Reusable UI components
+- `/hooks`: Custom React hooks
+- `/store`: State management
+- `/services`: API service integrations
+- `/utils`: Helper functions and utilities
+- `/styles`: Global styles and theme configuration
+- `/public`: Static assets
+
+
+## Key User Flows
+
+- Customer Registration and Onboarding
+- Delivery Booking Process
+- Real-time Order Tracking
+- Payment Processing
+- Carrier Assignment and Management
+- User Profile and Settings
+
+
+## Responsive Design
+
+The application is fully responsive and optimized for:
+
+- Desktop browsers
+- Tablets
+- Mobile devices
+
+
+## Performance Optimization
+
+- Code splitting and lazy loading
+- Image optimization
+- Caching strategies
+- Server-side rendering for SEO
+
+
+## License
+
+MIT

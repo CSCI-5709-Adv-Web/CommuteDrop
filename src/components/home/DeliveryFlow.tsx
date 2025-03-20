@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
@@ -28,7 +28,6 @@ export interface DeliveryFormData {
   cvc: string;
 }
 
-// Update the DeliveryFlow component to start with empty locations
 export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,12 +56,30 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
   // Handle location changes and update map
   const handleLocationChange = useCallback(
     (pickup: string, dropoff: string) => {
-      // Always update parent component if callback exists
-      if (onLocationUpdate) {
-        onLocationUpdate(pickup, dropoff);
+      console.log("Location update received in DeliveryFlow:", {
+        pickup,
+        dropoff,
+      });
+
+      // Only update parent component if the values have changed
+      if (formData.pickup !== pickup || formData.dropoff !== dropoff) {
+        setFormData((prev) => ({
+          ...prev,
+          pickup,
+          dropoff,
+        }));
+
+        // Immediately notify parent component to update the map
+        if (onLocationUpdate) {
+          console.log("Notifying parent of location change:", {
+            pickup,
+            dropoff,
+          });
+          onLocationUpdate(pickup, dropoff);
+        }
       }
     },
-    [onLocationUpdate]
+    [formData.pickup, formData.dropoff, onLocationUpdate, setFormData]
   );
 
   const handleNavigate = useCallback(
@@ -74,17 +91,24 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
       if (currentStep === "search" && step === "confirm") {
         const fetchEstimate = async () => {
           try {
+            // Validate that we have coordinates before proceeding
+            if (!formData.pickupCoordinates || !formData.dropoffCoordinates) {
+              console.error("Missing coordinates for estimate calculation");
+              setIsLoading(false);
+              return;
+            }
+
             // Prepare request data
             const requestData = {
               pickup: {
                 address: formData.pickup,
-                latitude: formData.pickupCoordinates?.lat,
-                longitude: formData.pickupCoordinates?.lng,
+                latitude: formData.pickupCoordinates.lat,
+                longitude: formData.pickupCoordinates.lng,
               },
               dropoff: {
                 address: formData.dropoff,
-                latitude: formData.dropoffCoordinates?.lat,
-                longitude: formData.dropoffCoordinates?.lng,
+                latitude: formData.dropoffCoordinates.lat,
+                longitude: formData.dropoffCoordinates.lng,
               },
               packageDetails: {
                 weight: Number.parseFloat(formData.weight) || 0,
@@ -92,9 +116,15 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
               carrierType: formData.carrier as any,
             };
 
+            console.log("Fetching delivery estimate with data:", requestData);
             const response = await deliveryService.getEstimate(requestData);
 
             if (response.success && response.data) {
+              console.log("Estimate received:", response.data);
+
+              //  {
+              console.log("Estimate received:", response.data);
+
               // Update form data with estimate
               setFormData((prev) => ({
                 ...prev,
@@ -129,15 +159,6 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
     duration: 0.4,
     ease: [0.4, 0, 0.2, 1],
   };
-
-  // Initialize map positions on component mount - only once
-  useEffect(() => {
-    if (onLocationUpdate && formData.pickup && formData.dropoff) {
-      onLocationUpdate(formData.pickup, formData.dropoff);
-    }
-    // Only run this effect once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm">

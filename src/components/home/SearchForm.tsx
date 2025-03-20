@@ -12,6 +12,8 @@ import {
   Package,
   ArrowRight,
   Loader,
+  MapPin,
+  X,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { DeliveryFormData } from "./DeliveryFlow";
@@ -37,10 +39,21 @@ export default function SearchForm({
   const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState({
+    pickup: false,
+    dropoff: false,
+  });
+  const suggestionsTimerRef = useRef<{
+    pickup: NodeJS.Timeout | null;
+    dropoff: NodeJS.Timeout | null;
+  }>({
+    pickup: null,
+    dropoff: null,
+  });
 
-  // Use our geocoding hooks with empty initial addresses
-  const pickupGeocoding = useGeocoding();
-  const dropoffGeocoding = useGeocoding();
+  // Use our geocoding hooks with empty initial addresses and longer debounce
+  const pickupGeocoding = useGeocoding({ debounceMs: 1000 });
+  const dropoffGeocoding = useGeocoding({ debounceMs: 1000 });
 
   // Initialize form data with empty values on first render
   useEffect(() => {
@@ -60,6 +73,16 @@ export default function SearchForm({
         onLocationChange("", "");
       }
     }
+
+    // Cleanup function to clear any pending timers
+    return () => {
+      if (suggestionsTimerRef.current.pickup) {
+        clearTimeout(suggestionsTimerRef.current.pickup);
+      }
+      if (suggestionsTimerRef.current.dropoff) {
+        clearTimeout(suggestionsTimerRef.current.dropoff);
+      }
+    };
   }, []);
 
   const carriers = useMemo(
@@ -99,28 +122,71 @@ export default function SearchForm({
     [setFormData]
   );
 
+  // Debounced function to fetch address suggestions
+  const fetchSuggestions = useCallback(
+    async (text: string, type: "pickup" | "dropoff") => {
+      if (!text.trim()) return;
+
+      // Clear any existing timer
+      if (suggestionsTimerRef.current[type]) {
+        clearTimeout(suggestionsTimerRef.current[type]);
+      }
+
+      // Set a new timer with 300ms delay
+      suggestionsTimerRef.current[type] = setTimeout(async () => {
+        try {
+          setIsFetchingSuggestions((prev) => ({ ...prev, [type]: true }));
+          const suggestions = await mapService.getAddressSuggestions(text);
+
+          // Log the suggestions to debug
+          console.log(`${type} suggestions:`, suggestions);
+
+          // Transform the suggestions if needed to match expected format
+          const formattedSuggestions = Array.isArray(suggestions)
+            ? suggestions.map((suggestion) => ({
+                placeId: suggestion.placeId || "",
+                description: suggestion.description || suggestion.text || "",
+                mainText:
+                  suggestion.mainText ||
+                  suggestion.text ||
+                  suggestion.description ||
+                  "",
+                secondaryText: suggestion.secondaryText || "",
+              }))
+            : [];
+
+          if (type === "pickup") {
+            setPickupSuggestions(formattedSuggestions);
+          } else {
+            setDropoffSuggestions(formattedSuggestions);
+          }
+        } catch (error) {
+          console.error(`Error fetching ${type} suggestions:`, error);
+        } finally {
+          setIsFetchingSuggestions((prev) => ({ ...prev, [type]: false }));
+        }
+      }, 300);
+    },
+    []
+  );
+
   // Handle pickup address changes
   const handlePickupChange = useCallback(
     (value: string) => {
       pickupGeocoding.setAddress(value);
       handleFormChange("pickup", value);
 
-      // Clear the "Could not find coordinates" error when user starts typing again
-      if (document.querySelector(".text-red-500")) {
-        document.querySelector(".text-red-500")?.remove();
-      }
-
       // Show suggestions if there's text
-      if (value.length > 2) {
+      if (value.trim()) {
         setShowPickupSuggestions(true);
-        // Fetch suggestions
-        fetchPickupSuggestions(value);
+        // Fetch suggestions for every word
+        fetchSuggestions(value, "pickup");
       } else {
         setShowPickupSuggestions(false);
         setPickupSuggestions([]);
       }
     },
-    [pickupGeocoding, handleFormChange]
+    [pickupGeocoding, handleFormChange, fetchSuggestions]
   );
 
   // Handle dropoff address changes
@@ -129,134 +195,207 @@ export default function SearchForm({
       dropoffGeocoding.setAddress(value);
       handleFormChange("dropoff", value);
 
-      // Clear any error messages when user starts typing again
-      if (document.querySelector(".text-red-500")) {
-        document.querySelector(".text-red-500")?.remove();
-      }
-
       // Show suggestions if there's text
-      if (value.length > 2) {
+      if (value.trim()) {
         setShowDropoffSuggestions(true);
-        // Fetch suggestions
-        fetchDropoffSuggestions(value);
+        // Fetch suggestions for every word
+        fetchSuggestions(value, "dropoff");
       } else {
         setShowDropoffSuggestions(false);
         setDropoffSuggestions([]);
       }
     },
-    [dropoffGeocoding, handleFormChange]
+    [dropoffGeocoding, handleFormChange, fetchSuggestions]
   );
 
-  // Fetch address suggestions for pickup
-  const fetchPickupSuggestions = async (text: string) => {
-    if (text.length < 3) return;
-
-    try {
-      const suggestions = await mapService.getAddressSuggestions(text);
-      setPickupSuggestions(suggestions);
-    } catch (error) {
-      console.error("Error fetching pickup suggestions:", error);
-    }
-  };
-
-  // Fetch address suggestions for dropoff
-  const fetchDropoffSuggestions = async (text: string) => {
-    if (text.length < 3) return;
-
-    try {
-      const suggestions = await mapService.getAddressSuggestions(text);
-      setDropoffSuggestions(suggestions);
-    } catch (error) {
-      console.error("Error fetching dropoff suggestions:", error);
-    }
-  };
+  // Update the handlePickupSuggestionSelect and handleDropoffSuggestionSelect functions
 
   // Handle suggestion selection for pickup
-  const handlePickupSuggestionSelect = (suggestion: any) => {
-    handlePickupChange(suggestion.description);
-    setShowPickupSuggestions(false);
-    pickupGeocoding.geocode(suggestion.description);
-  };
+  const handlePickupSuggestionSelect = useCallback(
+    (suggestion: any) => {
+      // Get the full address from the suggestion
+      const address = suggestion.description || suggestion.mainText || "";
+      console.log("Selected pickup address:", address);
+
+      // Update the input field and form data
+      handleFormChange("pickup", address);
+      pickupGeocoding.setAddress(address);
+
+      // Hide suggestions immediately
+      setShowPickupSuggestions(false);
+
+      // Immediately geocode the selected address
+      setIsFetchingSuggestions((prev) => ({ ...prev, pickup: true }));
+
+      // Use a direct API call instead of going through the hook
+      mapService
+        .geocodeAddress(address)
+        .then((result) => {
+          console.log("Direct geocoding result for pickup:", result);
+
+          if (result && result.latitude !== 0 && result.longitude !== 0) {
+            // Update form data with coordinates
+            setFormData((prev) => ({
+              ...prev,
+              pickup: address, // Ensure the address is set
+              pickupCoordinates: {
+                lat: result.latitude,
+                lng: result.longitude,
+              },
+            }));
+
+            // Also update the geocoding hook's result to keep things in sync
+            pickupGeocoding.geocode(address);
+
+            // Notify parent component
+            if (onLocationChange) {
+              onLocationChange(address, formData.dropoff);
+            }
+          } else {
+            console.error(
+              "Failed to get valid coordinates for pickup address:",
+              address
+            );
+          }
+        })
+        .catch((err) => {
+          console.error("Error geocoding pickup address:", err);
+        })
+        .finally(() => {
+          setIsFetchingSuggestions((prev) => ({ ...prev, pickup: false }));
+        });
+    },
+    [
+      handleFormChange,
+      formData.dropoff,
+      onLocationChange,
+      pickupGeocoding,
+      setFormData,
+    ]
+  );
 
   // Handle suggestion selection for dropoff
-  const handleDropoffSuggestionSelect = (suggestion: any) => {
-    handleDropoffChange(suggestion.description);
-    setShowDropoffSuggestions(false);
-    dropoffGeocoding.geocode(suggestion.description);
-  };
+  const handleDropoffSuggestionSelect = useCallback(
+    (suggestion: any) => {
+      // Get the full address from the suggestion
+      const address = suggestion.description || suggestion.mainText || "";
+      console.log("Selected dropoff address:", address);
+
+      // Update the input field and form data
+      handleFormChange("dropoff", address);
+      dropoffGeocoding.setAddress(address);
+
+      // Hide suggestions immediately
+      setShowDropoffSuggestions(false);
+
+      // Immediately geocode the selected address
+      setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: true }));
+
+      // Use a direct API call instead of going through the hook
+      mapService
+        .geocodeAddress(address)
+        .then((result) => {
+          console.log("Direct geocoding result for dropoff:", result);
+
+          if (result && result.latitude !== 0 && result.longitude !== 0) {
+            // Update form data with coordinates
+            setFormData((prev) => ({
+              ...prev,
+              dropoff: address, // Ensure the address is set
+              dropoffCoordinates: {
+                lat: result.latitude,
+                lng: result.longitude,
+              },
+            }));
+
+            // Also update the geocoding hook's result to keep things in sync
+            dropoffGeocoding.geocode(address);
+
+            // Notify parent component
+            if (onLocationChange) {
+              onLocationChange(formData.pickup, address);
+            }
+          } else {
+            console.error(
+              "Failed to get valid coordinates for dropoff address:",
+              address
+            );
+          }
+        })
+        .catch((err) => {
+          console.error("Error geocoding dropoff address:", err);
+        })
+        .finally(() => {
+          setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: false }));
+        });
+    },
+    [
+      handleFormChange,
+      formData.pickup,
+      onLocationChange,
+      dropoffGeocoding,
+      setFormData,
+    ]
+  );
+
+  // Clear input fields
+  const handleClearPickup = useCallback(() => {
+    handlePickupChange("");
+  }, [handlePickupChange]);
+
+  const handleClearDropoff = useCallback(() => {
+    handleDropoffChange("");
+  }, [handleDropoffChange]);
 
   // Update location coordinates when geocoding completes
   useEffect(() => {
-    // Only update coordinates if they exist and have changed
-    if (pickupGeocoding.coordinates && dropoffGeocoding.coordinates) {
-      // Extract coordinates from geocoding results
-      const pickupCoords = pickupGeocoding.coordinates;
-      const dropoffCoords = dropoffGeocoding.coordinates;
+    // Only update coordinates if they exist
+    if (pickupGeocoding.coordinates) {
+      setFormData((prev) => ({
+        ...prev,
+        pickupCoordinates: pickupGeocoding.coordinates, // This is already { lat, lng } or undefined
+      }));
+    }
 
-      // Check if coordinates have actually changed before updating state
-      const pickupCoordsChanged =
-        formData.pickupCoordinates?.lat !== pickupCoords.lat ||
-        formData.pickupCoordinates?.lng !== pickupCoords.lng;
+    if (dropoffGeocoding.coordinates) {
+      setFormData((prev) => ({
+        ...prev,
+        dropoffCoordinates: dropoffGeocoding.coordinates, // This is already { lat, lng } or undefined
+      }));
+    }
 
-      const dropoffCoordsChanged =
-        formData.dropoffCoordinates?.lat !== dropoffCoords.lat ||
-        formData.dropoffCoordinates?.lng !== dropoffCoords.lng;
-
-      // Only update state if coordinates have changed
-      if (pickupCoordsChanged || dropoffCoordsChanged) {
-        setFormData((prev) => ({
-          ...prev,
-          pickupCoordinates: pickupCoords,
-          dropoffCoordinates: dropoffCoords,
-        }));
-
-        // Only notify parent if coordinates have changed
-        if (onLocationChange) {
-          onLocationChange(pickupGeocoding.address, dropoffGeocoding.address);
-        }
-      }
+    // Notify parent component of address changes
+    if (onLocationChange) {
+      onLocationChange(pickupGeocoding.address, dropoffGeocoding.address);
     }
   }, [
     pickupGeocoding.coordinates,
     dropoffGeocoding.coordinates,
-    formData.pickupCoordinates,
-    formData.dropoffCoordinates,
-    onLocationChange,
     pickupGeocoding.address,
     dropoffGeocoding.address,
+    onLocationChange,
     setFormData,
   ]);
 
-  // Geocode pickup when the user stops typing (debounce)
-  useEffect(() => {
-    // Skip geocoding if address is too short
-    if (!pickupGeocoding.address || pickupGeocoding.address.length <= 3) return;
-
-    const pickupTimer = setTimeout(() => {
-      pickupGeocoding.geocode();
-    }, 1000);
-
-    return () => clearTimeout(pickupTimer);
-  }, [pickupGeocoding.address, pickupGeocoding]);
-
-  // Geocode dropoff when the user stops typing (debounce)
-  useEffect(() => {
-    // Skip geocoding if address is too short
-    if (!dropoffGeocoding.address || dropoffGeocoding.address.length <= 3)
-      return;
-
-    const dropoffTimer = setTimeout(() => {
-      dropoffGeocoding.geocode();
-    }, 1000);
-
-    return () => clearTimeout(dropoffTimer);
-  }, [dropoffGeocoding.address, dropoffGeocoding]);
-
   // Close suggestions when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setShowPickupSuggestions(false);
-      setShowDropoffSuggestions(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only close suggestions if clicking outside the suggestion containers
+      const target = event.target as Node;
+      const pickupContainer = document.getElementById(
+        "pickup-suggestions-container"
+      );
+      const dropoffContainer = document.getElementById(
+        "dropoff-suggestions-container"
+      );
+
+      if (pickupContainer && !pickupContainer.contains(target)) {
+        setShowPickupSuggestions(false);
+      }
+
+      if (dropoffContainer && !dropoffContainer.contains(target)) {
+        setShowDropoffSuggestions(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -264,6 +403,25 @@ export default function SearchForm({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Determine if the form is valid and ready to submit
+  const isFormValid = useMemo(() => {
+    return (
+      pickupGeocoding.address.trim().length > 0 &&
+      dropoffGeocoding.address.trim().length > 0 &&
+      pickupGeocoding.coordinates !== null &&
+      dropoffGeocoding.coordinates !== null &&
+      !pickupGeocoding.isLoading &&
+      !dropoffGeocoding.isLoading
+    );
+  }, [
+    pickupGeocoding.address,
+    dropoffGeocoding.address,
+    pickupGeocoding.coordinates,
+    dropoffGeocoding.coordinates,
+    pickupGeocoding.isLoading,
+    dropoffGeocoding.isLoading,
+  ]);
 
   return (
     <motion.div
@@ -310,6 +468,7 @@ export default function SearchForm({
       </div>
 
       <div className="space-y-4">
+        {/* Pickup Location Field */}
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full" />
           <input
@@ -323,6 +482,15 @@ export default function SearchForm({
               setShowPickupSuggestions(true)
             }
           />
+          {pickupGeocoding.address && (
+            <button
+              onClick={handleClearPickup}
+              className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear pickup location"
+            >
+              <X size={16} />
+            </button>
+          )}
           {pickupGeocoding.isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
@@ -336,26 +504,53 @@ export default function SearchForm({
           )}
 
           {/* Pickup Suggestions */}
-          {showPickupSuggestions && pickupSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+          {showPickupSuggestions && (
+            <div
+              id="pickup-suggestions-container"
+              className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto"
+            >
+              {isFetchingSuggestions.pickup &&
+                pickupSuggestions.length === 0 && (
+                  <div className="p-2 text-sm text-gray-500 flex items-center justify-center">
+                    <Loader className="w-3 h-3 mr-2 animate-spin" />
+                    Loading suggestions...
+                  </div>
+                )}
+
+              {!isFetchingSuggestions.pickup &&
+                pickupSuggestions.length === 0 &&
+                pickupGeocoding.address.length > 2 && (
+                  <div className="p-2 text-sm text-gray-500">
+                    No suggestions found
+                  </div>
+                )}
+
               {pickupSuggestions.map((suggestion, index) => (
                 <div
                   key={index}
                   className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
                   onClick={() => handlePickupSuggestionSelect(suggestion)}
                 >
-                  <div className="font-medium">{suggestion.mainText}</div>
-                  {suggestion.secondaryText && (
-                    <div className="text-gray-500 text-xs">
-                      {suggestion.secondaryText}
+                  <div className="flex items-start">
+                    <MapPin className="w-4 h-4 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">
+                        {suggestion.mainText || suggestion.description}
+                      </div>
+                      {suggestion.secondaryText && (
+                        <div className="text-gray-500 text-xs">
+                          {suggestion.secondaryText}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        {/* Dropoff Location Field */}
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 border-2 border-black rounded-full" />
           <input
@@ -369,6 +564,15 @@ export default function SearchForm({
               setShowDropoffSuggestions(true)
             }
           />
+          {dropoffGeocoding.address && (
+            <button
+              onClick={handleClearDropoff}
+              className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear dropoff location"
+            >
+              <X size={16} />
+            </button>
+          )}
           {dropoffGeocoding.isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
@@ -384,26 +588,53 @@ export default function SearchForm({
           )}
 
           {/* Dropoff Suggestions */}
-          {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+          {showDropoffSuggestions && (
+            <div
+              id="dropoff-suggestions-container"
+              className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto"
+            >
+              {isFetchingSuggestions.dropoff &&
+                dropoffSuggestions.length === 0 && (
+                  <div className="p-2 text-sm text-gray-500 flex items-center justify-center">
+                    <Loader className="w-3 h-3 mr-2 animate-spin" />
+                    Loading suggestions...
+                  </div>
+                )}
+
+              {!isFetchingSuggestions.dropoff &&
+                dropoffSuggestions.length === 0 &&
+                dropoffGeocoding.address.length > 2 && (
+                  <div className="p-2 text-sm text-gray-500">
+                    No suggestions found
+                  </div>
+                )}
+
               {dropoffSuggestions.map((suggestion, index) => (
                 <div
                   key={index}
                   className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
                   onClick={() => handleDropoffSuggestionSelect(suggestion)}
                 >
-                  <div className="font-medium">{suggestion.mainText}</div>
-                  {suggestion.secondaryText && (
-                    <div className="text-gray-500 text-xs">
-                      {suggestion.secondaryText}
+                  <div className="flex items-start">
+                    <MapPin className="w-4 h-4 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">
+                        {suggestion.mainText || suggestion.description}
+                      </div>
+                      {suggestion.secondaryText && (
+                        <div className="text-gray-500 text-xs">
+                          {suggestion.secondaryText}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        {/* Weight Input */}
         <div className="relative">
           <input
             type="number"
@@ -418,6 +649,7 @@ export default function SearchForm({
           </span>
         </div>
 
+        {/* Carrier Selection */}
         <div className="space-y-2">
           <p className="text-sm text-gray-600 ml-1">Select carrier type:</p>
           <div className="grid grid-cols-2 gap-2">
@@ -441,19 +673,38 @@ export default function SearchForm({
         </div>
       </div>
 
+      {/* Calculate Delivery Button */}
       <button
-        className="w-full bg-black text-white py-4 rounded-lg mt-6 text-sm font-medium hover:bg-gray-900 transition-colors flex items-center justify-center"
+        className={`w-full py-4 rounded-lg mt-6 text-sm font-medium transition-colors flex items-center justify-center
+          ${
+            isFormValid
+              ? "bg-black text-white hover:bg-gray-900"
+              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+          }`}
         onClick={onNext}
-        disabled={
-          !pickupGeocoding.address ||
-          !dropoffGeocoding.address ||
-          pickupGeocoding.isLoading ||
-          dropoffGeocoding.isLoading
-        }
+        disabled={!isFormValid}
+        aria-disabled={!isFormValid}
       >
-        Calculate Delivery
-        <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
+        {!isFormValid &&
+        (pickupGeocoding.isLoading || dropoffGeocoding.isLoading) ? (
+          <>
+            <Loader className="w-4 h-4 mr-2 animate-spin" />
+            Validating Locations...
+          </>
+        ) : (
+          <>
+            Calculate Delivery
+            <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
+          </>
+        )}
       </button>
+
+      {/* Form Validation Messages */}
+      {!pickupGeocoding.address && !dropoffGeocoding.address && (
+        <p className="text-xs text-gray-500 text-center mt-2">
+          Enter pickup and dropoff locations to continue
+        </p>
+      )}
     </motion.div>
   );
 }

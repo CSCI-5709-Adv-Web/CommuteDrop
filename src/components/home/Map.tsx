@@ -34,32 +34,35 @@ export default function Map({
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize map
+  // Improve map initialization
   const initMap = useCallback(async () => {
     if (mapRef.current === null) return;
     setIsMapLoading(true);
 
     try {
+      console.log(
+        "Initializing map with API key:",
+        API_CONFIG.MAPS_API_KEY ? "Available" : "Not available"
+      );
+
       const loader = new GoogleMapsLoader({
-        apiKey: API_CONFIG.MAPS_API_KEY,
+        apiKey: API_CONFIG.MAPS_API_KEY || "",
         version: "weekly",
         libraries: ["places", "routes"],
       });
 
       // Load the global Google object first
       await loader.load();
+      console.log("Google Maps API loaded successfully");
 
       // Now we can access the global google object
       googleRef.current = window.google;
 
-      // Create new map instance - don't set styles directly when using mapId
+      // Create new map instance
       const mapInstance = new googleRef.current.maps.Map(mapRef.current, {
         center,
         zoom: 13,
-        // Use either mapId OR styles, not both
-        // mapId: "YOUR_MAP_ID", // If using a custom map style from Google Cloud Console
         disableDefaultUI: false,
-        // Only set styles if not using mapId
         styles: [
           {
             featureType: "poi",
@@ -74,14 +77,23 @@ export default function Map({
         ],
       });
 
+      console.log("Map instance created successfully");
       setMap(mapInstance);
       setIsMapLoading(false);
+
+      // If we have positions, update the map immediately
+      if (positions.length > 0) {
+        console.log("Setting initial map bounds with positions:", positions);
+        const bounds = new googleRef.current.maps.LatLngBounds();
+        positions.forEach((position) => bounds.extend(position));
+        mapInstance.fitBounds(bounds);
+      }
     } catch (error) {
       console.error("Error loading Google Maps:", error);
       setError("Failed to load map. Please try again later.");
       setIsMapLoading(false);
     }
-  }, [center]);
+  }, [center, positions]);
 
   // Initialize map on mount
   useEffect(() => {
@@ -90,9 +102,11 @@ export default function Map({
     }
   }, [map, initMap]);
 
-  // Update markers when positions change
+  // Improve map responsiveness when positions change
+
+  // Update the useEffect for handling position changes
   useEffect(() => {
-    if (!map || !googleRef.current || !hasEnteredLocations) return;
+    if (!map || !googleRef.current) return;
 
     const google = googleRef.current;
 
@@ -100,8 +114,18 @@ export default function Map({
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
-    // Create new markers using the updated AdvancedMarkerElement if available
+    console.log("Updating map with positions:", positions);
+
+    if (positions.length === 0) {
+      // No positions to show
+      console.log("No positions to show on map");
+      return;
+    }
+
+    // Create new markers
     const newMarkers = positions.map((position, index) => {
+      console.log(`Creating marker ${index} at position:`, position);
+
       // Check if AdvancedMarkerElement is available
       if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
         // Use the new AdvancedMarkerElement
@@ -134,6 +158,7 @@ export default function Map({
             strokeWeight: 2,
             scale: 8,
           },
+          animation: google.maps.Animation.DROP, // Add animation for better visibility
         });
       }
     });
@@ -143,6 +168,7 @@ export default function Map({
 
     // Fit bounds to include all markers
     if (positions.length > 1) {
+      console.log("Fitting bounds to multiple positions");
       const bounds = new google.maps.LatLngBounds();
       positions.forEach((position) => bounds.extend(position));
       map.fitBounds(bounds);
@@ -151,25 +177,30 @@ export default function Map({
       google.maps.event.addListenerOnce(map, "idle", () => {
         const currentZoom = map.getZoom();
         if (currentZoom !== undefined && currentZoom > 16) {
+          console.log("Adjusting zoom level to 16");
           map.setZoom(16);
         }
       });
     } else if (positions.length === 1) {
+      console.log("Centering map on single position:", positions[0]);
       map.setCenter(positions[0]);
       map.setZoom(15);
+
+      // Add a slight pan animation for single marker
+      setTimeout(() => {
+        map.panBy(0, -50);
+        setTimeout(() => map.panBy(0, 50), 300);
+      }, 300);
     }
-  }, [map, positions, hasEnteredLocations]);
+  }, [map, positions]);
 
   // Draw polyline between points using directions API
   useEffect(() => {
-    if (
-      !map ||
-      !googleRef.current ||
-      positions.length < 2 ||
-      !drawRoute ||
-      !hasEnteredLocations
-    )
+    if (!map || !googleRef.current || positions.length < 2 || !drawRoute)
       return;
+
+    // Always proceed with drawing route, even if hasEnteredLocations is false
+    // This ensures the route updates properly when positions change
 
     const google = googleRef.current;
 
@@ -246,7 +277,7 @@ export default function Map({
         polylineRef.current = null;
       }
     };
-  }, [map, positions, drawRoute, hasEnteredLocations]);
+  }, [map, positions, drawRoute]); // Removed hasEnteredLocations dependency to ensure route always updates
 
   // Render map placeholder when no locations are entered
   if (!hasEnteredLocations) {

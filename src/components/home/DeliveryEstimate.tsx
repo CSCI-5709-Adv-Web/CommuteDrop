@@ -1,6 +1,6 @@
 "use client";
 
-import { DeliveryFormData } from "./DeliveryFlow";
+import type { DeliveryFormData } from "./DeliveryFlow";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
@@ -15,9 +15,11 @@ import {
   Shield,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import type { DeliveryEstimateResponse } from "../../services/delivery-service";
 
 interface DeliveryEstimateProps {
   formData: DeliveryFormData;
+  estimateData?: DeliveryEstimateResponse;
   onBack: () => void;
 }
 
@@ -42,6 +44,7 @@ const SEARCH_STAGES = [
 
 export default function DeliveryEstimate({
   formData,
+  estimateData,
   onBack,
 }: DeliveryEstimateProps) {
   const [status, setStatus] = useState<SearchStatus>("searching");
@@ -50,9 +53,21 @@ export default function DeliveryEstimate({
   const [driverDetails, setDriverDetails] = useState<DriverDetails | null>(
     null
   );
-  const [estimatedTime, setEstimatedTime] = useState("");
-  const [distance, setDistance] = useState("");
-  const [fare, setFare] = useState({ base: 0, distance: 0, time: 0, total: 0 });
+  const [estimatedTime, setEstimatedTime] = useState(
+    estimateData?.estimatedTime?.text || "25-30 minutes"
+  );
+  const [distance, setDistance] = useState(
+    estimateData?.distance?.text || "3.2 km"
+  );
+  const [fare, setFare] = useState(
+    estimateData?.estimatedPrice || {
+      base: 5.0,
+      distance: 8.99,
+      time: 2.0,
+      total: 15.99,
+      currency: "USD",
+    }
+  );
   const [error, setError] = useState("");
 
   const startSearch = useCallback(() => {
@@ -65,24 +80,40 @@ export default function DeliveryEstimate({
       setCurrentStage((stage) => {
         if (stage >= SEARCH_STAGES.length - 1) {
           clearInterval(stageInterval);
-          // Simulate random outcomes
-          const outcome = 0;
-          if (outcome < 0.7) {
-            setDriverDetails({
-              name: "Michael Chen",
-              rating: 4.8,
-              trips: 1243,
-              vehicleType: "Toyota Prius",
-              vehicleNumber: "ABC 123",
-              image: "src/assets/profile.jpeg?height=100&width=100",
-            });
-            setStatus("success");
-          } else if (outcome < 0.9) {
-            setStatus("not_found");
-          } else {
-            setStatus("error");
-            setError("Network error occurred. Please try again.");
-          }
+
+          // Simulate calling the delivery creation API
+          const createDelivery = async () => {
+            try {
+              // In a real app, we would call the API
+              // const response = await deliveryService.createDelivery(requestData);
+
+              // For demo, we'll simulate a successful response
+              // Simulate random success (70% chance)
+              const outcome = Math.random();
+              if (outcome < 0.7) {
+                setDriverDetails({
+                  name: "Michael Chen",
+                  rating: 4.8,
+                  trips: 1243,
+                  vehicleType: "Toyota Prius",
+                  vehicleNumber: "ABC 123",
+                  image: "src/assets/profile.jpeg?height=100&width=100",
+                });
+                setStatus("success");
+              } else if (outcome < 0.9) {
+                setStatus("not_found");
+              } else {
+                setStatus("error");
+                setError("Network error occurred. Please try again.");
+              }
+            } catch (error) {
+              console.error("Error creating delivery:", error);
+              setStatus("error");
+              setError("Failed to create delivery. Please try again.");
+            }
+          };
+
+          createDelivery();
           return stage;
         }
         return stage + 1;
@@ -93,14 +124,23 @@ export default function DeliveryEstimate({
       setProgress((oldProgress) => {
         if (oldProgress >= 100) {
           clearInterval(progressInterval);
-          setEstimatedTime("25-30 minutes");
-          setDistance("3.2 km");
-          setFare({
-            base: 5.0,
-            distance: 8.99,
-            time: 2.0,
-            total: 15.99,
-          });
+
+          // Use real data from the estimate if available
+          if (estimateData) {
+            setEstimatedTime(estimateData.estimatedTime.text);
+            setDistance(estimateData.distance.text);
+            setFare(estimateData.estimatedPrice);
+          } else {
+            setEstimatedTime("25-30 minutes");
+            setDistance("3.2 km");
+            setFare({
+              base: 5.0,
+              distance: 8.99,
+              time: 2.0,
+              total: 15.99,
+              currency: "USD",
+            });
+          }
           return 100;
         }
         return Math.min(oldProgress + 2, 100);
@@ -111,7 +151,7 @@ export default function DeliveryEstimate({
       clearInterval(stageInterval);
       clearInterval(progressInterval);
     };
-  }, []);
+  }, [formData, estimateData]);
 
   useEffect(() => {
     const cleanup = startSearch();
@@ -123,7 +163,6 @@ export default function DeliveryEstimate({
     return cleanup;
   };
 
-  // Rest of the component remains the same
   return (
     <motion.div
       key="estimate"
@@ -133,7 +172,6 @@ export default function DeliveryEstimate({
       transition={{ duration: 0.3 }}
       className="min-h-full bg-gray-50"
     >
-      {/* Component JSX remains the same */}
       {/* Sticky Header */}
       <div className="sticky top-0 z-50 bg-white">
         <div className="px-6 py-4">
@@ -260,7 +298,10 @@ export default function DeliveryEstimate({
             <div className="flex items-start gap-4">
               <div className="relative">
                 <img
-                  src={driverDetails.image || "src/assets/profile.jpeg"}
+                  src={
+                    driverDetails.image ||
+                    "/placeholder.svg?height=100&width=100"
+                  }
                   alt={driverDetails.name}
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                 />

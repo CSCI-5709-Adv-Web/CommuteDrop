@@ -94,7 +94,7 @@ export default function Navbar() {
                   handleLogout();
                   setShowMenu(false);
                 }}
-                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
               >
                 <LogOut size={16} className="mr-2" aria-hidden="true" />
                 Logout

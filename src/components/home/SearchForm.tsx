@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { motion } from "framer-motion";
 import {
   Send,
@@ -11,8 +13,9 @@ import {
   ArrowRight,
   Loader,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { DeliveryFormData } from "./DeliveryFlow";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { DeliveryFormData } from "./DeliveryFlow";
+import { useGeocoding } from "../../hooks/useGeocoding";
 
 interface SearchFormProps {
   formData: DeliveryFormData;
@@ -21,54 +24,6 @@ interface SearchFormProps {
   onLocationChange?: (pickup: string, dropoff: string) => void;
 }
 
-interface GeocodingResult {
-  lat: number;
-  lng: number;
-}
-
-// Mock geocoding function - in a real app, this would use Google's Geocoding API
-const geocodeAddress = async (
-  address: string
-): Promise<GeocodingResult | null> => {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // Mock geocoding results for Halifax area
-  const mockLocations: Record<string, GeocodingResult> = {
-    "quinpool tower": { lat: 44.6454, lng: -63.5918 },
-    "dalhousie dentistry faculty practice": { lat: 44.6366, lng: -63.585 },
-    "halifax shopping centre": { lat: 44.6497, lng: -63.6108 },
-    "halifax central library": { lat: 44.6434, lng: -63.5775 },
-    "point pleasant park": { lat: 44.6228, lng: -63.5686 },
-    "halifax citadel": { lat: 44.6478, lng: -63.5804 },
-    "halifax waterfront": { lat: 44.6476, lng: -63.5683 },
-    dartmouth: { lat: 44.6658, lng: -63.5669 },
-    bedford: { lat: 44.7325, lng: -63.6556 },
-    "downtown halifax": { lat: 44.6488, lng: -63.5752 },
-    "south end": { lat: 44.6328, lng: -63.5714 },
-    "north end": { lat: 44.6608, lng: -63.5908 },
-    fairview: { lat: 44.6608, lng: -63.6328 },
-    // Default fallback for unknown locations - random point in Halifax
-    default: {
-      lat: 44.6488 + (Math.random() * 0.02 - 0.01),
-      lng: -63.5752 + (Math.random() * 0.02 - 0.01),
-    },
-  };
-
-  // Normalize the address for lookup
-  const normalizedAddress = address.toLowerCase().trim();
-
-  // Find a matching location or return a point near the default
-  for (const [key, location] of Object.entries(mockLocations)) {
-    if (normalizedAddress.includes(key)) {
-      return location;
-    }
-  }
-
-  // Return default with slight randomization if no match
-  return mockLocations.default;
-};
-
 export default function SearchForm({
   formData,
   setFormData,
@@ -76,8 +31,11 @@ export default function SearchForm({
   onLocationChange,
 }: SearchFormProps) {
   const [activeButton, setActiveButton] = useState<"send" | "receive">("send");
-  const [isGeocodingPickup, setIsGeocodingPickup] = useState(false);
-  const [isGeocodingDropoff, setIsGeocodingDropoff] = useState(false);
+  const isInitialRender = useRef(true);
+
+  // Use our new geocoding hooks
+  const pickupGeocoding = useGeocoding({ initialAddress: formData.pickup });
+  const dropoffGeocoding = useGeocoding({ initialAddress: formData.dropoff });
 
   const carriers = useMemo(
     () => [
@@ -116,41 +74,98 @@ export default function SearchForm({
     [setFormData]
   );
 
-  // Handle location changes with debounce
-  useEffect(() => {
-    // Only proceed if both pickup and dropoff have values
-    if (!formData.pickup || !formData.dropoff) return;
+  // Handle pickup address changes
+  const handlePickupChange = useCallback(
+    (value: string) => {
+      pickupGeocoding.setAddress(value);
+      handleFormChange("pickup", value);
 
-    // Set a single debounce timer for both fields
-    const timer = setTimeout(async () => {
-      if (onLocationChange) {
-        onLocationChange(formData.pickup, formData.dropoff);
+      // Clear the "Could not find coordinates" error when user starts typing again
+      if (document.querySelector(".text-red-500")) {
+        document.querySelector(".text-red-500")?.remove();
       }
-    }, 1000); // 1 second debounce
+    },
+    [pickupGeocoding, handleFormChange]
+  );
 
-    return () => clearTimeout(timer);
-  }, [formData.pickup, formData.dropoff, onLocationChange]);
+  // Handle dropoff address changes
+  const handleDropoffChange = useCallback(
+    (value: string) => {
+      dropoffGeocoding.setAddress(value);
+      handleFormChange("dropoff", value);
 
-  // Add loading indicators separately
+      // Clear any error messages when user starts typing again
+      if (document.querySelector(".text-red-500")) {
+        document.querySelector(".text-red-500")?.remove();
+      }
+    },
+    [dropoffGeocoding, handleFormChange]
+  );
+
+  // Update location coordinates when geocoding completes
   useEffect(() => {
-    if (formData.pickup) {
-      setIsGeocodingPickup(true);
-      const timer = setTimeout(() => {
-        setIsGeocodingPickup(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [formData.pickup]);
+    // Only update coordinates if they exist and have changed
+    if (pickupGeocoding.coordinates && dropoffGeocoding.coordinates) {
+      // Extract coordinates from geocoding results
+      const pickupCoords = pickupGeocoding.coordinates;
+      const dropoffCoords = dropoffGeocoding.coordinates;
 
-  useEffect(() => {
-    if (formData.dropoff) {
-      setIsGeocodingDropoff(true);
-      const timer = setTimeout(() => {
-        setIsGeocodingDropoff(false);
-      }, 1000);
-      return () => clearTimeout(timer);
+      // Check if coordinates have actually changed before updating state
+      const pickupCoordsChanged =
+        formData.pickupCoordinates?.lat !== pickupCoords.lat ||
+        formData.pickupCoordinates?.lng !== pickupCoords.lng;
+
+      const dropoffCoordsChanged =
+        formData.dropoffCoordinates?.lat !== dropoffCoords.lat ||
+        formData.dropoffCoordinates?.lng !== dropoffCoords.lng;
+
+      // Only update state if coordinates have changed
+      if (pickupCoordsChanged || dropoffCoordsChanged) {
+        setFormData((prev) => ({
+          ...prev,
+          pickupCoordinates: pickupCoords,
+          dropoffCoordinates: dropoffCoords,
+        }));
+
+        // Only notify parent if coordinates have changed
+        if (onLocationChange) {
+          onLocationChange(pickupGeocoding.address, dropoffGeocoding.address);
+        }
+      }
     }
-  }, [formData.dropoff]);
+  }, [
+    pickupGeocoding.coordinates,
+    dropoffGeocoding.coordinates,
+    formData.pickupCoordinates,
+    formData.dropoffCoordinates,
+    onLocationChange,
+    pickupGeocoding.address,
+    pickupGeocoding.address,
+  ]);
+
+  // Geocode pickup when the user stops typing (debounce)
+  useEffect(() => {
+    // Skip geocoding if address is too short
+    if (!formData.pickup || formData.pickup.length <= 3) return;
+
+    const pickupTimer = setTimeout(() => {
+      pickupGeocoding.geocode();
+    }, 1000);
+
+    return () => clearTimeout(pickupTimer);
+  }, [formData.pickup, pickupGeocoding]);
+
+  // Geocode dropoff when the user stops typing (debounce)
+  useEffect(() => {
+    // Skip geocoding if address is too short
+    if (!formData.dropoff || formData.dropoff.length <= 3) return;
+
+    const dropoffTimer = setTimeout(() => {
+      dropoffGeocoding.geocode();
+    }, 1000);
+
+    return () => clearTimeout(dropoffTimer);
+  }, [formData.dropoff, dropoffGeocoding]);
 
   return (
     <motion.div
@@ -201,12 +216,12 @@ export default function SearchForm({
           <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full" />
           <input
             className="w-full p-4 pl-8 pr-10 bg-gray-50 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
-            value={formData.pickup}
-            onChange={(e) => handleFormChange("pickup", e.target.value)}
+            value={pickupGeocoding.address}
+            onChange={(e) => handlePickupChange(e.target.value)}
             placeholder="Pickup location"
             aria-label="Pickup location"
           />
-          {isGeocodingPickup && (
+          {pickupGeocoding.isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
                 className="w-4 h-4 text-gray-400 animate-spin"
@@ -214,24 +229,32 @@ export default function SearchForm({
               />
             </div>
           )}
+          {pickupGeocoding.error && (
+            <p className="text-xs text-red-500 mt-1">{pickupGeocoding.error}</p>
+          )}
         </div>
 
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 border-2 border-black rounded-full" />
           <input
             className="w-full p-4 pl-8 pr-10 bg-gray-50 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
-            value={formData.dropoff}
-            onChange={(e) => handleFormChange("dropoff", e.target.value)}
+            value={dropoffGeocoding.address}
+            onChange={(e) => handleDropoffChange(e.target.value)}
             placeholder="Dropoff location"
             aria-label="Dropoff location"
           />
-          {isGeocodingDropoff && (
+          {dropoffGeocoding.isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
                 className="w-4 h-4 text-gray-400 animate-spin"
                 aria-hidden="true"
               />
             </div>
+          )}
+          {dropoffGeocoding.error && (
+            <p className="text-xs text-red-500 mt-1">
+              {dropoffGeocoding.error}
+            </p>
           )}
         </div>
 
@@ -275,6 +298,12 @@ export default function SearchForm({
       <button
         className="w-full bg-black text-white py-4 rounded-lg mt-6 text-sm font-medium hover:bg-gray-900 transition-colors flex items-center justify-center"
         onClick={onNext}
+        disabled={
+          !formData.pickup ||
+          !formData.dropoff ||
+          pickupGeocoding.isLoading ||
+          dropoffGeocoding.isLoading
+        }
       >
         Calculate Delivery
         <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />

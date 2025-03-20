@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PersonalInfoSection from "../../components/profile/PersonalInfoSection";
 import PaymentMethodsSection from "../../components/profile/PaymentMethodsSection";
@@ -8,148 +8,118 @@ import DeliveryHistorySection from "../../components/profile/DeliveryHistorySect
 import SettingsSection from "../../components/profile/SettingsSection";
 import { useAuth } from "../../context/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
-import { Home, Truck, CreditCard, Settings } from "lucide-react";
+import { Home, Truck, CreditCard, Settings, Loader } from "lucide-react";
 import Navbar from "../../components/Navbar";
-
-// Mock user data - would come from API/context in a real app
-export const userData = {
-  name: "Alex Johnson",
-  email: "alex.johnson@example.com",
-  phone: "+1 (902) 555-0123",
-  address: "123 Main Street, Halifax, NS",
-  joinDate: "January 2023",
-  deliveriesCompleted: 24,
-  rating: 4.8,
-  profileImage: "/placeholder.svg?height=150&width=150",
-  paymentMethods: [
-    {
-      id: 1,
-      type: "visa",
-      last4: "4242",
-      cardholderName: "Alex Johnson",
-      expiryDate: "12/25",
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: "mastercard",
-      last4: "5555",
-      cardholderName: "Alex Johnson",
-      expiryDate: "09/26",
-      isDefault: false,
-    },
-  ],
-  stats: {
-    totalSpent: 342.5,
-    avgDeliveryTime: 28,
-    savedLocations: 3,
-    completionRate: 98,
-  },
-  savedLocations: [
-    {
-      id: 1,
-      name: "Home",
-      address: "123 Main Street, Halifax, NS",
-    },
-    {
-      id: 2,
-      name: "Work",
-      address: "456 Office Tower, Downtown Halifax, NS",
-    },
-  ],
-};
-
-// Mock delivery history
-export const deliveryHistory = [
-  {
-    id: "DEL-1234",
-    date: "Feb 25, 2025",
-    from: "Quinpool Tower",
-    to: "Dalhousie Dentistry Faculty",
-    status: "Completed",
-    price: "$12.50",
-    carrier: "Car",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1235",
-    date: "Feb 22, 2025",
-    from: "South End",
-    to: "North End",
-    status: "Completed",
-    price: "$8.75",
-    carrier: "Bike",
-  },
-  {
-    id: "DEL-1236",
-    date: "Feb 18, 2025",
-    from: "Downtown Halifax",
-    to: "Fairview",
-    status: "Completed",
-    price: "$15.20",
-    carrier: "Car",
-  },
-];
+import {
+  userService,
+  type SavedLocation,
+  type PaymentMethod,
+} from "../../services/user-service";
+import {
+  deliveryService,
+  type DeliveryHistoryItem,
+} from "../../services/delivery-service";
 
 export type TabType = "profile" | "deliveries" | "payment" | "settings";
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // State for user data
+  const [userData, setUserData] = useState({
+    name: user?.name || "User",
+    email: user?.email || "",
+    phone: "",
+    address: "",
+    joinDate: "January 2023",
+    deliveriesCompleted: 0,
+    rating: 0,
+    profileImage: "/placeholder.svg?height=150&width=150",
+    paymentMethods: [] as PaymentMethod[],
+    savedLocations: [] as SavedLocation[],
+  });
+
+  // State for delivery history
+  const [deliveryHistory, setDeliveryHistory] = useState<DeliveryHistoryItem[]>(
+    []
+  );
+
+  // Load user profile data
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchUserData = async () => {
+      if (!isMounted) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Fetch user profile
+        const profileResponse = await userService.getProfile();
+
+        if (isMounted && profileResponse.success) {
+          // Update user data with profile info
+          setUserData((prevData) => ({
+            ...prevData,
+            name: profileResponse.data.name || user?.name || "User",
+            email: profileResponse.data.email || user?.email || "",
+            phone: profileResponse.data.phone || "",
+            address: profileResponse.data.address || "",
+            joinDate: profileResponse.data.joinDate || "January 2023",
+            deliveriesCompleted: profileResponse.data.deliveriesCompleted || 0,
+            rating: profileResponse.data.rating || 0,
+            profileImage:
+              profileResponse.data.profileImage ||
+              "/placeholder.svg?height=150&width=150",
+          }));
+        }
+
+        // Fetch saved locations
+        const locationsResponse = await userService.getSavedLocations();
+        if (isMounted && locationsResponse.success) {
+          setUserData((prevData) => ({
+            ...prevData,
+            savedLocations: locationsResponse.data,
+          }));
+        }
+
+        // Fetch payment methods
+        const paymentMethodsResponse = await userService.getPaymentMethods();
+        if (isMounted && paymentMethodsResponse.success) {
+          setUserData((prevData) => ({
+            ...prevData,
+            paymentMethods: paymentMethodsResponse.data,
+          }));
+        }
+
+        // Fetch delivery history
+        const deliveryHistoryResponse = await deliveryService.getHistory();
+        if (isMounted && deliveryHistoryResponse.success) {
+          setDeliveryHistory(deliveryHistoryResponse.data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error("Error fetching user data:", err);
+          setError("Failed to load user data. Please try again later.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchUserData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -162,6 +132,41 @@ export default function Profile() {
     { id: "payment", label: "Payment", icon: <CreditCard size={18} /> },
     { id: "settings", label: "Settings", icon: <Settings size={18} /> },
   ];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <Loader className="w-10 h-10 text-primary animate-spin mb-4" />
+            <p className="text-gray-600">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md p-6 bg-white shadow rounded-lg">
+            <p className="text-red-600 font-medium mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 font-sans">

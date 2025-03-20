@@ -6,6 +6,7 @@ import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
+import { deliveryService } from "../../services/delivery-service";
 
 type FlowStep = "search" | "confirm" | "payment" | "estimate";
 
@@ -16,6 +17,8 @@ interface DeliveryFlowProps {
 export interface DeliveryFormData {
   pickup: string;
   dropoff: string;
+  pickupCoordinates?: { lat: number; lng: number };
+  dropoffCoordinates?: { lat: number; lng: number };
   weight: string;
   carrier: string;
   estimatedTime: string;
@@ -28,6 +31,7 @@ export interface DeliveryFormData {
 export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
   const [isLoading, setIsLoading] = useState(false);
+  const [estimateData, setEstimateData] = useState<any>(null);
   const [formData, setFormData] = useState<DeliveryFormData>({
     pickup: "Quinpool Tower",
     dropoff: "Dalhousie Dentistry Faculty Practice",
@@ -49,36 +53,93 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
     [steps, currentStep]
   );
 
-  const handleNavigate = useCallback((step: FlowStep) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setCurrentStep(step);
-      setIsLoading(false);
-    }, 600);
-  }, []);
+  // Handle location changes and update map
+  const handleLocationChange = useCallback(
+    (pickup: string, dropoff: string) => {
+      // Only update parent component if callback exists and values have changed
+      if (
+        onLocationUpdate &&
+        (pickup !== formData.pickup || dropoff !== formData.dropoff)
+      ) {
+        onLocationUpdate(pickup, dropoff);
+      }
+    },
+    [onLocationUpdate, formData.pickup, formData.dropoff]
+  );
+
+  const handleNavigate = useCallback(
+    (step: FlowStep) => {
+      setIsLoading(true);
+
+      // Special case for confirm -> payment transition
+      // Fetch delivery estimate from API
+      if (currentStep === "search" && step === "confirm") {
+        const fetchEstimate = async () => {
+          try {
+            // Prepare request data
+            const requestData = {
+              pickup: {
+                address: formData.pickup,
+                latitude: formData.pickupCoordinates?.lat,
+                longitude: formData.pickupCoordinates?.lng,
+              },
+              dropoff: {
+                address: formData.dropoff,
+                latitude: formData.dropoffCoordinates?.lat,
+                longitude: formData.dropoffCoordinates?.lng,
+              },
+              packageDetails: {
+                weight: Number.parseFloat(formData.weight) || 0,
+              },
+              carrierType: formData.carrier as any,
+            };
+
+            const response = await deliveryService.getEstimate(requestData);
+
+            if (response.success && response.data) {
+              // Update form data with estimate
+              setFormData((prev) => ({
+                ...prev,
+                estimatedTime: response.data.estimatedTime.text,
+                estimatedPrice: response.data.estimatedPrice.total.toFixed(2),
+              }));
+
+              // Store full estimate data for later use
+              setEstimateData(response.data);
+            }
+          } catch (error) {
+            console.error("Error fetching estimate:", error);
+            // Continue anyway with default values
+          } finally {
+            setCurrentStep(step);
+            setIsLoading(false);
+          }
+        };
+
+        fetchEstimate();
+      } else {
+        setTimeout(() => {
+          setCurrentStep(step);
+          setIsLoading(false);
+        }, 600);
+      }
+    },
+    [currentStep, formData]
+  );
 
   const transitionConfig = {
     duration: 0.4,
     ease: [0.4, 0, 0.2, 1],
   };
 
-  // Handle location changes and update map
-  const handleLocationChange = useCallback(
-    async (pickup: string, dropoff: string) => {
-      // Update parent component if callback exists
-      if (onLocationUpdate) {
-        onLocationUpdate(pickup, dropoff);
-      }
-    },
-    [onLocationUpdate]
-  );
-
-  // Initialize map positions on component mount
+  // Initialize map positions on component mount - only once
   useEffect(() => {
-    if (onLocationUpdate) {
+    if (onLocationUpdate && formData.pickup && formData.dropoff) {
       onLocationUpdate(formData.pickup, formData.dropoff);
     }
-  }, [formData.pickup, formData.dropoff, onLocationUpdate]);
+    // Only run this effect once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm">
@@ -137,6 +198,7 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
             >
               <ConfirmDelivery
                 formData={formData}
+                estimateData={estimateData}
                 onBack={() => handleNavigate("search")}
                 onNext={() => handleNavigate("payment")}
               />
@@ -166,6 +228,7 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
             >
               <DeliveryEstimate
                 formData={formData}
+                estimateData={estimateData}
                 onBack={() => handleNavigate("payment")}
               />
             </motion.div>

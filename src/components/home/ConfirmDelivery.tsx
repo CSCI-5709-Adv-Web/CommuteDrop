@@ -1,21 +1,56 @@
-import { motion } from "framer-motion"
-import { MapPin, ArrowLeft, Package, Weight, Clock, DollarSign, Car, Truck, Bike } from "lucide-react"
+"use client";
+
+import { motion } from "framer-motion";
+import {
+  MapPin,
+  ArrowLeft,
+  Package,
+  Weight,
+  Clock,
+  DollarSign,
+  Car,
+  Truck,
+  Bike,
+} from "lucide-react";
+import type { DeliveryEstimateResponse } from "../../services/delivery-service";
 
 interface ConfirmDeliveryProps {
-  formData: any
-  onBack: () => void
-  onNext: () => void
+  formData: any;
+  estimateData?: DeliveryEstimateResponse;
+  onBack: () => void;
+  onNext: () => void;
 }
 
 const carriers = {
-  car: { icon: <Car className="w-5 h-5 mr-3 text-primary" />, label: 'Car' },
-  truck: { icon: <Truck className="w-5 h-5 mr-3 text-primary" />, label: 'Truck' },
-  bike: { icon: <Bike className="w-5 h-5 mr-3 text-primary" />, label: 'Bike' },
-  walk: { icon: <Package className="w-5 h-5 mr-3 text-primary" />, label: 'Walk' }
-}
+  car: { icon: <Car className="w-5 h-5 mr-3 text-primary" />, label: "Car" },
+  truck: {
+    icon: <Truck className="w-5 h-5 mr-3 text-primary" />,
+    label: "Truck",
+  },
+  bike: { icon: <Bike className="w-5 h-5 mr-3 text-primary" />, label: "Bike" },
+  walk: {
+    icon: <Package className="w-5 h-5 mr-3 text-primary" />,
+    label: "Walk",
+  },
+};
 
-export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDeliveryProps) {
-  const selectedCarrier = carriers[formData.carrier as keyof typeof carriers] || carriers.car
+export default function ConfirmDelivery({
+  formData,
+  estimateData,
+  onBack,
+  onNext,
+}: ConfirmDeliveryProps) {
+  const selectedCarrier =
+    carriers[formData.carrier as keyof typeof carriers] || carriers.car;
+
+  // Use real estimated data if available
+  const estimatedDistance = estimateData?.distance?.text || "3.2 km";
+  const estimatedTime =
+    estimateData?.estimatedTime?.text || formData.estimatedTime || "30-45 mins";
+  const estimatedPrice =
+    estimateData?.estimatedPrice?.total.toFixed(2) ||
+    formData.estimatedPrice ||
+    "15.99";
 
   return (
     <motion.div
@@ -27,7 +62,7 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
       className="p-6 h-full flex flex-col"
     >
       <div className="flex items-center mb-6">
-        <button 
+        <button
           onClick={onBack}
           className="p-1 hover:bg-gray-100 rounded-full mr-4"
         >
@@ -62,7 +97,7 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
               <Weight className="w-5 h-5 mr-3 text-primary" />
               <p className="font-medium">Weight</p>
             </div>
-            <p className="text-gray-800 pl-8">{formData.weight || '0'} kg</p>
+            <p className="text-gray-800 pl-8">{formData.weight || "0"} kg</p>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -74,6 +109,15 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
           </div>
         </div>
 
+        {/* Distance Information (New) */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center mb-3">
+            <MapPin className="w-5 h-5 mr-3 text-primary" />
+            <p className="font-medium">Distance</p>
+          </div>
+          <p className="text-gray-800 pl-8">{estimatedDistance}</p>
+        </div>
+
         {/* Delivery Estimates */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -81,7 +125,7 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
               <Clock className="w-5 h-5 mr-3 text-primary" />
               <p className="font-medium">Estimated Time</p>
             </div>
-            <p className="text-gray-800 pl-8">{formData.estimatedTime || '30-45 mins'}</p>
+            <p className="text-gray-800 pl-8">{estimatedTime}</p>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -89,7 +133,7 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
               <DollarSign className="w-5 h-5 mr-3 text-primary" />
               <p className="font-medium">Estimated Cost</p>
             </div>
-            <p className="text-gray-800 pl-8">${formData.estimatedPrice || '15.99'}</p>
+            <p className="text-gray-800 pl-8">${estimatedPrice}</p>
           </div>
         </div>
       </div>
@@ -103,5 +147,5 @@ export default function ConfirmDelivery({ formData, onBack, onNext }: ConfirmDel
         </button>
       </div>
     </motion.div>
-  )
+  );
 }

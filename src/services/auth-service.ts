@@ -1,94 +1,81 @@
+import { apiClient } from "./api-client"
+import { ENDPOINTS } from "../config/api-config"
 import type { LoginRequest, RegisterRequest, AuthResponse } from "../types/auth"
 
-const API_BASE_URL = "http://localhost:5087/api"
-
-// Helper function to handle API responses
-const handleResponse = async (response: Response): Promise<AuthResponse> => {
-  if (!response.ok) {
-    // Handle HTTP errors
-    if (response.status === 401) {
+// Auth service for handling authentication-related API calls
+export const authService = {
+  /**
+   * Login a user with email and password
+   */
+  login: async (credentials: LoginRequest): Promise<AuthResponse> => {
+    try {
+      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.LOGIN, credentials)
+    } catch (error: any) {
+      // Return a standardized error format matching AuthResponse
       return {
-        statusCode: 401,
+        statusCode: error.status || 500,
         success: false,
-        message: "Invalid email or password.",
+        message: error.message || "Login failed. Please try again.",
         data: { token: "", refreshToken: "" },
-        errors: ["Invalid credentials"],
+        errors: [error.message || "Unknown error occurred"],
       }
     }
-
-    return {
-      statusCode: response.status,
-      success: false,
-      message: `HTTP error: ${response.status}`,
-      data: { token: "", refreshToken: "" },
-      errors: [`HTTP error: ${response.status}`],
-    }
-  }
-
-  try {
-    const data = await response.json()
-    return data
-  } catch (jsonError) {
-    return {
-      statusCode: 500,
-      success: false,
-      message: "Invalid response format",
-      data: { token: "", refreshToken: "" },
-      errors: ["Server returned invalid JSON"],
-    }
-  }
-}
-
-// Create a reusable fetch function with error handling
-const fetchWithErrorHandling = async (url: string, options: RequestInit): Promise<AuthResponse> => {
-  try {
-    const response = await fetch(url, options)
-    return await handleResponse(response)
-  } catch (error) {
-    // Handle network errors
-    return {
-      statusCode: 0,
-      success: false,
-      message: "Network error. Please check your connection and try again.",
-      data: { token: "", refreshToken: "" },
-      errors: [error instanceof Error ? error.message : "Unknown error"],
-    }
-  }
-}
-
-export const api = {
-  auth: {
-    login: async (credentials: LoginRequest): Promise<AuthResponse> => {
-      return fetchWithErrorHandling(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      })
-    },
-
-    register: async (userData: RegisterRequest): Promise<AuthResponse> => {
-      return fetchWithErrorHandling(`${API_BASE_URL}/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      })
-    },
-
-    refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-      return fetchWithErrorHandling(`${API_BASE_URL}/auth/refresh-token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
-      })
-    },
   },
 
-  // Add other API endpoints here as needed
+  /**
+   * Register a new user
+   */
+  register: async (userData: RegisterRequest): Promise<AuthResponse> => {
+    try {
+      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REGISTER, userData)
+    } catch (error: any) {
+      return {
+        statusCode: error.status || 500,
+        success: false,
+        message: error.message || "Registration failed. Please try again.",
+        data: { token: "", refreshToken: "" },
+        errors: [error.message || "Unknown error occurred"],
+      }
+    }
+  },
+
+  /**
+   * Refresh authentication token
+   */
+  refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
+    try {
+      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REFRESH_TOKEN, { refreshToken })
+    } catch (error: any) {
+      return {
+        statusCode: error.status || 500,
+        success: false,
+        message: error.message || "Token refresh failed.",
+        data: { token: "", refreshToken: "" },
+        errors: [error.message || "Unknown error occurred"],
+      }
+    }
+  },
+
+  /**
+   * Verify email with verification code
+   */
+  verifyEmail: async (email: string, code: string): Promise<AuthResponse> => {
+    try {
+      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.VERIFY_EMAIL, { email, code })
+    } catch (error: any) {
+      return {
+        statusCode: error.status || 500,
+        success: false,
+        message: error.message || "Email verification failed.",
+        data: { token: "", refreshToken: "" },
+        errors: [error.message || "Unknown error occurred"],
+      }
+    }
+  },
+}
+
+// Update the existing auth API to use the new service
+export const api = {
+  auth: authService,
 }
 

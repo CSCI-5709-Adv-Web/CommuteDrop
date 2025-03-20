@@ -1,6 +1,5 @@
 "use client";
 
-// src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -12,51 +11,31 @@ export default function App() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            <Navigate to="/home" replace />
-          ) : (
-            routes.find((r) => r.path === "/")?.element
-          )
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          isAuthenticated ? (
-            <Navigate to="/home" replace />
-          ) : (
-            routes.find((r) => r.path === "/login")?.element
-          )
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          isAuthenticated ? (
-            <Navigate to="/home" replace />
-          ) : (
-            routes.find((r) => r.path === "/signup")?.element
-          )
-        }
-      />
-      <Route
-        path="/verify"
-        element={routes.find((r) => r.path === "/verify")?.element}
-      />
+      {routes
+        .filter((route) => !route.protected)
+        .map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              isAuthenticated && route.redirectIfAuthenticated ? (
+                <Navigate to="/home" replace />
+              ) : (
+                route.element
+              )
+            }
+          />
+        ))}
+
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
-        <Route
-          path="/home"
-          element={routes.find((r) => r.path === "/home")?.element}
-        />
-        <Route
-          path="/profile"
-          element={routes.find((r) => r.path === "/profile")?.element}
-        />
+        {routes
+          .filter((route) => route.protected)
+          .map((route) => (
+            <Route key={route.path} path={route.path} element={route.element} />
+          ))}
       </Route>
+
       {/* Fallback route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

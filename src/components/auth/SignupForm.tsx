@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import PasswordInput from "./PasswordInput";
@@ -24,40 +24,72 @@ export default function SignUpForm() {
     );
   }, [password, confirmPassword]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setPasswordError(true);
-      return;
-    }
-
-    if (
-      name.trim() &&
-      email.trim() &&
-      password.trim() &&
-      password.length >= 8
-    ) {
-      try {
-        // Wait for the registration to complete
-        const success = await register(name, email, password);
-
-        // Only navigate if registration was successful
-        if (success) {
-          navigate("/verify", { state: { email } });
-        }
-      } catch (err) {
-        // Error is handled by the AuthContext
-        console.error("Registration error:", err);
+      if (password !== confirmPassword) {
+        setPasswordError(true);
+        return;
       }
-    }
-  };
+
+      if (
+        name.trim() &&
+        email.trim() &&
+        password.trim() &&
+        password.length >= 8
+      ) {
+        try {
+          // Wait for the registration to complete
+          const success = await register(name, email, password);
+
+          // Only navigate if registration was successful
+          if (success) {
+            navigate("/verify", { state: { email } });
+          }
+        } catch (err) {
+          // Error is handled by the AuthContext
+          console.error("Registration error:", err);
+        }
+      }
+    },
+    [name, email, password, confirmPassword, register, navigate]
+  );
+
+  const handleInputChange = useCallback(
+    (field: string, value: string) => {
+      switch (field) {
+        case "name":
+          setName(value);
+          break;
+        case "email":
+          setEmail(value);
+          break;
+        case "password":
+          setPassword(value);
+          break;
+        case "confirmPassword":
+          setConfirmPassword(value);
+          break;
+      }
+      if (error) clearError();
+    },
+    [error, clearError]
+  );
 
   // Don't render the form while initializing
   if (isInitializing) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <Loader className="w-8 h-8 text-primary animate-spin" />
+      <div
+        className="flex justify-center items-center h-40"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <Loader
+          className="w-8 h-8 text-primary animate-spin"
+          aria-hidden="true"
+        />
+        <span className="sr-only">Loading authentication status...</span>
       </div>
     );
   }
@@ -69,8 +101,15 @@ export default function SignUpForm() {
       </h2>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2"
+          role="alert"
+          aria-live="assertive"
+        >
+          <AlertCircle
+            className="w-5 h-5 mt-0.5 flex-shrink-0"
+            aria-hidden="true"
+          />
           <div>
             <p className="font-medium">Registration Failed</p>
             <p className="text-sm">{error}</p>
@@ -82,45 +121,41 @@ export default function SignUpForm() {
         type="text"
         placeholder="Enter your name"
         value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-          if (error) clearError();
-        }}
+        onChange={(e) => handleInputChange("name", e.target.value)}
         className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-black text-center"
         required
+        aria-label="Full name"
       />
 
       <input
         type="email"
         placeholder="Enter your email"
         value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          if (error) clearError();
-        }}
+        onChange={(e) => handleInputChange("email", e.target.value)}
         className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-black text-center"
         required
         autoComplete="email"
+        aria-label="Email address"
       />
 
       <PasswordInput
         label="Create password"
         password={password}
-        setPassword={(value) => {
-          setPassword(value);
-          if (error) clearError();
-        }}
+        setPassword={(value) => handleInputChange("password", value)}
       />
 
       <PasswordInput
         label="Confirm password"
         password={confirmPassword}
-        setPassword={setConfirmPassword}
+        setPassword={(value) => handleInputChange("confirmPassword", value)}
         error={passwordError}
       />
 
       {passwordError && (
-        <p className="text-red-500 text-sm text-center -mt-4">
+        <p
+          className="text-red-500 text-sm text-center -mt-4"
+          aria-live="assertive"
+        >
           Passwords do not match
         </p>
       )}
@@ -135,10 +170,11 @@ export default function SignUpForm() {
           isLoading
         }
         className="w-full rounded-lg bg-black py-3 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center justify-center"
+        aria-busy={isLoading}
       >
         {isLoading ? (
           <>
-            <Loader className="w-4 h-4 mr-2 animate-spin" />
+            <Loader className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
             Creating Account...
           </>
         ) : (

@@ -1,12 +1,20 @@
-// JWT utility functions
+// Improve the JWT utilities with better error handling and typing
+interface JwtPayload {
+  exp?: number
+  [key: string]: any
+}
+
 export const jwtUtils = {
   // Parse JWT token to get user info
-  parseToken: (token: string): any => {
+  parseToken: (token: string): JwtPayload | null => {
     try {
       const base64Url = token.split(".")[1]
+      if (!base64Url) return null
+
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
       const jsonPayload = decodeURIComponent(
-        atob(base64)
+        window
+          .atob(base64)
           .split("")
           .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
           .join(""),
@@ -22,6 +30,7 @@ export const jwtUtils = {
   getUserEmail: (token: string): string | null => {
     try {
       const decoded = jwtUtils.parseToken(token)
+      if (!decoded) return null
       return decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || null
     } catch (error) {
       console.error("Error getting user email from token:", error)
@@ -33,6 +42,7 @@ export const jwtUtils = {
   getUserId: (token: string): string | null => {
     try {
       const decoded = jwtUtils.parseToken(token)
+      if (!decoded) return null
       return decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null
     } catch (error) {
       console.error("Error getting user ID from token:", error)
@@ -44,7 +54,7 @@ export const jwtUtils = {
   isTokenExpired: (token: string): boolean => {
     try {
       const decoded = jwtUtils.parseToken(token)
-      if (!decoded.exp) return true
+      if (!decoded || !decoded.exp) return true
 
       const currentTime = Date.now() / 1000
       return decoded.exp < currentTime

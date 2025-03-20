@@ -7,6 +7,7 @@ import {
   useReducer,
   useEffect,
   useState,
+  useMemo,
 } from "react";
 import type { AuthState, User } from "../types/auth";
 import { tokenStorage } from "../utils/tokenStorage";
@@ -19,7 +20,7 @@ const initialState: AuthState = {
   token: null,
   refreshToken: null,
   isAuthenticated: false,
-  isLoading: false, // Changed from true to false
+  isLoading: false,
   error: null,
 };
 
@@ -107,7 +108,7 @@ interface AuthContextType extends AuthState {
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
-  isInitializing: boolean; // Add this to track initial loading
+  isInitializing: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,84 +118,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
-  const [isInitializing, setIsInitializing] = useState(true); // Add this state
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Check for existing tokens on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      setIsInitializing(true); // Start initialization
-      const token = tokenStorage.getToken();
-      const refreshToken = tokenStorage.getRefreshToken();
+      setIsInitializing(true);
+      try {
+        const token = tokenStorage.getToken();
+        const refreshToken = tokenStorage.getRefreshToken();
 
-      if (token && refreshToken) {
-        try {
-          // Check if token is expired
-          if (jwtUtils.isTokenExpired(token)) {
-            // Try to refresh the token
-            try {
-              const response = await api.auth.refreshToken(refreshToken);
-
-              if (response.success) {
-                const { token: newToken, refreshToken: newRefreshToken } =
-                  response.data;
-                const email = jwtUtils.getUserEmail(newToken);
-
-                if (email) {
-                  tokenStorage.setTokens(newToken, newRefreshToken);
-
-                  dispatch({
-                    type: "LOGIN_SUCCESS",
-                    payload: {
-                      token: newToken,
-                      refreshToken: newRefreshToken,
-                      user: { email },
-                    },
-                  });
-                  setIsInitializing(false); // End initialization
-                  return;
-                }
-              }
-
-              // If refresh failed, logout
-              tokenStorage.clearTokens();
-              dispatch({ type: "LOGOUT" });
-            } catch (error) {
-              tokenStorage.clearTokens();
-              dispatch({ type: "LOGOUT" });
-            }
-          } else {
-            // Token is still valid
-            const email = jwtUtils.getUserEmail(token);
-
-            if (email) {
-              dispatch({
-                type: "LOGIN_SUCCESS",
-                payload: {
-                  token,
-                  refreshToken,
-                  user: { email },
-                },
-              });
-            } else {
-              tokenStorage.clearTokens();
-              dispatch({ type: "LOGOUT" });
-            }
-          }
-        } catch (error) {
-          tokenStorage.clearTokens();
+        if (!token || !refreshToken) {
           dispatch({ type: "LOGOUT" });
+          setIsInitializing(false);
+          return;
         }
-      } else {
+
+        // Check if token is expired
+        if (jwtUtils.isTokenExpired(token)) {
+          // Try to refresh the token
+          try {
+            const response = await api.auth.refreshToken(refreshToken);
+
+            if (response.success) {
+              const { token: newToken, refreshToken: newRefreshToken } =
+                response.data;
+              const email = jwtUtils.getUserEmail(newToken);
+
+              if (email) {
+                tokenStorage.setTokens(newToken, newRefreshToken);
+
+                dispatch({
+                  type: "LOGIN_SUCCESS",
+                  payload: {
+                    token: newToken,
+                    refreshToken: newRefreshToken,
+                    user: { email },
+                  },
+                });
+                setIsInitializing(false);
+                return;
+              }
+            }
+
+            // If refresh failed, logout
+            tokenStorage.clearTokens();
+            dispatch({ type: "LOGOUT" });
+          } catch (error) {
+            tokenStorage.clearTokens();
+            dispatch({ type: "LOGOUT" });
+          }
+        } else {
+          // Token is still valid
+          const email = jwtUtils.getUserEmail(token);
+
+          if (email) {
+            dispatch({
+              type: "LOGIN_SUCCESS",
+              payload: {
+                token,
+                refreshToken,
+                user: { email },
+              },
+            });
+          } else {
+            tokenStorage.clearTokens();
+            dispatch({ type: "LOGOUT" });
+          }
+        }
+      } catch (error) {
+        tokenStorage.clearTokens();
         dispatch({ type: "LOGOUT" });
+      } finally {
+        setIsInitializing(false);
       }
-      setIsInitializing(false); // End initialization
     };
 
     initializeAuth();
   }, []);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: "LOGIN_START" });
 
     try {
@@ -218,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             payload: { token, refreshToken, user },
           });
 
-          return true; // Return success status
+          return true;
         } else {
           throw new Error("Invalid token received");
         }
@@ -227,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           type: "LOGIN_FAILURE",
           payload: response.message || "Login failed. Please try again.",
         });
-        return false; // Return failure status
+        return false;
       }
     } catch (error) {
       dispatch({
@@ -237,12 +241,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             ? error.message
             : "Login failed. Please try again.",
       });
-      return false; // Return failure status
+      return false;
     }
   };
 
   // Register function
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string
+  ): Promise<boolean> => {
     dispatch({ type: "REGISTER_START" });
 
     try {
@@ -263,13 +271,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           payload: { token, refreshToken, user },
         });
 
-        return true; // Return success status
+        return true;
       } else {
         dispatch({
           type: "REGISTER_FAILURE",
           payload: response.message || "Registration failed. Please try again.",
         });
-        return false; // Return failure status
+        return false;
       }
     } catch (error) {
       dispatch({
@@ -279,7 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             ? error.message
             : "Registration failed. Please try again.",
       });
-      return false; // Return failure status
+      return false;
     }
   };
 
@@ -294,19 +302,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     dispatch({ type: "CLEAR_ERROR" });
   };
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({
+      ...state,
+      login,
+      register,
+      logout,
+      clearError,
+      isInitializing,
+    }),
+    [state, isInitializing]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        register,
-        logout,
-        clearError,
-        isInitializing,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 

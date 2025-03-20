@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import PasswordInput from "./PasswordInput";
@@ -15,30 +15,57 @@ export default function LoginForm() {
   const { login, error, isLoading, clearError, isInitializing } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (email.trim() && password.trim()) {
-      try {
-        // Wait for the login to complete
-        const success = await login(email, password);
+      if (email.trim() && password.trim()) {
+        try {
+          // Wait for the login to complete
+          const success = await login(email, password);
 
-        // Only navigate if login was successful
-        if (success) {
-          navigate("/home");
+          // Only navigate if login was successful
+          if (success) {
+            navigate("/home");
+          }
+        } catch (err) {
+          // Error is handled by the AuthContext
+          console.error("Login error:", err);
         }
-      } catch (err) {
-        // Error is handled by the AuthContext
-        console.error("Login error:", err);
       }
-    }
-  };
+    },
+    [email, password, login, navigate]
+  );
+
+  const handleEmailChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEmail(e.target.value);
+      if (error) clearError();
+    },
+    [error, clearError]
+  );
+
+  const handlePasswordChange = useCallback(
+    (value: string) => {
+      setPassword(value);
+      if (error) clearError();
+    },
+    [error, clearError]
+  );
 
   // Don't render the form while initializing
   if (isInitializing) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <Loader className="w-8 h-8 text-primary animate-spin" />
+      <div
+        className="flex justify-center items-center h-40"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <Loader
+          className="w-8 h-8 text-primary animate-spin"
+          aria-hidden="true"
+        />
+        <span className="sr-only">Loading authentication status...</span>
       </div>
     );
   }
@@ -50,8 +77,15 @@ export default function LoginForm() {
       </h2>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2"
+          role="alert"
+          aria-live="assertive"
+        >
+          <AlertCircle
+            className="w-5 h-5 mt-0.5 flex-shrink-0"
+            aria-hidden="true"
+          />
           <div>
             <p className="font-medium">Login Failed</p>
             <p className="text-sm">{error}</p>
@@ -63,32 +97,28 @@ export default function LoginForm() {
         type="email"
         placeholder="Enter your email"
         value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          if (error) clearError();
-        }}
+        onChange={handleEmailChange}
         className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-black text-center"
         required
         autoComplete="email"
+        aria-label="Email address"
       />
 
       <PasswordInput
         label="Enter your password"
         password={password}
-        setPassword={(value) => {
-          setPassword(value);
-          if (error) clearError();
-        }}
+        setPassword={handlePasswordChange}
       />
 
       <button
         type="submit"
         disabled={!email.trim() || !password.trim() || isLoading}
         className="w-full rounded-lg bg-black py-3 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        aria-busy={isLoading}
       >
         {isLoading ? (
           <>
-            <Loader className="w-4 h-4 mr-2 animate-spin" />
+            <Loader className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
             Logging in...
           </>
         ) : (

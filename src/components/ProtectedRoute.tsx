@@ -17,7 +17,10 @@ export default function ProtectedRoute({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <Loader className="w-10 h-10 text-primary animate-spin mb-4" />
+          <Loader
+            className="w-10 h-10 text-primary animate-spin mb-4"
+            aria-hidden="true"
+          />
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import type React from "react";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Loader } from "lucide-react";
@@ -14,6 +16,13 @@ export default function VerificationPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const email = location.state?.email || "";
+  // Fix the HTMLInputElement refs
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([
+    null,
+    null,
+    null,
+    null,
+  ]);
 
   useEffect(() => {
     if (!email) {
@@ -35,17 +44,34 @@ export default function VerificationPage() {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleCodeChange = (index: number, value: string) => {
-    const newCode = [...code];
-    newCode[index] = value;
-    setCode(newCode);
+  const handleCodeChange = useCallback(
+    (index: number, value: string) => {
+      // Only allow numbers
+      if (value && !/^\d+$/.test(value)) return;
 
-    if (value && index < 3) {
-      document.getElementById(`code-input-${index + 1}`)?.focus();
-    }
-  };
+      const newCode = [...code];
+      newCode[index] = value;
+      setCode(newCode);
 
-  const handleSubmit = async () => {
+      // Auto-focus next input after entering a digit
+      if (value && index < 3) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    },
+    [code]
+  );
+
+  const handleKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Handle backspace to go to previous input
+      if (e.key === "Backspace" && !code[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    },
+    [code]
+  );
+
+  const handleSubmit = useCallback(async () => {
     if (code.join("").length === 4) {
       setIsSubmitting(true);
       setError("");
@@ -62,9 +88,9 @@ export default function VerificationPage() {
         setError("Invalid verification code. Please try again.");
       }
     }
-  };
+  }, [code, navigate]);
 
-  const handleResendCode = () => {
+  const handleResendCode = useCallback(() => {
     if (timer === 0) {
       // In a real app, you would call your API to resend the code
       setTimer(30);
@@ -72,7 +98,7 @@ export default function VerificationPage() {
       // Show success message
       alert("Verification code has been resent to your email");
     }
-  };
+  }, [timer]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -89,7 +115,11 @@ export default function VerificationPage() {
             </p>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-center">
+              <div
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-center"
+                role="alert"
+                aria-live="assertive"
+              >
                 {error}
               </div>
             )}
@@ -98,17 +128,19 @@ export default function VerificationPage() {
               {code.map((digit, index) => (
                 <input
                   key={index}
-                  id={`code-input-${index}`}
+                  ref={(el) => {
+                    inputRefs.current[index] = el;
+                  }}
                   type="text"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) =>
-                    handleCodeChange(index, e.target.value.replace(/\D/g, ""))
-                  }
-                  className="w-16 h-16 text-3xl text-center rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleCodeChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  className="w-16 h-16 text-3xl text-center rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   disabled={isSubmitting}
+                  aria-label={`Verification code digit ${index + 1}`}
                 />
               ))}
             </div>
@@ -121,6 +153,7 @@ export default function VerificationPage() {
                 }`}
                 disabled={timer > 0 || isSubmitting}
                 onClick={handleResendCode}
+                type="button"
               >
                 Resend code via email ({Math.floor(timer / 60)}:
                 {timer % 60 < 10 ? "0" : ""}
@@ -131,10 +164,15 @@ export default function VerificationPage() {
               onClick={handleSubmit}
               disabled={code.join("").length !== 4 || isSubmitting}
               className="w-full rounded-lg bg-black py-3 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              type="button"
+              aria-busy={isSubmitting}
             >
               {isSubmitting ? (
                 <>
-                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader
+                    className="w-4 h-4 mr-2 animate-spin"
+                    aria-hidden="true"
+                  />
                   Verifying...
                 </>
               ) : (

@@ -14,7 +14,6 @@ import {
   LogOut,
   ChevronRight,
   Edit2,
-  Camera,
   Star,
   Package,
   CheckCircle,
@@ -40,6 +39,12 @@ export default function Profile() {
       { id: 1, type: "Visa", last4: "4242", isDefault: true },
       { id: 2, type: "Mastercard", last4: "5555", isDefault: false },
     ],
+    stats: {
+      totalSpent: 342.5,
+      avgDeliveryTime: 28,
+      savedLocations: 3,
+      completionRate: 98,
+    },
   });
 
   // Mock form state for editing profile
@@ -107,115 +112,115 @@ export default function Profile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
+      {/* Fixed header section */}
+      <div className="sticky top-0 z-50">
+        {/* Navbar is already black in the component */}
+        <Navbar />
 
-      <div className="container mx-auto px-4 py-6 flex-1">
-        {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {/* Profile Image */}
-            <div className="relative">
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-white shadow-md">
-                <img
-                  src={userData.profileImage || "/placeholder.svg"}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <button className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg">
-                <Camera size={16} />
-              </button>
-            </div>
-
-            {/* User Info */}
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-2xl md:text-3xl font-bold">
-                {userData.name}
-              </h1>
-              <p className="text-gray-600">{userData.email}</p>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-3">
-                <div className="flex items-center gap-1 text-gray-700">
-                  <Star size={16} className="text-yellow-500" />
-                  <span>{userData.rating} Rating</span>
-                </div>
-                <div className="flex items-center gap-1 text-gray-700">
-                  <Package size={16} />
-                  <span>{userData.deliveriesCompleted} Deliveries</span>
-                </div>
-                <div className="flex items-center gap-1 text-gray-700">
-                  <Calendar size={16} />
-                  <span>Since {userData.joinDate}</span>
+        {/* Profile Header Card - Fixed */}
+        <div className="bg-white border-b shadow-sm">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex items-center gap-6">
+              {/* Profile Image */}
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
+                  <img
+                    src={userData.profileImage || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
+              {/* User Info */}
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold">{userData.name}</h1>
+                <p className="text-gray-600">{userData.email}</p>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <div className="flex items-center gap-1 text-gray-700">
+                    <Star size={16} className="text-yellow-500" />
+                    <span>{userData.rating} Rating</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-gray-700">
+                    <Package size={16} />
+                    <span>{userData.deliveriesCompleted} Deliveries</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-gray-700">
+                    <Calendar size={16} />
+                    <span>Since {userData.joinDate}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Navigation - Fixed */}
+        <div className="bg-white border-b">
+          <div className="container mx-auto px-4">
+            <div className="flex">
               <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                className={`px-6 py-4 font-medium text-center whitespace-nowrap ${
+                  activeTab === "profile"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("profile")}
               >
-                <Edit2 size={16} />
-                {isEditing ? "Cancel" : "Edit Profile"}
+                Profile
+              </button>
+              <button
+                className={`px-6 py-4 font-medium text-center whitespace-nowrap ${
+                  activeTab === "deliveries"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("deliveries")}
+              >
+                Deliveries
+              </button>
+              <button
+                className={`px-6 py-4 font-medium text-center whitespace-nowrap ${
+                  activeTab === "payment"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("payment")}
+              >
+                Payment
+              </button>
+              <button
+                className={`px-6 py-4 font-medium text-center whitespace-nowrap ${
+                  activeTab === "settings"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("settings")}
+              >
+                Settings
               </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Tabs Navigation */}
-        <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
-          <div className="flex overflow-x-auto scrollbar-thin">
-            <button
-              className={`px-6 py-4 font-medium text-center whitespace-nowrap flex-1 ${
-                activeTab === "profile"
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-              onClick={() => setActiveTab("profile")}
-            >
-              Profile
-            </button>
-            <button
-              className={`px-6 py-4 font-medium text-center whitespace-nowrap flex-1 ${
-                activeTab === "deliveries"
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-              onClick={() => setActiveTab("deliveries")}
-            >
-              Deliveries
-            </button>
-            <button
-              className={`px-6 py-4 font-medium text-center whitespace-nowrap flex-1 ${
-                activeTab === "payment"
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-              onClick={() => setActiveTab("payment")}
-            >
-              Payment
-            </button>
-            <button
-              className={`px-6 py-4 font-medium text-center whitespace-nowrap flex-1 ${
-                activeTab === "settings"
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-              onClick={() => setActiveTab("settings")}
-            >
-              Settings
-            </button>
-          </div>
-        </div>
-
+      {/* Scrollable content */}
+      <div className="container mx-auto px-4 py-6">
         {/* Tab Content */}
         <div className="space-y-6">
           {/* Profile Tab */}
           {activeTab === "profile" && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-6">
-                Personal Information
-              </h2>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Personal Information</h2>
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                >
+                  <Edit2 size={16} />
+                  {isEditing ? "Cancel" : "Edit Profile"}
+                </button>
+              </div>
 
               {isEditing ? (
                 <div className="space-y-4">
@@ -351,7 +356,7 @@ export default function Profile() {
 
           {/* Deliveries Tab */}
           {activeTab === "deliveries" && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="p-6 border-b">
                 <h2 className="text-xl font-semibold">Recent Deliveries</h2>
               </div>
@@ -416,7 +421,7 @@ export default function Profile() {
 
           {/* Payment Tab */}
           {activeTab === "payment" && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold mb-6">Payment Methods</h2>
 
               <div className="space-y-4">
@@ -538,7 +543,7 @@ export default function Profile() {
 
           {/* Settings Tab */}
           {activeTab === "settings" && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="p-6 border-b">
                 <h2 className="text-xl font-semibold">Account Settings</h2>
               </div>

@@ -209,6 +209,7 @@ export default function SearchForm({
   );
 
   // Update the handlePickupSuggestionSelect and handleDropoffSuggestionSelect functions
+  // to properly handle loading states
 
   // Handle suggestion selection for pickup
   const handlePickupSuggestionSelect = useCallback(
@@ -245,7 +246,8 @@ export default function SearchForm({
             }));
 
             // Also update the geocoding hook's result to keep things in sync
-            pickupGeocoding.geocode(address);
+            // But don't call geocode again to avoid duplicate requests
+            pickupGeocoding.setAddress(address);
 
             // Notify parent component
             if (onLocationChange) {
@@ -263,6 +265,8 @@ export default function SearchForm({
         })
         .finally(() => {
           setIsFetchingSuggestions((prev) => ({ ...prev, pickup: false }));
+          // Ensure the geocoding hook's loading state is cleared
+          pickupGeocoding.geocode(address);
         });
     },
     [
@@ -309,7 +313,8 @@ export default function SearchForm({
             }));
 
             // Also update the geocoding hook's result to keep things in sync
-            dropoffGeocoding.geocode(address);
+            // But don't call geocode again to avoid duplicate requests
+            dropoffGeocoding.setAddress(address);
 
             // Notify parent component
             if (onLocationChange) {
@@ -327,6 +332,8 @@ export default function SearchForm({
         })
         .finally(() => {
           setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: false }));
+          // Ensure the geocoding hook's loading state is cleared
+          dropoffGeocoding.geocode(address);
         });
     },
     [
@@ -406,19 +413,23 @@ export default function SearchForm({
 
   // Determine if the form is valid and ready to submit
   const isFormValid = useMemo(() => {
-    return (
+    // Check if both locations have valid coordinates
+    const hasValidPickup =
       pickupGeocoding.address.trim().length > 0 &&
+      formData.pickupCoordinates !== undefined;
+    const hasValidDropoff =
       dropoffGeocoding.address.trim().length > 0 &&
-      pickupGeocoding.coordinates !== null &&
-      dropoffGeocoding.coordinates !== null &&
-      !pickupGeocoding.isLoading &&
-      !dropoffGeocoding.isLoading
-    );
+      formData.dropoffCoordinates !== undefined;
+
+    // Check if any loading process is happening
+    const isLoading = pickupGeocoding.isLoading || dropoffGeocoding.isLoading;
+
+    return hasValidPickup && hasValidDropoff && !isLoading;
   }, [
     pickupGeocoding.address,
     dropoffGeocoding.address,
-    pickupGeocoding.coordinates,
-    dropoffGeocoding.coordinates,
+    formData.pickupCoordinates,
+    formData.dropoffCoordinates,
     pickupGeocoding.isLoading,
     dropoffGeocoding.isLoading,
   ]);
@@ -685,12 +696,13 @@ export default function SearchForm({
         disabled={!isFormValid}
         aria-disabled={!isFormValid}
       >
-        {!isFormValid &&
-        (pickupGeocoding.isLoading || dropoffGeocoding.isLoading) ? (
+        {pickupGeocoding.isLoading || dropoffGeocoding.isLoading ? (
           <>
             <Loader className="w-4 h-4 mr-2 animate-spin" />
             Validating Locations...
           </>
+        ) : !pickupGeocoding.address || !dropoffGeocoding.address ? (
+          <>Enter Locations</>
         ) : (
           <>
             Calculate Delivery

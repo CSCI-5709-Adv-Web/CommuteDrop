@@ -5,6 +5,7 @@ import { LoaderIcon, MapPin } from "lucide-react";
 import { Loader as GoogleMapsLoader } from "@googlemaps/js-api-loader";
 import { mapService } from "../../services/map-service";
 import { API_CONFIG } from "../../config/api-config";
+import MapBackground from "./MapBackground";
 
 interface Position {
   lat: number;
@@ -282,17 +283,23 @@ export default function Map({
   // Render map placeholder when no locations are entered
   if (!hasEnteredLocations) {
     return (
-      <div className="relative w-full h-full rounded-lg bg-gray-100 flex flex-col items-center justify-center">
-        <div className="text-center p-8">
-          <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <MapPin className="w-8 h-8 text-gray-400" />
+      <div className="relative w-full h-full rounded-lg overflow-hidden">
+        {/* Use the separate MapBackground component */}
+        <MapBackground />
+
+        {/* Content overlay */}
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center bg-opacity-60 backdrop-blur-sm">
+          <div className="text-center p-8 bg-white bg-opacity-80 rounded-xl shadow-sm">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <MapPin className="w-8 h-8 text-indigo-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">
+              Enter a location
+            </h3>
+            <p className="text-gray-600 max-w-xs mx-auto">
+              Start typing a pickup or dropoff location to see it on the map
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">
-            Enter a location
-          </h3>
-          <p className="text-gray-500 max-w-xs mx-auto">
-            Start typing a pickup or dropoff location to see it on the map
-          </p>
         </div>
       </div>
     );

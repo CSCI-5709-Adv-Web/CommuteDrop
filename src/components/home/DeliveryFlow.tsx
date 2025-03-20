@@ -82,6 +82,7 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
     [formData.pickup, formData.dropoff, onLocationUpdate, setFormData]
   );
 
+  // Update the handleNavigate function to properly handle loading states
   const handleNavigate = useCallback(
     (step: FlowStep) => {
       setIsLoading(true);
@@ -120,9 +121,6 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
             const response = await deliveryService.getEstimate(requestData);
 
             if (response.success && response.data) {
-              console.log("Estimate received:", response.data);
-
-              //  {
               console.log("Estimate received:", response.data);
 
               // Update form data with estimate

@@ -31,7 +31,7 @@ export function useGeocoding({
     };
   }, []);
 
-  // Improve the geocode function to be more responsive
+  // Fix the geocode function to properly handle loading states
   const geocode = useCallback(
     async (addressToGeocode?: string) => {
       const addressToUse = addressToGeocode || address;
@@ -39,6 +39,7 @@ export function useGeocoding({
       if (!addressToUse.trim()) {
         setError("Address is required");
         setResult(null);
+        setIsLoading(false); // Make sure to clear loading state
         return null;
       }
 
@@ -98,7 +99,7 @@ export function useGeocoding({
         return null;
       } finally {
         if (isMountedRef.current) {
-          setIsLoading(false);
+          setIsLoading(false); // Always ensure loading state is cleared
         }
       }
     },
@@ -129,7 +130,7 @@ export function useGeocoding({
     }
   }, [initialAddress, autoGeocode, debouncedGeocode]);
 
-  // Update the updateAddress function to properly handle address changes
+  // Fix the updateAddress function to properly handle loading states
   const updateAddress = useCallback(
     (newAddress: string) => {
       // Always update the address state
@@ -142,13 +143,17 @@ export function useGeocoding({
           clearTimeout(debounceTimerRef.current);
         }
 
+        // Set loading state immediately for UI feedback
+        setIsLoading(true);
+
         // Set a new timer for debounced geocoding
         debounceTimerRef.current = setTimeout(() => {
           geocode(newAddress);
         }, debounceMs);
       } else {
-        // If address is empty, clear the result
+        // If address is empty, clear the result and loading state
         setResult(null);
+        setIsLoading(false);
       }
     },
     [geocode, debounceMs]

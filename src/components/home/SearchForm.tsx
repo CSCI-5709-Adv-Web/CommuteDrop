@@ -4,8 +4,6 @@ import type React from "react";
 
 import { motion } from "framer-motion";
 import {
-  Send,
-  Inbox,
   Car,
   Truck,
   Bike,
@@ -20,6 +18,35 @@ import type { DeliveryFormData } from "./DeliveryFlow";
 import { useGeocoding } from "../../hooks/useGeocoding";
 import { mapService } from "../../services/map-service";
 
+// Add a new component for nearby location suggestions
+// Add this new component after the imports
+interface NearbyLocationProps {
+  location: {
+    name: string;
+    address: string;
+    distance: number;
+  };
+  onSelect: () => void;
+}
+
+function NearbyLocationSuggestion({ location, onSelect }: NearbyLocationProps) {
+  return (
+    <div
+      className="p-2 hover:bg-gray-100 cursor-pointer text-sm flex items-start"
+      onClick={onSelect}
+    >
+      <MapPin className="w-4 h-4 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />
+      <div>
+        <div className="font-medium">{location.name}</div>
+        <div className="text-gray-500 text-xs">{location.address}</div>
+        <div className="text-xs text-primary mt-1">
+          {location.distance.toFixed(1)} km away
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface SearchFormProps {
   formData: DeliveryFormData;
   setFormData: React.Dispatch<React.SetStateAction<DeliveryFormData>>;
@@ -33,7 +60,6 @@ export default function SearchForm({
   onNext,
   onLocationChange,
 }: SearchFormProps) {
-  const [activeButton, setActiveButton] = useState<"send" | "receive">("send");
   const isInitialRender = useRef(true);
   const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
   const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
@@ -50,6 +76,15 @@ export default function SearchForm({
     pickup: null,
     dropoff: null,
   });
+
+  // Add these new state variables inside the SearchForm component
+  const [nearbyLocations, setNearbyLocations] = useState<any[]>([]);
+  const [showNearbyLocations, setShowNearbyLocations] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
 
   // Use our geocoding hooks with empty initial addresses and longer debounce
   const pickupGeocoding = useGeocoding({ debounceMs: 1000 });
@@ -83,6 +118,26 @@ export default function SearchForm({
         clearTimeout(suggestionsTimerRef.current.dropoff);
       }
     };
+  }, []);
+
+  // Add this new useEffect to get the user's location
+  useEffect(() => {
+    // Try to get the user's current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(userPos);
+          console.log("Got user location:", userPos);
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+        }
+      );
+    }
   }, []);
 
   const carriers = useMemo(
@@ -136,7 +191,14 @@ export default function SearchForm({
       suggestionsTimerRef.current[type] = setTimeout(async () => {
         try {
           setIsFetchingSuggestions((prev) => ({ ...prev, [type]: true }));
-          const suggestions = await mapService.getAddressSuggestions(text);
+
+          // Add province information to the search
+          const province = "Nova Scotia"; // Default province
+          const suggestions = await mapService.getAddressSuggestions(
+            text,
+            5,
+            province
+          );
 
           // Log the suggestions to debug
           console.log(`${type} suggestions:`, suggestions);
@@ -169,6 +231,49 @@ export default function SearchForm({
     },
     []
   );
+
+  // Add this new function to fetch nearby locations
+  const fetchNearbyLocations = useCallback(async () => {
+    if (!userLocation) return;
+
+    setIsLoadingNearby(true);
+    try {
+      // Get nearby locations within 10km radius
+      const locations = await mapService.getNearbyLocations(
+        userLocation,
+        10000, // 10km radius
+        "point_of_interest",
+        5 // Limit to 5 results
+      );
+
+      setNearbyLocations(locations);
+      setShowNearbyLocations(true);
+    } catch (error) {
+      console.error("Error fetching nearby locations:", error);
+    } finally {
+      setIsLoadingNearby(false);
+    }
+  }, [userLocation]);
+
+  // Add this new function to fetch locations within the province
+  const fetchLocationsInProvince = useCallback(async () => {
+    if (!userLocation) return;
+
+    setIsLoadingNearby(true);
+    try {
+      // Get locations within Nova Scotia (or detect province from coordinates)
+      const locations = await mapService.getLocationsInRegion("Nova Scotia", 5);
+
+      if (locations.length > 0) {
+        setNearbyLocations(locations);
+        setShowNearbyLocations(true);
+      }
+    } catch (error) {
+      console.error("Error fetching province locations:", error);
+    } finally {
+      setIsLoadingNearby(false);
+    }
+  }, [userLocation]);
 
   // Handle pickup address changes
   const handlePickupChange = useCallback(
@@ -229,8 +334,10 @@ export default function SearchForm({
       setIsFetchingSuggestions((prev) => ({ ...prev, pickup: true }));
 
       // Use a direct API call instead of going through the hook
+      // Pass the province parameter
+      const province = "Nova Scotia"; // Default province
       mapService
-        .geocodeAddress(address)
+        .geocodeAddress(address, province)
         .then((result) => {
           console.log("Direct geocoding result for pickup:", result);
 
@@ -296,8 +403,10 @@ export default function SearchForm({
       setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: true }));
 
       // Use a direct API call instead of going through the hook
+      // Pass the province parameter
+      const province = "Nova Scotia"; // Default province
       mapService
-        .geocodeAddress(address)
+        .geocodeAddress(address, province)
         .then((result) => {
           console.log("Direct geocoding result for dropoff:", result);
 
@@ -450,33 +559,6 @@ export default function SearchForm({
         Have a courier deliver something for you. Get packages delivered in the
         time it takes to drive there.
       </p>
-
-      <div className="mb-6 flex p-2 bg-gray-100 rounded-lg">
-        <button
-          className={`flex-1 py-3 text-center rounded-md transition-colors flex items-center justify-center ${
-            activeButton === "send"
-              ? "bg-white shadow-sm text-primary"
-              : "text-gray-600"
-          }`}
-          onClick={() => setActiveButton("send")}
-          aria-pressed={activeButton === "send"}
-        >
-          <Send className="w-4 h-4 mr-2" aria-hidden="true" />
-          Send
-        </button>
-        <button
-          className={`flex-1 py-3 text-center rounded-md transition-colors flex items-center justify-center ${
-            activeButton === "receive"
-              ? "bg-white shadow-sm text-primary"
-              : "text-gray-600"
-          }`}
-          onClick={() => setActiveButton("receive")}
-          aria-pressed={activeButton === "receive"}
-        >
-          <Inbox className="w-4 h-4 mr-2" aria-hidden="true" />
-          Receive
-        </button>
-      </div>
 
       <div className="space-y-4">
         {/* Pickup Location Field */}
@@ -716,6 +798,53 @@ export default function SearchForm({
         <p className="text-xs text-gray-500 text-center mt-2">
           Enter pickup and dropoff locations to continue
         </p>
+      )}
+
+      {/* Add this after the pickup suggestions */}
+      {showNearbyLocations && (
+        <div
+          id="nearby-suggestions-container"
+          className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto"
+        >
+          <div className="p-2 border-b border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700">
+              Nearby Locations
+            </h4>
+          </div>
+
+          {isLoadingNearby ? (
+            <div className="p-2 text-sm text-gray-500 flex items-center justify-center">
+              <Loader className="w-3 h-3 mr-2 animate-spin" />
+              Finding nearby locations...
+            </div>
+          ) : nearbyLocations.length === 0 ? (
+            <div className="p-2 text-sm text-gray-500">
+              No nearby locations found
+            </div>
+          ) : (
+            nearbyLocations.map((location, index) => (
+              <NearbyLocationSuggestion
+                key={index}
+                location={location}
+                onSelect={() => {
+                  // Handle selection based on which field is active
+                  if (showPickupSuggestions) {
+                    handlePickupSuggestionSelect({
+                      description: location.address,
+                      mainText: location.name,
+                    });
+                  } else {
+                    handleDropoffSuggestionSelect({
+                      description: location.address,
+                      mainText: location.name,
+                    });
+                  }
+                  setShowNearbyLocations(false);
+                }}
+              />
+            ))
+          )}
+        </div>
       )}
     </motion.div>
   );

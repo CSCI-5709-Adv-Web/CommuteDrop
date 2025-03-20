@@ -6,10 +6,10 @@
 export const API_CONFIG = {
   // Use environment variable or fallback to localhost with correct port for auth service
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087/api",
-  // Add a fallback API key for development (in production, use environment variables)
-  MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_FALLBACK_API_KEY_FOR_DEVELOPMENT",
   // Location service URL
   LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/api/location",
+  // Keep the Maps API key only for map rendering, not for services
+  MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   TIMEOUT: 15000, // 15 seconds
 }
 
@@ -45,6 +45,9 @@ export const ENDPOINTS = {
     REVERSE_GEOCODE: `${API_CONFIG.LOCATION_SERVICE_URL}/reverse-geocode`,
     DISTANCE_MATRIX: `${API_CONFIG.LOCATION_SERVICE_URL}/matrix`,
     DIRECTIONS: `${API_CONFIG.LOCATION_SERVICE_URL}/route`,
+    AUTOCOMPLETE: `${API_CONFIG.LOCATION_SERVICE_URL}/autocomplete`,
+    NEARBY: `${API_CONFIG.LOCATION_SERVICE_URL}/nearby`,
+    REGION: `${API_CONFIG.LOCATION_SERVICE_URL}/region`,
   },
 }
 

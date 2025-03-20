@@ -162,17 +162,91 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           opacity="0.8"
         />
 
+        {/* Province boundaries */}
+        <path
+          d="M50 100C100 80 150 120 200 100C250 80 300 120 350 100"
+          stroke="#9333ea"
+          strokeWidth="3"
+          strokeDasharray="10 5"
+          opacity="0.7"
+        />
+
+        <path
+          d="M450 100C500 80 550 120 600 100C650 80 700 120 750 100"
+          stroke="#9333ea"
+          strokeWidth="3"
+          strokeDasharray="10 5"
+          opacity="0.7"
+        />
+
+        {/* Compass */}
+        <circle cx="730" cy="70" r="30" fill="white" opacity="0.9" />
+        <path d="M730 40V100" stroke="#4f46e5" strokeWidth="2" />
+        <path d="M700 70H760" stroke="#4f46e5" strokeWidth="2" />
+        <text x="728" y="55" fill="#4f46e5" fontSize="12" fontWeight="bold">
+          N
+        </text>
+        <text x="728" y="90" fill="#4f46e5" fontSize="12" fontWeight="bold">
+          S
+        </text>
+        <text x="710" y="74" fill="#4f46e5" fontSize="12" fontWeight="bold">
+          W
+        </text>
+        <text x="745" y="74" fill="#4f46e5" fontSize="12" fontWeight="bold">
+          E
+        </text>
+
         {/* Route markers */}
         <circle cx="250" cy="200" r="10" fill="#22c55e" />
         <circle cx="550" cy="400" r="10" fill="#ef4444" />
 
-        {/* Route line */}
+        {/* Route line - now curved to look more like a real route */}
         <path
-          d="M250 200C300 250 350 300 400 350C450 380 500 400 550 400"
+          d="M250 200C300 230 320 280 350 320C380 360 450 380 550 400"
           stroke="#2563eb"
           strokeWidth="5"
-          strokeDasharray="10 10"
+          strokeLinecap="round"
         />
+
+        {/* Add some location labels */}
+        <rect
+          x="230"
+          y="160"
+          width="80"
+          height="20"
+          rx="5"
+          fill="white"
+          opacity="0.9"
+        />
+        <text x="240" y="175" fill="#1e3a8a" fontSize="10" fontWeight="bold">
+          Halifax
+        </text>
+
+        <rect
+          x="530"
+          y="410"
+          width="80"
+          height="20"
+          rx="5"
+          fill="white"
+          opacity="0.9"
+        />
+        <text x="540" y="425" fill="#1e3a8a" fontSize="10" fontWeight="bold">
+          Dartmouth
+        </text>
+
+        <rect
+          x="350"
+          y="100"
+          width="100"
+          height="20"
+          rx="5"
+          fill="white"
+          opacity="0.9"
+        />
+        <text x="360" y="115" fill="#1e3a8a" fontSize="10" fontWeight="bold">
+          Nova Scotia
+        </text>
       </svg>
     </div>
   );

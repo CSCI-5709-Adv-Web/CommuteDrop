@@ -43,7 +43,7 @@ export function useGeocoding({
         return null;
       }
 
-      // Clear any existing timer when directly geocoding
+      // Clear any existing timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
@@ -60,7 +60,12 @@ export function useGeocoding({
         setError(null);
 
         console.log(`Geocoding address in hook: "${addressToUse}"`);
-        const geocodingResult = await mapService.geocodeAddress(addressToUse);
+        // Pass the province parameter
+        const province = "Nova Scotia"; // Default province
+        const geocodingResult = await mapService.geocodeAddress(
+          addressToUse,
+          province
+        );
 
         // Only update if component is still mounted
         if (!isMountedRef.current) return null;

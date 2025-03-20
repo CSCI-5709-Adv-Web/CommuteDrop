@@ -56,15 +56,12 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
   // Handle location changes and update map
   const handleLocationChange = useCallback(
     (pickup: string, dropoff: string) => {
-      // Only update parent component if callback exists and values have changed
-      if (
-        onLocationUpdate &&
-        (pickup !== formData.pickup || dropoff !== formData.dropoff)
-      ) {
+      // Always update parent component if callback exists
+      if (onLocationUpdate) {
         onLocationUpdate(pickup, dropoff);
       }
     },
-    [onLocationUpdate, formData.pickup, formData.dropoff]
+    [onLocationUpdate]
   );
 
   const handleNavigate = useCallback(

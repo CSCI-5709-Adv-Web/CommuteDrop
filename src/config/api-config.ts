@@ -1,12 +1,15 @@
 // Central configuration for API endpoints and config values
 
+// Update API_CONFIG to use environment variables or fallback values
+
 // Base API URLs
 export const API_CONFIG = {
+  // Use environment variable or fallback to localhost
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087/api",
   // Add a fallback API key for development (in production, use environment variables)
   MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_FALLBACK_API_KEY_FOR_DEVELOPMENT",
-  DISTANCE_MATRIX_API: "https://maps.googleapis.com/maps/api/distancematrix/json",
-  GEOCODING_API: "https://maps.googleapis.com/maps/api/geocode/json",
+  // Use proxy endpoints for maps services
+  MAPS_PROXY_BASE: import.meta.env.VITE_MAPS_PROXY_BASE || "/api/maps",
   TIMEOUT: 15000, // 15 seconds
 }
 
@@ -38,9 +41,10 @@ export const ENDPOINTS = {
 
   // Maps endpoints
   MAPS: {
-    GEOCODE: "/maps/geocode",
-    REVERSE_GEOCODE: "/maps/reverse-geocode",
-    DIRECTIONS: "/maps/directions",
+    GEOCODE: `${API_CONFIG.MAPS_PROXY_BASE}/geocode`,
+    REVERSE_GEOCODE: `${API_CONFIG.MAPS_PROXY_BASE}/reverse-geocode`,
+    DISTANCE_MATRIX: `${API_CONFIG.MAPS_PROXY_BASE}/distance-matrix`,
+    DIRECTIONS: `${API_CONFIG.MAPS_PROXY_BASE}/directions`,
   },
 }
 

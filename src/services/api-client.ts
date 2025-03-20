@@ -37,8 +37,17 @@ class ApiClient {
           config.headers.Authorization = `Bearer ${token}`
         }
 
-        // For development: Mock API responses instead of making real requests
+        // Log all API requests in development
         if (import.meta.env.DEV) {
+          console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+            headers: config.headers,
+            data: config.data,
+          })
+        }
+
+        // For development: Mock API responses instead of making real requests
+        if (import.meta.env.DEV && false) {
+          // Set to true to enable mocking
           // We need to return the config as expected by the interceptor
           // The actual mocking will happen in the adapter
           const url = config.url || ""
@@ -209,8 +218,30 @@ class ApiClient {
 
     // Response interceptor for error handling and token refresh
     this.instance.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Log all API responses in development
+        if (import.meta.env.DEV) {
+          console.log(
+            `API Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`,
+            {
+              data: response.data,
+            },
+          )
+        }
+        return response
+      },
       async (error: AxiosError) => {
+        // Log all API errors in development
+        if (import.meta.env.DEV) {
+          console.error(
+            `API Error: ${error.response?.status || "Network Error"} ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
+            {
+              message: error.message,
+              response: error.response?.data,
+            },
+          )
+        }
+
         const originalRequest = error.config
 
         // If the error is 401 Unauthorized and we have a refresh token

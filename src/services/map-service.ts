@@ -18,54 +18,33 @@ export interface Route {
   }
 }
 
-// Updated service to use mock data for development and avoid direct API calls
+// Updated service to use proxy server API endpoints
 export const mapService = {
   /**
    * Geocode an address to latitude and longitude
    */
   geocodeAddress: async (address: string): Promise<GeocodingResult> => {
     try {
-      // For development: Use mock geocoding data for common locations
-      const mockLocations: Record<string, { lat: number; lng: number }> = {
-        "quinpool tower": { lat: 44.6454, lng: -63.5918 },
-        "dalhousie dentistry faculty practice": { lat: 44.6366, lng: -63.585 },
-        "halifax shopping centre": { lat: 44.6497, lng: -63.6108 },
-        "halifax central library": { lat: 44.6434, lng: -63.5775 },
-        "point pleasant park": { lat: 44.6228, lng: -63.5686 },
-        "halifax citadel": { lat: 44.6478, lng: -63.5804 },
-        "halifax waterfront": { lat: 44.6476, lng: -63.5683 },
-        dartmouth: { lat: 44.6658, lng: -63.5669 },
-        bedford: { lat: 44.7325, lng: -63.6556 },
-        "downtown halifax": { lat: 44.6488, lng: -63.5752 },
+      console.log("Geocoding address:", address)
+
+      // Call the proxy server API endpoint
+      const response = await fetch(`/api/maps/geocode?address=${encodeURIComponent(address)}`)
+
+      if (!response.ok) {
+        console.error(`Geocoding failed with status: ${response.status}`)
+        throw new Error(`Geocoding failed with status: ${response.status}`)
       }
 
-      // Normalize the address for lookup
-      const normalizedAddress = address.toLowerCase().trim()
+      const data = await response.json()
+      console.log("Geocoding result:", data)
 
-      // Find a matching location or return a default location with slight randomization
-      for (const [key, location] of Object.entries(mockLocations)) {
-        if (normalizedAddress.includes(key)) {
-          return {
-            address,
-            latitude: location.lat,
-            longitude: location.lng,
-            formattedAddress: address,
-          }
-        }
-      }
-
-      // In production, you would use a server-side proxy endpoint
-      // const response = await axios.get(`${API_CONFIG.BASE_URL}/maps/geocode`, {
-      //   params: { address }
-      // });
-      // return response.data;
-
-      // For development: Return a random location in Halifax if no match
+      // Return the geocoding result
       return {
         address,
-        latitude: 44.6488 + (Math.random() * 0.02 - 0.01),
-        longitude: -63.5752 + (Math.random() * 0.02 - 0.01),
-        formattedAddress: address,
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        formattedAddress: data.formattedAddress || address,
+        placeId: data.placeId,
       }
     } catch (error: any) {
       console.error("Geocoding error:", error)
@@ -83,18 +62,21 @@ export const mapService = {
    */
   reverseGeocode: async (latitude: number, longitude: number): Promise<GeocodingResult> => {
     try {
-      // In production, you would use a server-side proxy endpoint
-      // const response = await axios.get(`${API_CONFIG.BASE_URL}/maps/reverse-geocode`, {
-      //   params: { lat: latitude, lng: longitude }
-      // });
-      // return response.data;
+      // Call the proxy server API endpoint
+      const response = await fetch(`/api/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`)
 
-      // For development: Return mock data
+      if (!response.ok) {
+        throw new Error(`Reverse geocoding failed with status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
       return {
-        address: "Mock Address for " + latitude.toFixed(4) + ", " + longitude.toFixed(4),
+        address: data.address || "Unknown location",
         latitude,
         longitude,
-        formattedAddress: "Mock Address, Halifax, NS",
+        formattedAddress: data.formattedAddress,
+        placeId: data.placeId,
       }
     } catch (error) {
       console.error("Reverse geocoding error:", error)
@@ -117,42 +99,34 @@ export const mapService = {
     duration: { text: string; value: number }
   }> => {
     try {
-      // In production, you would use a server-side proxy endpoint
-      // const response = await axios.get(`${API_CONFIG.BASE_URL}/maps/distance-matrix`, {
-      //   params: {
-      //     origins: JSON.stringify(origins),
-      //     destinations: JSON.stringify(destinations)
-      //   }
-      // });
-      // return response.data;
+      // Format origins and destinations for the API
+      const originsParam = origins
+        .map((origin) => (typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`))
+        .join("|")
 
-      // For development: Calculate rough distance and return mock data
-      const origin =
-        typeof origins[0] === "string"
-          ? { lat: 44.6488, lng: -63.5752 } // Default Halifax coordinates
-          : (origins[0] as { lat: number; lng: number })
+      const destinationsParam = destinations
+        .map((dest) => (typeof dest === "string" ? dest : `${dest.lat},${dest.lng}`))
+        .join("|")
 
-      const destination =
-        typeof destinations[0] === "string"
-          ? { lat: 44.6366, lng: -63.585 } // Default Dalhousie coordinates
-          : (destinations[0] as { lat: number; lng: number })
-
-      // Calculate rough distance in meters (very simplified)
-      const distance = Math.sqrt(
-        Math.pow((origin.lat - destination.lat) * 111000, 2) + Math.pow((origin.lng - destination.lng) * 85000, 2),
+      // Call the proxy server API endpoint
+      const response = await fetch(
+        `/api/maps/distance-matrix?origins=${encodeURIComponent(originsParam)}&destinations=${encodeURIComponent(destinationsParam)}`,
       )
 
-      // Estimate duration (assuming 30 km/h average speed)
-      const duration = (distance / 30) * 3.6
+      if (!response.ok) {
+        throw new Error(`Distance matrix failed with status: ${response.status}`)
+      }
+
+      const data = await response.json()
 
       return {
         distance: {
-          text: `${(distance / 1000).toFixed(1)} km`,
-          value: Math.round(distance),
+          text: data.distance?.text || "0 km",
+          value: data.distance?.value || 0,
         },
         duration: {
-          text: `${Math.round(duration)} mins`,
-          value: Math.round(duration * 60),
+          text: data.duration?.text || "0 mins",
+          value: data.duration?.value || 0,
         },
       }
     } catch (error) {
@@ -173,57 +147,39 @@ export const mapService = {
     waypoints?: Array<{ lat: number; lng: number } | string>,
   ): Promise<Route> => {
     try {
-      // In production, you would use a server-side proxy endpoint
-      // const response = await axios.get(`${API_CONFIG.BASE_URL}/maps/directions`, {
-      //   params: {
-      //     origin: JSON.stringify(origin),
-      //     destination: JSON.stringify(destination),
-      //     waypoints: waypoints ? JSON.stringify(waypoints) : undefined
-      //   }
-      // });
-      // return response.data;
+      // Format origin, destination and waypoints for the API
+      const originParam = typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`
+      const destinationParam = typeof destination === "string" ? destination : `${destination.lat},${destination.lng}`
 
-      // For development: Generate a simple straight line path
-      const originPoint =
-        typeof origin === "string"
-          ? { lat: 44.6488, lng: -63.5752 } // Default Halifax coordinates
-          : origin
-
-      const destinationPoint =
-        typeof destination === "string"
-          ? { lat: 44.6366, lng: -63.585 } // Default Dalhousie coordinates
-          : destination
-
-      // Create a simple path with 5 points between origin and destination
-      const path = [originPoint]
-
-      for (let i = 1; i < 5; i++) {
-        path.push({
-          lat: originPoint.lat + (destinationPoint.lat - originPoint.lat) * (i / 5),
-          lng: originPoint.lng + (destinationPoint.lng - originPoint.lng) * (i / 5),
-        })
+      let waypointsParam = ""
+      if (waypoints && waypoints.length > 0) {
+        waypointsParam = waypoints.map((wp) => (typeof wp === "string" ? wp : `${wp.lat},${wp.lng}`)).join("|")
       }
 
-      path.push(destinationPoint)
+      // Build the URL with query parameters
+      let url = `/api/maps/directions?origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destinationParam)}`
+      if (waypointsParam) {
+        url += `&waypoints=${encodeURIComponent(waypointsParam)}`
+      }
 
-      // Calculate rough distance
-      const distance = Math.sqrt(
-        Math.pow((originPoint.lat - destinationPoint.lat) * 111000, 2) +
-          Math.pow((originPoint.lng - destinationPoint.lng) * 85000, 2),
-      )
+      // Call the proxy server API endpoint
+      const response = await fetch(url)
 
-      // Estimate duration (assuming 30 km/h average speed)
-      const duration = (distance / 30) * 3.6
+      if (!response.ok) {
+        throw new Error(`Directions failed with status: ${response.status}`)
+      }
+
+      const data = await response.json()
 
       return {
-        path,
+        path: data.path || [],
         distance: {
-          text: `${(distance / 1000).toFixed(1)} km`,
-          value: Math.round(distance),
+          text: data.distance?.text || "0 km",
+          value: data.distance?.value || 0,
         },
         duration: {
-          text: `${Math.round(duration)} mins`,
-          value: Math.round(duration * 60),
+          text: data.duration?.text || "0 mins",
+          value: data.duration?.value || 0,
         },
       }
     } catch (error) {

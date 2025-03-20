@@ -9,8 +9,19 @@ export const authService = {
    */
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     try {
-      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.LOGIN, credentials)
+      // Log the request for debugging
+      console.log("Login request:", credentials)
+      console.log("Endpoint:", ENDPOINTS.AUTH.LOGIN)
+
+      const response = await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.LOGIN, credentials)
+
+      // Log the response for debugging
+      console.log("Login response:", response)
+
+      return response
     } catch (error: any) {
+      console.error("Login error:", error)
+
       // Return a standardized error format matching AuthResponse
       return {
         statusCode: error.status || 500,
@@ -27,8 +38,19 @@ export const authService = {
    */
   register: async (userData: RegisterRequest): Promise<AuthResponse> => {
     try {
-      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REGISTER, userData)
+      // Log the request for debugging
+      console.log("Register request:", userData)
+      console.log("Endpoint:", ENDPOINTS.AUTH.REGISTER)
+
+      const response = await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REGISTER, userData)
+
+      // Log the response for debugging
+      console.log("Register response:", response)
+
+      return response
     } catch (error: any) {
+      console.error("Registration error:", error)
+
       return {
         statusCode: error.status || 500,
         success: false,
@@ -44,8 +66,19 @@ export const authService = {
    */
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
     try {
-      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REFRESH_TOKEN, { refreshToken })
+      // Log the request for debugging
+      console.log("Refresh token request:", { refreshToken: refreshToken.substring(0, 10) + "..." })
+      console.log("Endpoint:", ENDPOINTS.AUTH.REFRESH_TOKEN)
+
+      const response = await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.REFRESH_TOKEN, { refreshToken })
+
+      // Log the response for debugging (without sensitive data)
+      console.log("Refresh token response status:", response.success)
+
+      return response
     } catch (error: any) {
+      console.error("Token refresh error:", error)
+
       return {
         statusCode: error.status || 500,
         success: false,
@@ -61,8 +94,19 @@ export const authService = {
    */
   verifyEmail: async (email: string, code: string): Promise<AuthResponse> => {
     try {
-      return await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.VERIFY_EMAIL, { email, code })
+      // Log the request for debugging
+      console.log("Verify email request:", { email, code })
+      console.log("Endpoint:", ENDPOINTS.AUTH.VERIFY_EMAIL)
+
+      const response = await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.VERIFY_EMAIL, { email, code })
+
+      // Log the response for debugging
+      console.log("Verify email response:", response)
+
+      return response
     } catch (error: any) {
+      console.error("Email verification error:", error)
+
       return {
         statusCode: error.status || 500,
         success: false,

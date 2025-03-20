@@ -18,8 +18,39 @@ export interface Route {
   }
 }
 
-// Updated service to use proxy server API endpoints
+export interface AutocompleteResult {
+  placeId: string
+  description: string
+  mainText: string
+  secondaryText: string
+}
+
+// Update the base URL for location service
+const LOCATION_SERVICE_URL = "http://localhost:5001/api/location"
+
+// Updated service to use the actual proxy server API endpoints
 export const mapService = {
+  /**
+   * Get address suggestions for autocomplete
+   */
+  getAddressSuggestions: async (text: string, maxResults = 5): Promise<AutocompleteResult[]> => {
+    try {
+      const response = await fetch(
+        `${LOCATION_SERVICE_URL}/autocomplete?text=${encodeURIComponent(text)}&maxResults=${maxResults}`,
+      )
+
+      if (!response.ok) {
+        throw new Error(`Autocomplete failed with status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.suggestions || []
+    } catch (error) {
+      console.error("Autocomplete error:", error)
+      return []
+    }
+  },
+
   /**
    * Geocode an address to latitude and longitude
    */
@@ -27,8 +58,14 @@ export const mapService = {
     try {
       console.log("Geocoding address:", address)
 
-      // Call the proxy server API endpoint
-      const response = await fetch(`/api/maps/geocode?address=${encodeURIComponent(address)}`)
+      // Call the actual location service endpoint
+      const response = await fetch(`${LOCATION_SERVICE_URL}/geocode`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ address }),
+      })
 
       if (!response.ok) {
         console.error(`Geocoding failed with status: ${response.status}`)
@@ -58,60 +95,23 @@ export const mapService = {
   },
 
   /**
-   * Reverse geocode latitude and longitude to address
-   */
-  reverseGeocode: async (latitude: number, longitude: number): Promise<GeocodingResult> => {
-    try {
-      // Call the proxy server API endpoint
-      const response = await fetch(`/api/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`)
-
-      if (!response.ok) {
-        throw new Error(`Reverse geocoding failed with status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      return {
-        address: data.address || "Unknown location",
-        latitude,
-        longitude,
-        formattedAddress: data.formattedAddress,
-        placeId: data.placeId,
-      }
-    } catch (error) {
-      console.error("Reverse geocoding error:", error)
-      return {
-        address: "Unknown location",
-        latitude,
-        longitude,
-      }
-    }
-  },
-
-  /**
    * Get distance and duration between two points
    */
   getDistanceMatrix: async (
-    origins: Array<{ lat: number; lng: number } | string>,
-    destinations: Array<{ lat: number; lng: number } | string>,
+    fromAddress: string,
+    toAddress: string,
   ): Promise<{
     distance: { text: string; value: number }
     duration: { text: string; value: number }
   }> => {
     try {
-      // Format origins and destinations for the API
-      const originsParam = origins
-        .map((origin) => (typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`))
-        .join("|")
-
-      const destinationsParam = destinations
-        .map((dest) => (typeof dest === "string" ? dest : `${dest.lat},${dest.lng}`))
-        .join("|")
-
-      // Call the proxy server API endpoint
-      const response = await fetch(
-        `/api/maps/distance-matrix?origins=${encodeURIComponent(originsParam)}&destinations=${encodeURIComponent(destinationsParam)}`,
-      )
+      const response = await fetch(`${LOCATION_SERVICE_URL}/matrix`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fromAddress, toAddress }),
+      })
 
       if (!response.ok) {
         throw new Error(`Distance matrix failed with status: ${response.status}`)
@@ -147,23 +147,19 @@ export const mapService = {
     waypoints?: Array<{ lat: number; lng: number } | string>,
   ): Promise<Route> => {
     try {
-      // Format origin, destination and waypoints for the API
-      const originParam = typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`
-      const destinationParam = typeof destination === "string" ? destination : `${destination.lat},${destination.lng}`
+      // Convert coordinates to addresses if needed
+      const fromAddress = typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`
 
-      let waypointsParam = ""
-      if (waypoints && waypoints.length > 0) {
-        waypointsParam = waypoints.map((wp) => (typeof wp === "string" ? wp : `${wp.lat},${wp.lng}`)).join("|")
-      }
+      const toAddress = typeof destination === "string" ? destination : `${destination.lat},${destination.lng}`
 
-      // Build the URL with query parameters
-      let url = `/api/maps/directions?origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destinationParam)}`
-      if (waypointsParam) {
-        url += `&waypoints=${encodeURIComponent(waypointsParam)}`
-      }
-
-      // Call the proxy server API endpoint
-      const response = await fetch(url)
+      // Call the actual route API
+      const response = await fetch(`${LOCATION_SERVICE_URL}/route`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fromAddress, toAddress }),
+      })
 
       if (!response.ok) {
         throw new Error(`Directions failed with status: ${response.status}`)
@@ -190,50 +186,6 @@ export const mapService = {
         duration: { text: "10 mins", value: 600 },
       }
     }
-  },
-
-  /**
-   * Helper function to decode Google's encoded polyline format
-   */
-  decodePath(encoded: string): Array<{ lat: number; lng: number }> {
-    if (!encoded) {
-      return []
-    }
-
-    const points: Array<{ lat: number; lng: number }> = []
-    let index = 0,
-      lat = 0,
-      lng = 0
-
-    while (index < encoded.length) {
-      let b,
-        shift = 0,
-        result = 0
-      do {
-        b = encoded.charCodeAt(index++) - 63
-        result |= (b & 0x1f) << shift
-        shift += 5
-      } while (b >= 0x20)
-      const dlat = result & 1 ? ~(result >> 1) : result >> 1
-      lat += dlat
-
-      shift = 0
-      result = 0
-      do {
-        b = encoded.charCodeAt(index++) - 63
-        result |= (b & 0x1f) << shift
-        shift += 5
-      } while (b >= 0x20)
-      const dlng = result & 1 ? ~(result >> 1) : result >> 1
-      lng += dlng
-
-      points.push({
-        lat: lat * 1e-5,
-        lng: lng * 1e-5,
-      })
-    }
-
-    return points
   },
 }
 

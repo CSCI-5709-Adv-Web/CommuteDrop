@@ -4,86 +4,69 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import DeliveryFlow from "../components/home/DeliveryFlow";
 import Map from "../components/home/Map";
+import { mapService } from "../services/map-service";
 
 interface Position {
   lat: number;
   lng: number;
 }
 
-// Mock geocoding function - in a real app, this would use Google's Geocoding API
-const geocodeAddress = async (address: string): Promise<Position | null> => {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // Mock geocoding results for Halifax area
-  const mockLocations: Record<string, Position> = {
-    "quinpool tower": { lat: 44.6454, lng: -63.5918 },
-    "dalhousie dentistry faculty practice": { lat: 44.6366, lng: -63.585 },
-    "halifax shopping centre": { lat: 44.6497, lng: -63.6108 },
-    "halifax central library": { lat: 44.6434, lng: -63.5775 },
-    "point pleasant park": { lat: 44.6228, lng: -63.5686 },
-    "halifax citadel": { lat: 44.6478, lng: -63.5804 },
-    "halifax waterfront": { lat: 44.6476, lng: -63.5683 },
-    dartmouth: { lat: 44.6658, lng: -63.5669 },
-    bedford: { lat: 44.7325, lng: -63.6556 },
-    "downtown halifax": { lat: 44.6488, lng: -63.5752 },
-    "south end": { lat: 44.6328, lng: -63.5714 },
-    "north end": { lat: 44.6608, lng: -63.5908 },
-    fairview: { lat: 44.6608, lng: -63.6328 },
-    // Default fallback for unknown locations - random point in Halifax
-    default: {
-      lat: 44.6488 + (Math.random() * 0.02 - 0.01),
-      lng: -63.5752 + (Math.random() * 0.02 - 0.01),
-    },
-  };
-
-  // Normalize the address for lookup
-  const normalizedAddress = address.toLowerCase().trim();
-
-  // Find a matching location or return a point near the default
-  for (const [key, location] of Object.entries(mockLocations)) {
-    if (normalizedAddress.includes(key)) {
-      return location;
-    }
-  }
-
-  // Return default with slight randomization if no match
-  return mockLocations.default;
-};
-
 export default function Home() {
-  const [pickup, setPickup] = useState("Quinpool Tower");
-  const [dropoff, setDropoff] = useState(
-    "Dalhousie Dentistry Faculty Practice"
-  );
-  const [positions, setPositions] = useState<Position[]>([
-    { lat: 44.6454, lng: -63.5918 },
-    { lat: 44.6366, lng: -63.585 },
-  ]);
+  const [pickup, setPickup] = useState("");
+  const [dropoff, setDropoff] = useState("");
+  const [positions, setPositions] = useState<Position[]>([]);
   const [center, setCenter] = useState<Position>({
-    lat: 44.6414,
-    lng: -63.5827,
+    lat: 44.6488, // Default center (Halifax)
+    lng: -63.5752,
   });
+  const [hasEnteredLocations, setHasEnteredLocations] = useState(false);
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
 
   // Update map when pickup/dropoff changes
   useEffect(() => {
     const updateMapPositions = async () => {
       try {
-        // Only geocode if both fields have values
-        if (!pickup && !dropoff) {
+        // Check if either field has values
+        const hasPickup = pickup && pickup.trim().length > 0;
+        const hasDropoff = dropoff && dropoff.trim().length > 0;
+
+        // Update the entered locations state
+        setHasEnteredLocations(!!(hasPickup || hasDropoff));
+
+        if (!hasPickup && !hasDropoff) {
+          setPositions([]);
           return;
         }
 
+        setIsLoadingMap(true);
         const newPositions: Position[] = [];
 
-        if (pickup) {
-          const pickupCoords = await geocodeAddress(pickup);
-          if (pickupCoords) newPositions.push(pickupCoords);
+        if (hasPickup) {
+          try {
+            const pickupResult = await mapService.geocodeAddress(pickup);
+            if (pickupResult.latitude !== 0 && pickupResult.longitude !== 0) {
+              newPositions.push({
+                lat: pickupResult.latitude,
+                lng: pickupResult.longitude,
+              });
+            }
+          } catch (error) {
+            console.error("Error geocoding pickup address:", error);
+          }
         }
 
-        if (dropoff) {
-          const dropoffCoords = await geocodeAddress(dropoff);
-          if (dropoffCoords) newPositions.push(dropoffCoords);
+        if (hasDropoff) {
+          try {
+            const dropoffResult = await mapService.geocodeAddress(dropoff);
+            if (dropoffResult.latitude !== 0 && dropoffResult.longitude !== 0) {
+              newPositions.push({
+                lat: dropoffResult.latitude,
+                lng: dropoffResult.longitude,
+              });
+            }
+          } catch (error) {
+            console.error("Error geocoding dropoff address:", error);
+          }
         }
 
         // Only update state if we have positions
@@ -101,6 +84,8 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Error updating map positions:", error);
+      } finally {
+        setIsLoadingMap(false);
       }
     };
 
@@ -127,7 +112,13 @@ export default function Home() {
           <DeliveryFlow onLocationUpdate={handleLocationUpdate} />
         </div>
         <div className="hidden md:block flex-1 rounded-lg overflow-hidden">
-          <Map positions={positions} center={center} drawRoute={true} />
+          <Map
+            positions={positions}
+            center={center}
+            drawRoute={positions.length > 1}
+            hasEnteredLocations={hasEnteredLocations}
+            isLoading={isLoadingMap}
+          />
         </div>
       </div>
     </div>

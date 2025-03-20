@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { LoaderIcon } from "lucide-react";
+import { LoaderIcon, MapPin } from "lucide-react";
 import { Loader as GoogleMapsLoader } from "@googlemaps/js-api-loader";
 import { mapService } from "../../services/map-service";
 import { API_CONFIG } from "../../config/api-config";
@@ -15,21 +15,29 @@ interface MapProps {
   positions: Position[];
   center: Position;
   drawRoute?: boolean;
+  hasEnteredLocations?: boolean;
+  isLoading?: boolean;
 }
 
-export default function Map({ positions, center, drawRoute = true }: MapProps) {
+export default function Map({
+  positions,
+  center,
+  drawRoute = true,
+  hasEnteredLocations = false,
+  isLoading = false,
+}: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
   const googleRef = useRef<typeof google | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isMapLoading, setIsMapLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Initialize map
   const initMap = useCallback(async () => {
     if (mapRef.current === null) return;
-    setIsLoading(true);
+    setIsMapLoading(true);
 
     try {
       const loader = new GoogleMapsLoader({
@@ -67,11 +75,11 @@ export default function Map({ positions, center, drawRoute = true }: MapProps) {
       });
 
       setMap(mapInstance);
-      setIsLoading(false);
+      setIsMapLoading(false);
     } catch (error) {
       console.error("Error loading Google Maps:", error);
       setError("Failed to load map. Please try again later.");
-      setIsLoading(false);
+      setIsMapLoading(false);
     }
   }, [center]);
 
@@ -84,7 +92,7 @@ export default function Map({ positions, center, drawRoute = true }: MapProps) {
 
   // Update markers when positions change
   useEffect(() => {
-    if (!map || !googleRef.current) return;
+    if (!map || !googleRef.current || !hasEnteredLocations) return;
 
     const google = googleRef.current;
 
@@ -150,11 +158,17 @@ export default function Map({ positions, center, drawRoute = true }: MapProps) {
       map.setCenter(positions[0]);
       map.setZoom(15);
     }
-  }, [map, positions]);
+  }, [map, positions, hasEnteredLocations]);
 
   // Draw polyline between points using directions API
   useEffect(() => {
-    if (!map || !googleRef.current || positions.length < 2 || !drawRoute)
+    if (
+      !map ||
+      !googleRef.current ||
+      positions.length < 2 ||
+      !drawRoute ||
+      !hasEnteredLocations
+    )
       return;
 
     const google = googleRef.current;
@@ -232,14 +246,33 @@ export default function Map({ positions, center, drawRoute = true }: MapProps) {
         polylineRef.current = null;
       }
     };
-  }, [map, positions, drawRoute]);
+  }, [map, positions, drawRoute, hasEnteredLocations]);
+
+  // Render map placeholder when no locations are entered
+  if (!hasEnteredLocations) {
+    return (
+      <div className="relative w-full h-full rounded-lg bg-gray-100 flex flex-col items-center justify-center">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <MapPin className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-700 mb-2">
+            Enter a location
+          </h3>
+          <p className="text-gray-500 max-w-xs mx-auto">
+            Start typing a pickup or dropoff location to see it on the map
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       className="relative w-full h-full rounded-lg"
       style={{ minHeight: "500px" }}
     >
-      {isLoading && (
+      {(isMapLoading || isLoading) && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10">
           <div className="flex flex-col items-center">
             <LoaderIcon className="w-10 h-10 text-primary animate-spin" />

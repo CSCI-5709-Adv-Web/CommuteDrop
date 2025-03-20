@@ -28,13 +28,14 @@ export interface DeliveryFormData {
   cvc: string;
 }
 
+// Update the DeliveryFlow component to start with empty locations
 export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
   const [isLoading, setIsLoading] = useState(false);
   const [estimateData, setEstimateData] = useState<any>(null);
   const [formData, setFormData] = useState<DeliveryFormData>({
-    pickup: "Quinpool Tower",
-    dropoff: "Dalhousie Dentistry Faculty Practice",
+    pickup: "",
+    dropoff: "",
     weight: "",
     carrier: "car",
     estimatedTime: "30-45 mins",

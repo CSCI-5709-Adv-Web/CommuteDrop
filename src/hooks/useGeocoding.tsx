@@ -20,6 +20,7 @@ export function useGeocoding({
   const [error, setError] = useState<string | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const geocodeRequestIdRef = useRef(0);
 
   // Clear any existing timer when component unmounts
   useEffect(() => {
@@ -36,6 +37,9 @@ export function useGeocoding({
     async (addressToGeocode?: string) => {
       const addressToUse = addressToGeocode || address;
 
+      // Generate a unique request ID to track this specific request
+      const requestId = ++geocodeRequestIdRef.current;
+
       if (!addressToUse.trim()) {
         setError("Address is required");
         setResult(null);
@@ -47,12 +51,6 @@ export function useGeocoding({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
-      }
-
-      // Don't geocode if we're already loading and it's the same address
-      if (isLoading && addressToUse === address) {
-        console.log("Skipping duplicate geocoding request for:", addressToUse);
-        return null;
       }
 
       try {
@@ -67,8 +65,9 @@ export function useGeocoding({
           province
         );
 
-        // Only update if component is still mounted
-        if (!isMountedRef.current) return null;
+        // Only update if component is still mounted and this is the latest request
+        if (!isMountedRef.current || requestId !== geocodeRequestIdRef.current)
+          return null;
 
         // Check if we got valid coordinates
         if (geocodingResult.latitude === 0 && geocodingResult.longitude === 0) {
@@ -92,7 +91,8 @@ export function useGeocoding({
           return geocodingResult;
         }
       } catch (err) {
-        if (!isMountedRef.current) return null;
+        if (!isMountedRef.current || requestId !== geocodeRequestIdRef.current)
+          return null;
 
         console.error("Geocoding error in hook:", err);
         setError(
@@ -103,12 +103,12 @@ export function useGeocoding({
         setResult(null);
         return null;
       } finally {
-        if (isMountedRef.current) {
-          setIsLoading(false); // Always ensure loading state is cleared
+        if (isMountedRef.current && requestId === geocodeRequestIdRef.current) {
+          setIsLoading(false); // Ensure loading state is cleared only for the latest request
         }
       }
     },
-    [address, isLoading]
+    [address]
   );
 
   // Debounced geocode function

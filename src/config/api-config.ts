@@ -7,7 +7,7 @@ export const API_CONFIG = {
   // Use environment variable or fallback to localhost with correct port for auth service
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087/api",
   // Location service URL
-  LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/api/location",
+  LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/location",
   // Keep the Maps API key only for map rendering, not for services
   MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   TIMEOUT: 15000, // 15 seconds

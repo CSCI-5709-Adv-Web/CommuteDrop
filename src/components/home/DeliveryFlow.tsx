@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
@@ -43,6 +43,9 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
     expiry: "",
     cvc: "",
   });
+  const [hasEnteredLocations, setHasEnteredLocations] = useState(false);
+  const [lastNotifiedPickup, setLastNotifiedPickup] = useState("");
+  const [lastNotifiedDropoff, setLastNotifiedDropoff] = useState("");
 
   const steps: FlowStep[] = useMemo(
     () => ["search", "confirm", "payment", "estimate"],
@@ -61,25 +64,51 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
         dropoff,
       });
 
-      // Only update parent component if the values have changed
-      if (formData.pickup !== pickup || formData.dropoff !== dropoff) {
+      // Only update if values have changed
+      if (pickup !== formData.pickup) {
         setFormData((prev) => ({
           ...prev,
           pickup,
+        }));
+      }
+
+      if (dropoff !== formData.dropoff) {
+        setFormData((prev) => ({
+          ...prev,
           dropoff,
         }));
+      }
 
-        // Immediately notify parent component to update the map
+      // Set hasEnteredLocations to true if either location is provided
+      if (
+        (pickup && pickup.trim().length > 0) ||
+        (dropoff && dropoff.trim().length > 0)
+      ) {
+        setHasEnteredLocations(true);
+      }
+
+      // Only notify parent if values have actually changed to prevent unnecessary rerenders
+      if (pickup !== lastNotifiedPickup || dropoff !== lastNotifiedDropoff) {
         if (onLocationUpdate) {
           console.log("Notifying parent of location change:", {
             pickup,
             dropoff,
           });
           onLocationUpdate(pickup, dropoff);
+
+          // Update last notified values
+          setLastNotifiedPickup(pickup);
+          setLastNotifiedDropoff(dropoff);
         }
       }
     },
-    [formData.pickup, formData.dropoff, onLocationUpdate, setFormData]
+    [
+      formData.pickup,
+      formData.dropoff,
+      onLocationUpdate,
+      lastNotifiedPickup,
+      lastNotifiedDropoff,
+    ]
   );
 
   // Update the handleNavigate function to properly handle loading states
@@ -132,29 +161,51 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
 
               // Store full estimate data for later use
               setEstimateData(response.data);
+
+              // Proceed to next step
+              setCurrentStep(step);
+            } else {
+              console.error("Failed to get estimate:", response.message);
+              alert("Could not calculate delivery estimate. Please try again.");
             }
           } catch (error) {
             console.error("Error fetching estimate:", error);
-            // Continue anyway with default values
+            alert(
+              "An error occurred while calculating your delivery. Please try again."
+            );
           } finally {
-            setCurrentStep(step);
             setIsLoading(false);
           }
         };
 
         fetchEstimate();
       } else {
+        // For other transitions, just change the step
         setTimeout(() => {
           setCurrentStep(step);
           setIsLoading(false);
-        }, 600);
+        }, 300); // Reduced from 600ms for better responsiveness
       }
     },
     [currentStep, formData]
   );
 
+  // Effect to sync form data coordinates with parent component
+  useEffect(() => {
+    // If coordinates change, notify parent
+    if (formData.pickupCoordinates || formData.dropoffCoordinates) {
+      handleLocationChange(formData.pickup, formData.dropoff);
+    }
+  }, [
+    formData.pickupCoordinates,
+    formData.dropoffCoordinates,
+    handleLocationChange,
+    formData.pickup,
+    formData.dropoff,
+  ]);
+
   const transitionConfig = {
-    duration: 0.4,
+    duration: 0.3, // Reduced from 0.4 for better responsiveness
     ease: [0.4, 0, 0.2, 1],
   };
 
@@ -180,7 +231,7 @@ export default function DeliveryFlow({ onLocationUpdate }: DeliveryFlowProps) {
               animate={{ width: "100%" }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.6, ease: "easeInOut" }}
-              className="h-1.5 absolute top-0 left-0 z-10"
+              className="h-1.5 absolute top-0 left-0 z-10 bg-blue-400"
             />
           )}
         </AnimatePresence>

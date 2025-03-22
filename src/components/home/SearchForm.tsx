@@ -19,7 +19,6 @@ import { useGeocoding } from "../../hooks/useGeocoding";
 import { mapService } from "../../services/map-service";
 
 // Add a new component for nearby location suggestions
-// Add this new component after the imports
 interface NearbyLocationProps {
   location: {
     name: string;
@@ -69,6 +68,7 @@ export default function SearchForm({
     pickup: false,
     dropoff: false,
   });
+  const [isValidatingLocations, setIsValidatingLocations] = useState(false);
   const suggestionsTimerRef = useRef<{
     pickup: NodeJS.Timeout | null;
     dropoff: NodeJS.Timeout | null;
@@ -289,9 +289,15 @@ export default function SearchForm({
       } else {
         setShowPickupSuggestions(false);
         setPickupSuggestions([]);
+
+        // Clear coordinates when input is cleared
+        setFormData((prev) => ({
+          ...prev,
+          pickupCoordinates: undefined,
+        }));
       }
     },
-    [pickupGeocoding, handleFormChange, fetchSuggestions]
+    [pickupGeocoding, handleFormChange, fetchSuggestions, setFormData]
   );
 
   // Handle dropoff address changes
@@ -308,13 +314,16 @@ export default function SearchForm({
       } else {
         setShowDropoffSuggestions(false);
         setDropoffSuggestions([]);
+
+        // Clear coordinates when input is cleared
+        setFormData((prev) => ({
+          ...prev,
+          dropoffCoordinates: undefined,
+        }));
       }
     },
-    [dropoffGeocoding, handleFormChange, fetchSuggestions]
+    [dropoffGeocoding, handleFormChange, fetchSuggestions, setFormData]
   );
-
-  // Update the handlePickupSuggestionSelect and handleDropoffSuggestionSelect functions
-  // to properly handle loading states
 
   // Handle suggestion selection for pickup
   const handlePickupSuggestionSelect = useCallback(
@@ -330,8 +339,8 @@ export default function SearchForm({
       // Hide suggestions immediately
       setShowPickupSuggestions(false);
 
-      // Immediately geocode the selected address
-      setIsFetchingSuggestions((prev) => ({ ...prev, pickup: true }));
+      // Set validating state
+      setIsValidatingLocations(true);
 
       // Use a direct API call instead of going through the hook
       // Pass the province parameter
@@ -371,9 +380,7 @@ export default function SearchForm({
           console.error("Error geocoding pickup address:", err);
         })
         .finally(() => {
-          setIsFetchingSuggestions((prev) => ({ ...prev, pickup: false }));
-          // Ensure the geocoding hook's loading state is cleared
-          pickupGeocoding.geocode(address);
+          setIsValidatingLocations(false);
         });
     },
     [
@@ -399,8 +406,8 @@ export default function SearchForm({
       // Hide suggestions immediately
       setShowDropoffSuggestions(false);
 
-      // Immediately geocode the selected address
-      setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: true }));
+      // Set validating state
+      setIsValidatingLocations(true);
 
       // Use a direct API call instead of going through the hook
       // Pass the province parameter
@@ -440,9 +447,7 @@ export default function SearchForm({
           console.error("Error geocoding dropoff address:", err);
         })
         .finally(() => {
-          setIsFetchingSuggestions((prev) => ({ ...prev, dropoff: false }));
-          // Ensure the geocoding hook's loading state is cleared
-          dropoffGeocoding.geocode(address);
+          setIsValidatingLocations(false);
         });
     },
     [
@@ -465,23 +470,23 @@ export default function SearchForm({
 
   // Update location coordinates when geocoding completes
   useEffect(() => {
-    // Only update coordinates if they exist
-    if (pickupGeocoding.coordinates) {
+    // Only update coordinates if they exist and if we're not already validating
+    if (pickupGeocoding.coordinates && !isValidatingLocations) {
       setFormData((prev) => ({
         ...prev,
-        pickupCoordinates: pickupGeocoding.coordinates, // This is already { lat, lng } or undefined
+        pickupCoordinates: pickupGeocoding.coordinates,
       }));
     }
 
-    if (dropoffGeocoding.coordinates) {
+    if (dropoffGeocoding.coordinates && !isValidatingLocations) {
       setFormData((prev) => ({
         ...prev,
-        dropoffCoordinates: dropoffGeocoding.coordinates, // This is already { lat, lng } or undefined
+        dropoffCoordinates: dropoffGeocoding.coordinates,
       }));
     }
 
     // Notify parent component of address changes
-    if (onLocationChange) {
+    if (onLocationChange && !isValidatingLocations) {
       onLocationChange(pickupGeocoding.address, dropoffGeocoding.address);
     }
   }, [
@@ -491,6 +496,7 @@ export default function SearchForm({
     dropoffGeocoding.address,
     onLocationChange,
     setFormData,
+    isValidatingLocations,
   ]);
 
   // Close suggestions when clicking outside
@@ -522,16 +528,22 @@ export default function SearchForm({
 
   // Determine if the form is valid and ready to submit
   const isFormValid = useMemo(() => {
-    // Check if both locations have valid coordinates
+    // Check if both locations have valid addresses and coordinates
     const hasValidPickup =
       pickupGeocoding.address.trim().length > 0 &&
       formData.pickupCoordinates !== undefined;
+
     const hasValidDropoff =
       dropoffGeocoding.address.trim().length > 0 &&
       formData.dropoffCoordinates !== undefined;
 
     // Check if any loading process is happening
-    const isLoading = pickupGeocoding.isLoading || dropoffGeocoding.isLoading;
+    const isLoading =
+      isFetchingSuggestions.pickup ||
+      isFetchingSuggestions.dropoff ||
+      pickupGeocoding.isLoading ||
+      dropoffGeocoding.isLoading ||
+      isValidatingLocations;
 
     return hasValidPickup && hasValidDropoff && !isLoading;
   }, [
@@ -541,6 +553,9 @@ export default function SearchForm({
     formData.dropoffCoordinates,
     pickupGeocoding.isLoading,
     dropoffGeocoding.isLoading,
+    isFetchingSuggestions.pickup,
+    isFetchingSuggestions.dropoff,
+    isValidatingLocations,
   ]);
 
   return (
@@ -584,7 +599,7 @@ export default function SearchForm({
               <X size={16} />
             </button>
           )}
-          {pickupGeocoding.isLoading && (
+          {(pickupGeocoding.isLoading || isFetchingSuggestions.pickup) && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
                 className="w-4 h-4 text-gray-400 animate-spin"
@@ -666,7 +681,7 @@ export default function SearchForm({
               <X size={16} />
             </button>
           )}
-          {dropoffGeocoding.isLoading && (
+          {(dropoffGeocoding.isLoading || isFetchingSuggestions.dropoff) && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Loader
                 className="w-4 h-4 text-gray-400 animate-spin"
@@ -778,13 +793,19 @@ export default function SearchForm({
         disabled={!isFormValid}
         aria-disabled={!isFormValid}
       >
-        {pickupGeocoding.isLoading || dropoffGeocoding.isLoading ? (
+        {pickupGeocoding.isLoading ||
+        dropoffGeocoding.isLoading ||
+        isFetchingSuggestions.pickup ||
+        isFetchingSuggestions.dropoff ||
+        isValidatingLocations ? (
           <>
             <Loader className="w-4 h-4 mr-2 animate-spin" />
             Validating Locations...
           </>
         ) : !pickupGeocoding.address || !dropoffGeocoding.address ? (
           <>Enter Locations</>
+        ) : !formData.pickupCoordinates || !formData.dropoffCoordinates ? (
+          <>Locations Invalid</>
         ) : (
           <>
             Calculate Delivery

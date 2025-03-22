@@ -111,6 +111,7 @@ export default function Map({
     duration: string;
   } | null>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   // Load Google Maps API
   useEffect(() => {
@@ -135,7 +136,9 @@ export default function Map({
 
     return () => {
       // Clean up script if component unmounts before script loads
-      document.body.removeChild(googleMapScript);
+      if (document.body.contains(googleMapScript)) {
+        document.body.removeChild(googleMapScript);
+      }
     };
   }, []);
 
@@ -163,12 +166,17 @@ export default function Map({
 
       const map = new window.google.maps.Map(mapRef.current, mapOptions);
       googleMapRef.current = map;
+      setMapInitialized(true);
 
       // If we have positions, update the map immediately
       if (positions.length > 0) {
         const bounds = new window.google.maps.LatLngBounds();
         positions.forEach((pos) => bounds.extend(pos));
         map.fitBounds(bounds);
+
+        // Add a small padding to ensure markers are visible
+        const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+        map.fitBounds(bounds, padding);
       }
 
       setIsMapLoading(false);
@@ -181,14 +189,14 @@ export default function Map({
 
   // Initialize map when Google Maps API is loaded
   useEffect(() => {
-    if (googleLoaded && !googleMapRef.current) {
+    if (googleLoaded && !mapInitialized) {
       initMap();
     }
-  }, [googleLoaded, initMap]);
+  }, [googleLoaded, initMap, mapInitialized]);
 
   // Update markers when positions change
   useEffect(() => {
-    if (!googleMapRef.current || !googleLoaded) return;
+    if (!googleMapRef.current || !googleLoaded || !mapInitialized) return;
 
     // Clear existing markers
     markersRef.current.forEach((marker) => marker.setMap(null));
@@ -203,7 +211,7 @@ export default function Map({
         map: googleMapRef.current,
         icon: {
           path: window.google.maps.SymbolPath.CIRCLE,
-          fillColor: index === 0 ? "#34D399" : "#EF4444", // Green for pickup, red for dropoff
+          fillColor: index === 0 ? "#000000" : "#EF4444", // Black for pickup, red for dropoff
           fillOpacity: 1,
           strokeColor: "#FFFFFF",
           strokeWeight: 2,
@@ -219,18 +227,22 @@ export default function Map({
     if (positions.length > 1) {
       const bounds = new window.google.maps.LatLngBounds();
       positions.forEach((pos) => bounds.extend(pos));
-      googleMapRef.current.fitBounds(bounds);
+
+      // Add padding to ensure markers are visible
+      const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+      googleMapRef.current.fitBounds(bounds, padding);
     } else if (positions.length === 1) {
       googleMapRef.current.setCenter(positions[0]);
       googleMapRef.current.setZoom(15);
     }
-  }, [googleMapRef.current, googleLoaded, positions]);
+  }, [googleMapRef.current, googleLoaded, positions, mapInitialized]);
 
   // Draw route when positions change
   useEffect(() => {
     if (
       !googleMapRef.current ||
       !googleLoaded ||
+      !mapInitialized ||
       positions.length < 2 ||
       !drawRoute
     )
@@ -402,7 +414,13 @@ export default function Map({
         polylineRef.current = null;
       }
     };
-  }, [googleMapRef.current, googleLoaded, positions, drawRoute]);
+  }, [
+    googleMapRef.current,
+    googleLoaded,
+    positions,
+    drawRoute,
+    mapInitialized,
+  ]);
 
   // Render map placeholder when no locations are entered
   if (!hasEnteredLocations) {
@@ -431,7 +449,7 @@ export default function Map({
       className="relative w-full h-full rounded-lg"
       style={{ minHeight: "500px" }}
     >
-      {(isMapLoading || isLoading || !googleLoaded) && (
+      {(isMapLoading || isLoading || !googleLoaded || !mapInitialized) && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-10">
           <div className="flex flex-col items-center">
             <LoaderIcon className="w-10 h-10 text-primary animate-spin" />

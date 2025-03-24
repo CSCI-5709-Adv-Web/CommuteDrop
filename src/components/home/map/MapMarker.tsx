@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { google } from "@googlemaps/js-api-loader";
 
 interface MapMarkerProps {
   position: { lat: number; lng: number };
@@ -10,12 +9,7 @@ interface MapMarkerProps {
   type: "pickup" | "dropoff";
 }
 
-export default function MapMarker({
-  position,
-  map,
-  index,
-  type,
-}: MapMarkerProps) {
+export default function MapMarker({ position, map, type }: MapMarkerProps) {
   const markerRef = useRef<google.maps.Marker | null>(null);
 
   useEffect(() => {

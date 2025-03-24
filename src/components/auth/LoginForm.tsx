@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -21,15 +20,11 @@ export default function LoginForm() {
 
       if (email.trim() && password.trim()) {
         try {
-          // Wait for the login to complete
           const success = await login(email, password);
-
-          // Only navigate if login was successful
           if (success) {
             navigate("/home");
           }
         } catch (err) {
-          // Error is handled by the AuthContext
           console.error("Login error:", err);
         }
       }
@@ -53,7 +48,6 @@ export default function LoginForm() {
     [error, clearError]
   );
 
-  // Don't render the form while initializing
   if (isInitializing) {
     return (
       <div

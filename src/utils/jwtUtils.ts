@@ -1,11 +1,9 @@
-// Improve the JWT utilities with better error handling and typing
 interface JwtPayload {
   exp?: number
   [key: string]: any
 }
 
 export const jwtUtils = {
-  // Parse JWT token to get user info
   parseToken: (token: string): JwtPayload | null => {
     try {
       const base64Url = token.split(".")[1]
@@ -26,7 +24,6 @@ export const jwtUtils = {
     }
   },
 
-  // Get user email from token
   getUserEmail: (token: string): string | null => {
     try {
       const decoded = jwtUtils.parseToken(token)
@@ -38,7 +35,6 @@ export const jwtUtils = {
     }
   },
 
-  // Get user ID from token
   getUserId: (token: string): string | null => {
     try {
       const decoded = jwtUtils.parseToken(token)
@@ -50,7 +46,6 @@ export const jwtUtils = {
     }
   },
 
-  // Check if token is expired
   isTokenExpired: (token: string): boolean => {
     try {
       const decoded = jwtUtils.parseToken(token)

@@ -1,4 +1,3 @@
-// Improve the token storage utilities with better typing and error handling
 import type { User } from "../types/auth"
 
 const TOKEN_KEY = "commutedrop_token"
@@ -6,7 +5,6 @@ const REFRESH_TOKEN_KEY = "commutedrop_refresh_token"
 const USER_KEY = "commutedrop_user"
 
 export const tokenStorage = {
-  // Store tokens
   setTokens: (token: string, refreshToken: string): void => {
     try {
       localStorage.setItem(TOKEN_KEY, token)
@@ -16,7 +14,6 @@ export const tokenStorage = {
     }
   },
 
-  // Store user data
   setUser: (user: User): void => {
     try {
       localStorage.setItem(USER_KEY, JSON.stringify(user))
@@ -25,7 +22,6 @@ export const tokenStorage = {
     }
   },
 
-  // Get token
   getToken: (): string | null => {
     try {
       return localStorage.getItem(TOKEN_KEY)
@@ -35,7 +31,6 @@ export const tokenStorage = {
     }
   },
 
-  // Get refresh token
   getRefreshToken: (): string | null => {
     try {
       return localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -45,7 +40,6 @@ export const tokenStorage = {
     }
   },
 
-  // Get user data
   getUser: (): User | null => {
     try {
       const userData = localStorage.getItem(USER_KEY)
@@ -56,7 +50,6 @@ export const tokenStorage = {
     }
   },
 
-  // Clear all auth data
   clearTokens: (): void => {
     try {
       localStorage.removeItem(TOKEN_KEY)
@@ -67,7 +60,6 @@ export const tokenStorage = {
     }
   },
 
-  // Check if user is authenticated
   isAuthenticated: (): boolean => {
     try {
       return !!localStorage.getItem(TOKEN_KEY)

@@ -14,7 +14,6 @@ import { tokenStorage } from "../utils/tokenStorage";
 import { jwtUtils } from "../utils/jwtUtils";
 import { api } from "../services/auth-service";
 
-// Initial auth state
 const initialState: AuthState = {
   user: null,
   token: null,
@@ -24,7 +23,6 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Auth action types
 type AuthAction =
   | { type: "LOGIN_START" }
   | {
@@ -45,7 +43,6 @@ type AuthAction =
       payload: { token: string; refreshToken: string };
     };
 
-// Auth reducer
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case "LOGIN_START":
@@ -102,7 +99,6 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   }
 };
 
-// Create auth context
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
@@ -113,14 +109,12 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Auth provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // Check for existing tokens on mount
   useEffect(() => {
     const initializeAuth = async () => {
       setIsInitializing(true);
@@ -134,9 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        // Check if token is expired
         if (jwtUtils.isTokenExpired(token)) {
-          // Try to refresh the token
           try {
             const response = await api.auth.refreshToken(refreshToken);
 
@@ -161,7 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
 
-            // If refresh failed, logout
             tokenStorage.clearTokens();
             dispatch({ type: "LOGOUT" });
           } catch (error) {
@@ -169,7 +160,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             dispatch({ type: "LOGOUT" });
           }
         } else {
-          // Token is still valid
           const email = jwtUtils.getUserEmail(token);
 
           if (email) {
@@ -197,7 +187,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     initializeAuth();
   }, []);
 
-  // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: "LOGIN_START" });
 
@@ -206,11 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (response.success) {
         const { token, refreshToken } = response.data;
-
-        // Store tokens
         tokenStorage.setTokens(token, refreshToken);
-
-        // Extract user info from token
         const userEmail = jwtUtils.getUserEmail(token);
 
         if (userEmail) {
@@ -245,7 +230,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Register function
   const register = async (
     name: string,
     email: string,
@@ -258,11 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (response.success) {
         const { token, refreshToken } = response.data;
-
-        // Store tokens
         tokenStorage.setTokens(token, refreshToken);
-
-        // Create user object
         const user: User = { email, name };
         tokenStorage.setUser(user);
 
@@ -291,18 +271,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Logout function
   const logout = () => {
     tokenStorage.clearTokens();
     dispatch({ type: "LOGOUT" });
   };
 
-  // Clear error function
   const clearError = () => {
     dispatch({ type: "CLEAR_ERROR" });
   };
 
-  // Memoize the context value to prevent unnecessary re-renders
   const contextValue = useMemo(
     () => ({
       ...state,
@@ -320,7 +297,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
 

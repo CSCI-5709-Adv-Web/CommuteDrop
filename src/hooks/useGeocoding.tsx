@@ -12,7 +12,7 @@ interface UseGeocodingProps {
 export function useGeocoding({
   initialAddress,
   autoGeocode = false,
-  debounceMs = 800, // Increased debounce time for better performance
+  debounceMs = 800,
 }: UseGeocodingProps = {}) {
   const [address, setAddress] = useState(initialAddress || "");
   const [result, setResult] = useState<GeocodingResult | null>(null);
@@ -22,7 +22,6 @@ export function useGeocoding({
   const isMountedRef = useRef(true);
   const geocodeRequestIdRef = useRef(0);
 
-  // Clear any existing timer when component unmounts
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -32,22 +31,18 @@ export function useGeocoding({
     };
   }, []);
 
-  // Fix the geocode function to properly handle loading states
   const geocode = useCallback(
     async (addressToGeocode?: string) => {
       const addressToUse = addressToGeocode || address;
-
-      // Generate a unique request ID to track this specific request
       const requestId = ++geocodeRequestIdRef.current;
 
       if (!addressToUse.trim()) {
         setError("Address is required");
         setResult(null);
-        setIsLoading(false); // Make sure to clear loading state
+        setIsLoading(false);
         return null;
       }
 
-      // Clear any existing timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
@@ -57,44 +52,32 @@ export function useGeocoding({
         setIsLoading(true);
         setError(null);
 
-        console.log(`Geocoding address in hook: "${addressToUse}"`);
-        // Pass the province parameter
-        const province = "Nova Scotia"; // Default province
+        const province = "Nova Scotia";
         const geocodingResult = await mapService.geocodeAddress(
           addressToUse,
           province
         );
 
-        // Only update if component is still mounted and this is the latest request
-        if (!isMountedRef.current || requestId !== geocodeRequestIdRef.current)
+        if (
+          !isMountedRef.current ||
+          requestId !== geocodeRequestIdRef.current
+        ) {
           return null;
+        }
 
-        // Check if we got valid coordinates
         if (geocodingResult.latitude === 0 && geocodingResult.longitude === 0) {
-          console.warn(
-            `No valid coordinates returned for address: "${addressToUse}"`
-          );
           setError("Could not find coordinates for this address");
           setResult(null);
           return null;
         } else {
-          // Update state with new result
           setResult(geocodingResult);
           setError(null);
-
-          // Log success for debugging
-          console.log(
-            "Successfully geocoded address in hook:",
-            addressToUse,
-            geocodingResult
-          );
           return geocodingResult;
         }
       } catch (err) {
         if (!isMountedRef.current || requestId !== geocodeRequestIdRef.current)
           return null;
 
-        console.error("Geocoding error in hook:", err);
         setError(
           err instanceof Error
             ? err.message
@@ -104,22 +87,19 @@ export function useGeocoding({
         return null;
       } finally {
         if (isMountedRef.current && requestId === geocodeRequestIdRef.current) {
-          setIsLoading(false); // Ensure loading state is cleared only for the latest request
+          setIsLoading(false);
         }
       }
     },
     [address]
   );
 
-  // Debounced geocode function
   const debouncedGeocode = useCallback(
     (addressToGeocode?: string) => {
-      // Clear any existing timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
 
-      // Set a new timer
       debounceTimerRef.current = setTimeout(() => {
         geocode(addressToGeocode);
       }, debounceMs);
@@ -127,7 +107,6 @@ export function useGeocoding({
     [geocode, debounceMs]
   );
 
-  // Auto-geocode when initialAddress changes (if enabled)
   useEffect(() => {
     if (initialAddress && autoGeocode) {
       setAddress(initialAddress);
@@ -135,28 +114,21 @@ export function useGeocoding({
     }
   }, [initialAddress, autoGeocode, debouncedGeocode]);
 
-  // Fix the updateAddress function to properly handle loading states
   const updateAddress = useCallback(
     (newAddress: string) => {
-      // Always update the address state
       setAddress(newAddress);
 
-      // Trigger geocoding for any non-empty value
       if (newAddress.trim()) {
-        // Clear any existing timer
+        setIsLoading(true);
+
         if (debounceTimerRef.current) {
           clearTimeout(debounceTimerRef.current);
         }
 
-        // Set loading state immediately for UI feedback
-        setIsLoading(true);
-
-        // Set a new timer for debounced geocoding
         debounceTimerRef.current = setTimeout(() => {
           geocode(newAddress);
         }, debounceMs);
       } else {
-        // If address is empty, clear the result and loading state
         setResult(null);
         setIsLoading(false);
       }
@@ -164,12 +136,11 @@ export function useGeocoding({
     [geocode, debounceMs]
   );
 
-  // Modify the return object to expose the direct geocode function
   return {
     address,
     setAddress: updateAddress,
-    geocode: geocode, // Expose the direct geocode function
-    debouncedGeocode, // Keep the debounced version available
+    geocode,
+    debouncedGeocode,
     result,
     isLoading,
     error,

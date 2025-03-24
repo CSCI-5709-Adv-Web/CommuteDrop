@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -40,15 +39,11 @@ export default function SignUpForm() {
         password.length >= 8
       ) {
         try {
-          // Wait for the registration to complete
           const success = await register(name, email, password);
-
-          // Only navigate if registration was successful
           if (success) {
             navigate("/verify", { state: { email } });
           }
         } catch (err) {
-          // Error is handled by the AuthContext
           console.error("Registration error:", err);
         }
       }
@@ -77,7 +72,6 @@ export default function SignUpForm() {
     [error, clearError]
   );
 
-  // Don't render the form while initializing
   if (isInitializing) {
     return (
       <div

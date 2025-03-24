@@ -120,9 +120,6 @@ export interface DeliveryHistoryItem {
 }
 
 export const deliveryService = {
-  /**
-   * Get delivery estimate
-   */
   getEstimate: async (request: DeliveryEstimateRequest): Promise<ApiResponse<DeliveryEstimateResponse>> => {
     try {
       return await apiClient.post<ApiResponse<DeliveryEstimateResponse>>(ENDPOINTS.DELIVERY.ESTIMATE, request)
@@ -136,9 +133,6 @@ export const deliveryService = {
     }
   },
 
-  /**
-   * Create a delivery request
-   */
   createDelivery: async (request: DeliveryRequest): Promise<ApiResponse<DeliveryResponse>> => {
     try {
       return await apiClient.post<ApiResponse<DeliveryResponse>>(ENDPOINTS.DELIVERY.CREATE, request)
@@ -152,9 +146,6 @@ export const deliveryService = {
     }
   },
 
-  /**
-   * Get delivery history
-   */
   getHistory: async (): Promise<ApiResponse<DeliveryHistoryItem[]>> => {
     try {
       return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.DELIVERY.HISTORY)
@@ -168,9 +159,6 @@ export const deliveryService = {
     }
   },
 
-  /**
-   * Get delivery details by ID
-   */
   getDeliveryById: async (id: string): Promise<ApiResponse<DeliveryHistoryItem>> => {
     try {
       return await apiClient.get<ApiResponse<DeliveryHistoryItem>>(`${ENDPOINTS.DELIVERY.HISTORY}/${id}`)
@@ -184,9 +172,6 @@ export const deliveryService = {
     }
   },
 
-  /**
-   * Track a delivery
-   */
   trackDelivery: async (
     trackingId: string,
   ): Promise<

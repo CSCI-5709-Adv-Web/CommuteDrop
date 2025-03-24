@@ -5,17 +5,15 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 
-// Import modularized components
-import PaymentMethodSelector from "./payment/PaymentMethodSelector";
-import CardInput from "./payment/CardInput";
-import OrderSummary from "./payment/OrderSummary";
-import PaymentButton from "./payment/PaymentButton";
-import SuccessConfetti from "./payment/SuccessConfetti";
-import { usePaymentForm } from "../../hooks/usePaymentForm";
+import PaymentMethodSelector from "./PaymentMethodSelector";
+import CardInput from "./CardInput";
+import OrderSummary from "./OrderSummary";
+import PaymentButton from "./PaymentButton";
+import SuccessConfetti from "./SuccessConfetti";
+import { usePaymentForm } from "../../../hooks/usePaymentForm";
 
-// Load Stripe
 const stripePromise = loadStripe(
   import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || ""
 );
@@ -44,12 +42,10 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
     amount: 1599, // $15.99 in cents
   });
 
-  // Fetch saved cards
   useEffect(() => {
     const fetchSavedCards = async () => {
       try {
-        // In a real app, this would be an API call
-        // For now, we'll simulate with mock data
+        // Mock data for demo purposes
         const mockUserData = {
           paymentMethods: [
             {
@@ -73,7 +69,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
 
         setSavedCards(mockUserData.paymentMethods);
 
-        // Select default card
         const defaultCard = mockUserData.paymentMethods.find(
           (card) => card.isDefault
         );
@@ -86,7 +81,7 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
     };
 
     fetchSavedCards();
-  }, [user]);
+  }, [user, setSelectedCardId]);
 
   return (
     <motion.div
@@ -97,12 +92,10 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
       transition={{ duration: 0.3 }}
       className="p-6 h-full flex flex-col bg-white max-w-md mx-auto relative overflow-hidden"
     >
-      {/* Success Confetti */}
       <AnimatePresence>
         {paymentStatus === "success" && <SuccessConfetti />}
       </AnimatePresence>
 
-      {/* Header with Back Button */}
       <div className="flex items-center mb-6">
         <button
           onClick={onBack}
@@ -113,13 +106,11 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         <h2 className="text-2xl font-bold text-gray-900 ml-4">Payment</h2>
       </div>
 
-      {/* Secure Payment */}
       <div className="flex items-center mb-4">
         <ShieldCheck className="w-5 h-5 text-green-600 mr-2" />
         <p className="text-sm text-gray-700">Secure payment processing</p>
       </div>
 
-      {/* Payment Method Selection */}
       {savedCards.length > 0 && paymentStatus === "idle" && (
         <PaymentMethodSelector
           savedCards={savedCards}
@@ -136,7 +127,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         />
       )}
 
-      {/* Stripe Card Input */}
       {(useNewCard || savedCards.length === 0) && (
         <CardInput paymentStatus={paymentStatus} />
       )}
@@ -151,10 +141,8 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         </motion.p>
       )}
 
-      {/* Order Summary */}
       <OrderSummary deliveryFee="12.99" serviceFee="3.00" total="15.99" />
 
-      {/* Pay Button */}
       <PaymentButton
         paymentStatus={paymentStatus}
         isDisabled={
@@ -168,7 +156,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         onClick={paymentStatus === "error" ? handleRetry : handlePayment}
       />
 
-      {/* Success Message */}
       <AnimatePresence>
         {paymentStatus === "success" && (
           <motion.div
@@ -185,14 +172,10 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
   );
 }
 
-// Wrap Component with Stripe Provider
-export default function PaymentWithStripe({
-  onBack,
-  onPaymentSuccess,
-}: PaymentFormProps) {
+export default function PaymentWithStripe(props: PaymentFormProps) {
   return (
     <Elements stripe={stripePromise}>
-      <StripePaymentForm onBack={onBack} onPaymentSuccess={onPaymentSuccess} />
+      <StripePaymentForm {...props} />
     </Elements>
   );
 }

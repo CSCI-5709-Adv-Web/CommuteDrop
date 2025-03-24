@@ -13,6 +13,8 @@ import {
   Bike,
 } from "lucide-react";
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
+import DeliveryLocationCard from "./confirm/DeliveryLocationCard";
+import DeliveryDetailCard from "./confirm/DeliveryDetailCard";
 
 interface ConfirmDeliveryProps {
   formData: any;
@@ -73,68 +75,46 @@ export default function ConfirmDelivery({
 
       <div className="space-y-6 flex-grow">
         {/* Pickup Location */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center mb-3">
-            <MapPin className="w-5 h-5 mr-3 text-primary" />
-            <p className="font-medium">Pickup Location</p>
-          </div>
-          <p className="text-gray-800 pl-8">{formData.pickup}</p>
-        </div>
+        <DeliveryLocationCard type="pickup" address={formData.pickup} />
 
         {/* Dropoff Location */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center mb-3">
-            <MapPin className="w-5 h-5 mr-3 text-primary" />
-            <p className="font-medium">Dropoff Location</p>
-          </div>
-          <p className="text-gray-800 pl-8">{formData.dropoff}</p>
-        </div>
+        <DeliveryLocationCard type="dropoff" address={formData.dropoff} />
 
         {/* Package Details */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center mb-3">
-              <Weight className="w-5 h-5 mr-3 text-primary" />
-              <p className="font-medium">Weight</p>
-            </div>
-            <p className="text-gray-800 pl-8">{formData.weight || "0"} kg</p>
-          </div>
+          <DeliveryDetailCard
+            icon={<Weight className="w-5 h-5 mr-3 text-primary" />}
+            title="Weight"
+            value={`${formData.weight || "0"} kg`}
+          />
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center mb-3">
-              {selectedCarrier.icon}
-              <p className="font-medium">Carrier</p>
-            </div>
-            <p className="text-gray-800 pl-8">{selectedCarrier.label}</p>
-          </div>
+          <DeliveryDetailCard
+            icon={selectedCarrier.icon}
+            title="Carrier"
+            value={selectedCarrier.label}
+          />
         </div>
 
-        {/* Distance Information (New) */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center mb-3">
-            <MapPin className="w-5 h-5 mr-3 text-primary" />
-            <p className="font-medium">Distance</p>
-          </div>
-          <p className="text-gray-800 pl-8">{estimatedDistance}</p>
-        </div>
+        {/* Distance Information */}
+        <DeliveryDetailCard
+          icon={<MapPin className="w-5 h-5 mr-3 text-primary" />}
+          title="Distance"
+          value={estimatedDistance}
+        />
 
         {/* Delivery Estimates */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center mb-3">
-              <Clock className="w-5 h-5 mr-3 text-primary" />
-              <p className="font-medium">Estimated Time</p>
-            </div>
-            <p className="text-gray-800 pl-8">{estimatedTime}</p>
-          </div>
+          <DeliveryDetailCard
+            icon={<Clock className="w-5 h-5 mr-3 text-primary" />}
+            title="Estimated Time"
+            value={estimatedTime}
+          />
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center mb-3">
-              <DollarSign className="w-5 h-5 mr-3 text-primary" />
-              <p className="font-medium">Estimated Cost</p>
-            </div>
-            <p className="text-gray-800 pl-8">${estimatedPrice}</p>
-          </div>
+          <DeliveryDetailCard
+            icon={<DollarSign className="w-5 h-5 mr-3 text-primary" />}
+            title="Estimated Cost"
+            value={`$${estimatedPrice}`}
+          />
         </div>
       </div>
 

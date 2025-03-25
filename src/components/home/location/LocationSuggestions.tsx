@@ -1,5 +1,3 @@
-"use client";
-
 import { Loader, MapPin } from "lucide-react";
 
 interface LocationSuggestionsProps {
@@ -36,9 +34,7 @@ export default function LocationSuggestions({
           key={index}
           className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
           onMouseDown={(e) => {
-            // Prevent the blur event from firing
             e.preventDefault();
-            // Call onSelect immediately
             onSelect(suggestion);
           }}
         >

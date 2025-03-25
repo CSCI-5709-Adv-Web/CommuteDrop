@@ -20,9 +20,12 @@ export default function Home() {
     setShowRoute, // Add this
   } = useLocation();
 
-  // Handle location updates from DeliveryFlow component
+  // Update the handleLocationUpdate function to reset showRoute
   const handleLocationUpdate = (newPickup: string, newDropoff: string) => {
     console.log("Location update received:", { newPickup, newDropoff });
+
+    // Reset showRoute whenever locations change
+    setShowRoute(false);
 
     // Only update if values have changed
     if (pickup !== newPickup) {

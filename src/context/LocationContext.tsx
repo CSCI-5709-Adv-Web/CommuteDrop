@@ -19,6 +19,7 @@ interface LocationContextType {
   setDropoffCoordinates: (coordinates: Position | undefined) => void;
   calculateRoute: () => Promise<void>;
   setShowRoute: (show: boolean) => void;
+  resetLocations: () => void; // Add this function
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(

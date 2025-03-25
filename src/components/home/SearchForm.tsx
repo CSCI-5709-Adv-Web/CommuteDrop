@@ -1,10 +1,7 @@
-"use client";
 import { motion } from "framer-motion";
 import { useCallback, useMemo } from "react";
 import type { DeliveryFormData } from "./DeliveryFlow";
-// Import useLocation
 import { useLocation } from "../../context/LocationContext";
-
 import LocationInput from "./location/LocationInput";
 import WeightInput from "./weight/WeightInput";
 import CarrierSelection from "./carrier/CarrierSelection";
@@ -34,7 +31,7 @@ export default function SearchForm({
     setDropoff,
     setPickupCoordinates,
     setDropoffCoordinates,
-    setShowRoute, // Add this
+    setShowRoute,
   } = useLocation();
 
   const { isLoading } = useLoadingState([
@@ -47,7 +44,7 @@ export default function SearchForm({
   const handlePickupChange = useCallback(
     (value: string) => {
       setPickup(value);
-      setShowRoute(false); // Reset route visibility when location changes
+      setShowRoute(false);
       if (onLocationUpdate) {
         onLocationUpdate(value, dropoff);
       }
@@ -55,10 +52,11 @@ export default function SearchForm({
     [setPickup, dropoff, onLocationUpdate, setShowRoute]
   );
 
+  // Update the handleDropoffChange function to reset showRoute
   const handleDropoffChange = useCallback(
     (value: string) => {
       setDropoff(value);
-      setShowRoute(false); // Reset route visibility when location changes
+      setShowRoute(false);
       if (onLocationUpdate) {
         onLocationUpdate(pickup, value);
       }
@@ -66,18 +64,21 @@ export default function SearchForm({
     [setDropoff, pickup, onLocationUpdate, setShowRoute]
   );
 
+  // Add handlers for coordinate changes to also reset showRoute
   const handlePickupCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
       setPickupCoordinates(coordinates);
+      setShowRoute(false);
     },
-    [setPickupCoordinates]
+    [setPickupCoordinates, setShowRoute]
   );
 
   const handleDropoffCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
       setDropoffCoordinates(coordinates);
+      setShowRoute(false);
     },
-    [setDropoffCoordinates]
+    [setDropoffCoordinates, setShowRoute]
   );
 
   const isFormValid = useMemo(() => {
@@ -120,7 +121,6 @@ export default function SearchForm({
           icon={<div className="w-2 h-2 bg-black rounded-full" />}
           type="pickup"
         />
-
         <LocationInput
           value={dropoff}
           onChange={handleDropoffChange}
@@ -129,18 +129,15 @@ export default function SearchForm({
           icon={<div className="w-2 h-2 border-2 border-black rounded-full" />}
           type="dropoff"
         />
-
         <WeightInput
           value={formData.weight}
           onChange={(value) => onFormDataChange("weight", value)}
         />
-
         <CarrierSelection
           selectedCarrier={formData.carrier}
           onChange={(carrier) => onFormDataChange("carrier", carrier)}
         />
       </div>
-
       <CalculateButton
         isValid={isFormValid}
         isLoading={isLoadingData}
@@ -150,7 +147,6 @@ export default function SearchForm({
         hasDropoffCoordinates={!!dropoffCoordinates}
         onClick={onNext}
       />
-
       <FormValidationMessage
         isValid={isFormValid}
         pickupAddress={pickup}

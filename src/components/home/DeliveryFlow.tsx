@@ -89,8 +89,17 @@ export default function DeliveryFlow({
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  // Update the handleNavigate function to properly manage state transitions
   const handleNavigate = useCallback(
     async (step: FlowStep) => {
+      // When going back to search, reset the route visibility
+      if (step === "search") {
+        setShowRoute(false);
+        setCurrentStep(step);
+        return;
+      }
+
+      // When moving from search to confirm, calculate the route
       if (currentStep === "search" && step === "confirm") {
         if (onCalculateRoute) {
           onCalculateRoute();
@@ -145,15 +154,14 @@ export default function DeliveryFlow({
             setEstimateData(fallbackData);
           }
 
+          // Set showRoute to true only when moving to confirm step
+          setShowRoute(true);
           setCurrentStep(step);
         } catch (error) {
           console.error("Error in navigation process:", error);
         }
-      } else if (step === "search") {
-        // Reset showRoute when going back to search
-        setShowRoute(false);
-        setCurrentStep(step);
       } else {
+        // For other transitions, just update the step
         setCurrentStep(step);
       }
     },

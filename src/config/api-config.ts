@@ -14,6 +14,12 @@ export const API_CONFIG = {
   // Update the MAPS_API_KEY to use the environment variable
   MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY || "",
   TIMEOUT: 15000, // 15 seconds
+
+  // Default country for geocoding and location services
+  DEFAULT_COUNTRY: "Canada",
+  DEFAULT_PROVINCE: "Nova Scotia",
+  DEFAULT_CITY: "Halifax",
+  MAX_RESULTS:5
 }
 
 // API Endpoint paths

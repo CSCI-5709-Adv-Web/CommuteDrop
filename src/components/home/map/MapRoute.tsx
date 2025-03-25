@@ -28,6 +28,8 @@ export default function MapRoute({
   onRouteError,
 }: MapRouteProps) {
   const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const progressLineRef = useRef<google.maps.Polyline | null>(null);
+  const animationRef = useRef<number | null>(null);
   const { google } = useGoogleMaps();
 
   useEffect(() => {
@@ -36,12 +38,29 @@ export default function MapRoute({
         polylineRef.current.setMap(null);
         polylineRef.current = null;
       }
+      if (progressLineRef.current) {
+        progressLineRef.current.setMap(null);
+        progressLineRef.current = null;
+      }
+      if (animationRef.current) {
+        window.clearInterval(animationRef.current);
+        animationRef.current = null;
+      }
       return;
     }
     if (polylineRef.current) {
       polylineRef.current.setMap(null);
       polylineRef.current = null;
     }
+    if (progressLineRef.current) {
+      progressLineRef.current.setMap(null);
+      progressLineRef.current = null;
+    }
+    if (animationRef.current) {
+      window.clearInterval(animationRef.current);
+      animationRef.current = null;
+    }
+
     const fetchDirections = async () => {
       try {
         const originStr =
@@ -52,150 +71,105 @@ export default function MapRoute({
           typeof destination === "string"
             ? destination
             : `${destination.lat.toFixed(6)},${destination.lng.toFixed(6)}`;
+
         const directionsResult = await mapService.getDirections(
           origin,
           destination
         );
+        let pathCoordinates: google.maps.LatLngLiteral[] = [];
         if (directionsResult.path && directionsResult.path.length > 0) {
-          const polyline = new google.maps.Polyline({
-            path: directionsResult.path,
-            geodesic: true,
-            strokeColor: "#000000", // Changed to black
-            strokeOpacity: 0.8,
-            strokeWeight: 5,
-            map,
-            icons: [
-              {
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  fillColor: "#000000",
-                  fillOpacity: 1,
-                  scale: 2,
-                  strokeColor: "#FFFFFF",
-                  strokeWeight: 1,
-                },
-                offset: "0%",
-                repeat: "20px",
-              },
-            ],
-          });
-
-          // Animate the flow along the route
-          let offset = 0;
-          window.setInterval(() => {
-            offset = (offset + 1) % 100;
-            const icons = polyline.get("icons");
-            icons[0].offset = offset + "%";
-            polyline.set("icons", icons);
-          }, 50);
-
-          polylineRef.current = polyline;
-
-          if (onRouteInfoChange) {
-            onRouteInfoChange({
-              distance: directionsResult.distance?.text || "Unknown",
-              duration: directionsResult.duration?.text || "Unknown",
-            });
-          }
-
-          if (onRouteError) {
-            onRouteError(false, originStr, destinationStr);
-          }
+          pathCoordinates = directionsResult.path;
         } else if (
           directionsResult.route?.geometry &&
           Array.isArray(directionsResult.route.geometry)
         ) {
-          const pathCoordinates = directionsResult.route.geometry.map(
+          pathCoordinates = directionsResult.route.geometry.map(
             (point: any[]) => ({
               lat: point[1],
               lng: point[0],
             })
           );
+        } else {
+          pathCoordinates = [
+            typeof origin === "string" ? { lat: 0, lng: 0 } : origin,
+            typeof destination === "string" ? { lat: 0, lng: 0 } : destination,
+          ];
+        }
+        const polyline = new google.maps.Polyline({
+          path: pathCoordinates,
+          geodesic: true,
+          strokeColor: "#000000",
+          strokeOpacity: 0.8,
+          strokeWeight: 5,
+          map,
+        });
+        polylineRef.current = polyline;
+        const progressLine = new google.maps.Polyline({
+          path: [],
+          geodesic: true,
+          strokeColor: "#FFFFFF",
+          strokeOpacity: 1,
+          strokeWeight: 5,
+          map,
+          zIndex: 2,
+        });
+        progressLineRef.current = progressLine;
+        let progress = 0;
+        const animationSpeed = 1.5;
+        animationRef.current = window.setInterval(() => {
+          progress += animationSpeed;
+          if (progress >= 100) {
+            progress = 0;
+          }
+          const pointsToInclude = Math.max(
+            1,
+            Math.floor((pathCoordinates.length * progress) / 100)
+          );
+          let progressPath: google.maps.LatLngLiteral[] = [];
+          if (pointsToInclude > 0) {
+            progressPath = pathCoordinates.slice(0, pointsToInclude);
+          }
+          if (pointsToInclude < pathCoordinates.length && pointsToInclude > 0) {
+            const lastPoint = pathCoordinates[pointsToInclude - 1];
+            const nextPoint = pathCoordinates[pointsToInclude];
+            const segmentProgress =
+              (progress * pathCoordinates.length) / 100 - (pointsToInclude - 1);
+            const interpolatedPoint: google.maps.LatLngLiteral = {
+              lat:
+                lastPoint.lat +
+                (nextPoint.lat - lastPoint.lat) * segmentProgress,
+              lng:
+                lastPoint.lng +
+                (nextPoint.lng - lastPoint.lng) * segmentProgress,
+            };
+            progressPath.push(interpolatedPoint);
+          }
+          progressLine.setPath(progressPath);
+        }, 16);
 
-          const polyline = new google.maps.Polyline({
-            path: pathCoordinates,
-            geodesic: true,
-            strokeColor: "#000000", // Changed to black
-            strokeOpacity: 0.8,
-            strokeWeight: 5,
-            map,
-            icons: [
-              {
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  fillColor: "#000000",
-                  fillOpacity: 1,
-                  scale: 2,
-                  strokeColor: "#FFFFFF",
-                  strokeWeight: 1,
-                },
-                offset: "0%",
-                repeat: "20px",
-              },
-            ],
-          });
-
-          // Animate the flow along the route
-          let offset = 0;
-          window.setInterval(() => {
-            offset = (offset + 1) % 100;
-            const icons = polyline.get("icons");
-            icons[0].offset = offset + "%";
-            polyline.set("icons", icons);
-          }, 50);
-
-          polylineRef.current = polyline;
-
-          if (onRouteInfoChange && directionsResult.summary) {
+        // Update route info if available
+        if (onRouteInfoChange) {
+          if (
+            directionsResult.distance?.text &&
+            directionsResult.duration?.text
+          ) {
+            onRouteInfoChange({
+              distance: directionsResult.distance.text || "Unknown",
+              duration: directionsResult.duration.text || "Unknown",
+            });
+          } else if (directionsResult.summary) {
             onRouteInfoChange({
               distance: `${directionsResult.summary.distance} km` || "Unknown",
               duration:
                 `${directionsResult.summary.durationMinutes} mins` || "Unknown",
             });
-          }
-
-          if (onRouteError) {
-            onRouteError(false, originStr, destinationStr);
-          }
-        } else {
-          // Show a straight line as fallback
-          const newPolyline = new google.maps.Polyline({
-            path: [
-              typeof origin === "string" ? { lat: 0, lng: 0 } : origin,
-              typeof destination === "string"
-                ? { lat: 0, lng: 0 }
-                : destination,
-            ],
-            geodesic: true,
-            strokeColor: "#000000", // Changed to black
-            strokeOpacity: 0.7,
-            strokeWeight: 3,
-            icons: [
-              {
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 2,
-                  fillColor: "#000000",
-                  fillOpacity: 1,
-                  strokeColor: "#FFFFFF",
-                  strokeWeight: 1,
-                },
-                offset: "0",
-                repeat: "20px",
-              },
-            ],
-            map,
-          });
-
-          polylineRef.current = newPolyline;
-
-          if (onRouteInfoChange) {
+          } else {
             onRouteInfoChange(null);
           }
+        }
 
-          if (onRouteError) {
-            onRouteError(true, originStr, destinationStr);
-          }
+        if (onRouteError) {
+          onRouteError(false, originStr, destinationStr);
         }
       } catch (error) {
         console.error("Error fetching directions:", error);
@@ -219,13 +193,26 @@ export default function MapRoute({
         }
       }
     };
+
     if (drawRoute) {
       fetchDirections();
     }
+
+    // Make sure to clean up the progress line in the cleanup function
     return () => {
       if (polylineRef.current) {
         polylineRef.current.setMap(null);
         polylineRef.current = null;
+      }
+
+      if (progressLineRef.current) {
+        progressLineRef.current.setMap(null);
+        progressLineRef.current = null;
+      }
+
+      if (animationRef.current) {
+        window.clearInterval(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [

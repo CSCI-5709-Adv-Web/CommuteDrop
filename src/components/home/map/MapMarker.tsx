@@ -24,7 +24,7 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
       map,
       icon: {
         path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: type === "pickup" ? "#000000" : "#EF4444",
+        fillColor: "#000000", // Changed to black for both pickup and dropoff
         fillOpacity: 1,
         strokeColor: "#FFFFFF",
         strokeWeight: 2,

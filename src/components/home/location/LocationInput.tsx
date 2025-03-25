@@ -23,7 +23,6 @@ export default function LocationInput({
   onChange,
   onCoordinatesChange,
   placeholder,
-  icon,
   type,
 }: LocationInputProps) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -74,7 +73,7 @@ export default function LocationInput({
     // Only fetch suggestions if the input is at least 3 characters
     if (debouncedValue.trim().length > 2) {
       fetchSuggestions(debouncedValue);
-      // Don't automatically show suggestions here
+      setShowSuggestions(true);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -89,9 +88,6 @@ export default function LocationInput({
         setShowSuggestions(false);
         setSuggestions([]);
         onCoordinatesChange(undefined);
-      } else if (newValue.trim().length > 2) {
-        // Only show suggestions when actively typing
-        setShowSuggestions(true);
       }
       // Don't trigger geocoding here - only update the text value
     },
@@ -158,18 +154,21 @@ export default function LocationInput({
 
   return (
     <div className="relative">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2">{icon}</div>
+      <div className="absolute left-4 top-1/2 -translate-y-1/2">
+        {type === "pickup" ? (
+          <div className="w-2 h-2 bg-black rounded-full" />
+        ) : (
+          <div className="w-2 h-2 border-2 border-black rounded-full" />
+        )}
+      </div>
       <input
         ref={inputRef}
-        className="w-full p-4 pl-8 pr-10 bg-gray-50 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full p-4 pl-8 pr-10 bg-gray-50 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-black"
         value={value}
         onChange={(e) => handleInputChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        onFocus={() => {
-          // Don't show suggestions on focus
-          // Previously: value.length > 2 && setShowSuggestions(true)
-        }}
+        onFocus={() => {}}
       />
       {/* Clear input button */}
       {value && (

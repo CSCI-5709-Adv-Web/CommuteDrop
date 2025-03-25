@@ -31,39 +31,63 @@ export default function MapRoute({
   const { google } = useGoogleMaps();
 
   useEffect(() => {
-    if (!map || !drawRoute || !google) return;
-
+    if (!map || !drawRoute || !google) {
+      if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+        polylineRef.current = null;
+      }
+      return;
+    }
     if (polylineRef.current) {
       polylineRef.current.setMap(null);
       polylineRef.current = null;
     }
-
     const fetchDirections = async () => {
       try {
         const originStr =
           typeof origin === "string"
             ? origin
             : `${origin.lat.toFixed(6)},${origin.lng.toFixed(6)}`;
-
         const destinationStr =
           typeof destination === "string"
             ? destination
             : `${destination.lat.toFixed(6)},${destination.lng.toFixed(6)}`;
-
         const directionsResult = await mapService.getDirections(
           origin,
           destination
         );
-
         if (directionsResult.path && directionsResult.path.length > 0) {
           const polyline = new google.maps.Polyline({
             path: directionsResult.path,
             geodesic: true,
-            strokeColor: "#2563EB",
+            strokeColor: "#000000", // Changed to black
             strokeOpacity: 0.8,
             strokeWeight: 5,
             map,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  fillColor: "#000000",
+                  fillOpacity: 1,
+                  scale: 2,
+                  strokeColor: "#FFFFFF",
+                  strokeWeight: 1,
+                },
+                offset: "0%",
+                repeat: "20px",
+              },
+            ],
           });
+
+          // Animate the flow along the route
+          let offset = 0;
+          window.setInterval(() => {
+            offset = (offset + 1) % 100;
+            const icons = polyline.get("icons");
+            icons[0].offset = offset + "%";
+            polyline.set("icons", icons);
+          }, 50);
 
           polylineRef.current = polyline;
 
@@ -91,11 +115,34 @@ export default function MapRoute({
           const polyline = new google.maps.Polyline({
             path: pathCoordinates,
             geodesic: true,
-            strokeColor: "#2563EB",
+            strokeColor: "#000000", // Changed to black
             strokeOpacity: 0.8,
             strokeWeight: 5,
             map,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  fillColor: "#000000",
+                  fillOpacity: 1,
+                  scale: 2,
+                  strokeColor: "#FFFFFF",
+                  strokeWeight: 1,
+                },
+                offset: "0%",
+                repeat: "20px",
+              },
+            ],
           });
+
+          // Animate the flow along the route
+          let offset = 0;
+          window.setInterval(() => {
+            offset = (offset + 1) % 100;
+            const icons = polyline.get("icons");
+            icons[0].offset = offset + "%";
+            polyline.set("icons", icons);
+          }, 50);
 
           polylineRef.current = polyline;
 
@@ -120,14 +167,21 @@ export default function MapRoute({
                 : destination,
             ],
             geodesic: true,
-            strokeColor: "#EF4444",
+            strokeColor: "#000000", // Changed to black
             strokeOpacity: 0.7,
             strokeWeight: 3,
             icons: [
               {
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 1 },
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 2,
+                  fillColor: "#000000",
+                  fillOpacity: 1,
+                  strokeColor: "#FFFFFF",
+                  strokeWeight: 1,
+                },
                 offset: "0",
-                repeat: "10px",
+                repeat: "20px",
               },
             ],
             map,
@@ -165,11 +219,9 @@ export default function MapRoute({
         }
       }
     };
-
     if (drawRoute) {
       fetchDirections();
     }
-
     return () => {
       if (polylineRef.current) {
         polylineRef.current.setMap(null);

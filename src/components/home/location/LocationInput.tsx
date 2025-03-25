@@ -74,7 +74,7 @@ export default function LocationInput({
     // Only fetch suggestions if the input is at least 3 characters
     if (debouncedValue.trim().length > 2) {
       fetchSuggestions(debouncedValue);
-      setShowSuggestions(true);
+      // Don't automatically show suggestions here
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -89,6 +89,9 @@ export default function LocationInput({
         setShowSuggestions(false);
         setSuggestions([]);
         onCoordinatesChange(undefined);
+      } else if (newValue.trim().length > 2) {
+        // Only show suggestions when actively typing
+        setShowSuggestions(true);
       }
       // Don't trigger geocoding here - only update the text value
     },
@@ -163,7 +166,10 @@ export default function LocationInput({
         onChange={(e) => handleInputChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        onFocus={() => value.length > 2 && setShowSuggestions(true)}
+        onFocus={() => {
+          // Don't show suggestions on focus
+          // Previously: value.length > 2 && setShowSuggestions(true)
+        }}
       />
       {/* Clear input button */}
       {value && (

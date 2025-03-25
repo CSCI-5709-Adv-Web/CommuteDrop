@@ -17,7 +17,6 @@ interface MapProps {
   drawRoute?: boolean;
   hasEnteredLocations?: boolean;
   isLoading?: boolean;
-  showRoute?: boolean; // Add this prop
 }
 
 export default function Map({
@@ -26,7 +25,6 @@ export default function Map({
   drawRoute = true,
   hasEnteredLocations = false,
   isLoading = false,
-  showRoute = false, // Add default value
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
@@ -184,28 +182,25 @@ export default function Map({
           />
         ))}
 
-      {googleMapRef.current &&
-        mapInitialized &&
-        positions.length > 1 &&
-        showRoute && (
-          <MapRoute
-            origin={positions[0]}
-            destination={positions[positions.length - 1]}
-            map={googleMapRef.current}
-            drawRoute={drawRoute}
-            onRouteInfoChange={handleRouteInfoChange}
-            onRouteError={handleRouteError}
-          />
-        )}
+      {googleMapRef.current && mapInitialized && positions.length > 1 && (
+        <MapRoute
+          origin={positions[0]}
+          destination={positions[positions.length - 1]}
+          map={googleMapRef.current}
+          drawRoute={drawRoute}
+          onRouteInfoChange={handleRouteInfoChange}
+          onRouteError={handleRouteError}
+        />
+      )}
 
-      {routeInfo && !noRouteFound && positions.length > 1 && showRoute && (
+      {routeInfo && !noRouteFound && positions.length > 1 && (
         <RouteInfo
           distance={routeInfo.distance}
           duration={routeInfo.duration}
         />
       )}
 
-      {noRouteFound && positions.length > 1 && showRoute && (
+      {noRouteFound && positions.length > 1 && (
         <NoRouteMessage origin={routeOrigin} destination={routeDestination} />
       )}
     </div>

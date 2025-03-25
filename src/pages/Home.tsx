@@ -13,19 +13,14 @@ export default function Home() {
     mapCenter,
     hasEnteredLocations,
     isLoadingMap,
-    showRoute, // Add this
     setPickup,
     setDropoff,
     calculateRoute,
-    setShowRoute, // Add this
   } = useLocation();
 
-  // Update the handleLocationUpdate function to reset showRoute
+  // Handle location updates from DeliveryFlow component
   const handleLocationUpdate = (newPickup: string, newDropoff: string) => {
     console.log("Location update received:", { newPickup, newDropoff });
-
-    // Reset showRoute whenever locations change
-    setShowRoute(false);
 
     // Only update if values have changed
     if (pickup !== newPickup) {
@@ -60,7 +55,6 @@ export default function Home() {
             drawRoute={mapPositions.length > 1}
             hasEnteredLocations={hasEnteredLocations}
             isLoading={isLoadingMap}
-            showRoute={showRoute} // Add this prop
           />
         </div>
       </div>

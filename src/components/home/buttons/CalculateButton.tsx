@@ -13,15 +13,11 @@ interface CalculateButtonProps {
 }
 
 export default function CalculateButton({
-  isValid,
   isLoading,
   pickupAddress,
   dropoffAddress,
-  hasPickupCoordinates,
-  hasDropoffCoordinates,
   onClick,
 }: CalculateButtonProps) {
-  // Force enable the button if both addresses are filled, even if coordinates aren't yet available
   const shouldEnable =
     pickupAddress.trim().length > 0 && dropoffAddress.trim().length > 0;
 

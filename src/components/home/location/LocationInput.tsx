@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Loader, X, Crosshair } from "lucide-react";
 import { mapService } from "../../../services/map-service";
 import LocationSuggestions from "./LocationSuggestions";
+import { useDebounce } from "../../../hooks/useDebounce";
 
 interface LocationInputProps {
   value: string;
@@ -30,12 +31,13 @@ export default function LocationInput({
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use the custom debounce hook
+  const debouncedValue = useDebounce(value, 300);
 
   const fetchSuggestions = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
-
       try {
         setIsLoading(true);
 
@@ -50,7 +52,6 @@ export default function LocationInput({
               });
             }
           );
-
           locationBias = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
@@ -90,6 +91,16 @@ export default function LocationInput({
     [type]
   );
 
+  // Use the debounced value for fetching suggestions
+  useEffect(() => {
+    if (debouncedValue.trim().length > 2) {
+      fetchSuggestions(debouncedValue);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+    }
+  }, [debouncedValue, fetchSuggestions]);
+
   const handleGetCurrentLocation = useCallback(async () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
@@ -98,7 +109,6 @@ export default function LocationInput({
 
     try {
       setIsGettingLocation(true);
-
       const position = await new Promise<GeolocationPosition>(
         (resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -108,10 +118,8 @@ export default function LocationInput({
           });
         }
       );
-
       const { latitude, longitude } = position.coords;
       onCoordinatesChange({ lat: latitude, lng: longitude });
-
       try {
         const result = await mapService.geocodeAddress(
           `${latitude},${longitude}`
@@ -140,81 +148,59 @@ export default function LocationInput({
     (newValue: string) => {
       onChange(newValue);
 
-      if (newValue.trim()) {
-        setShowSuggestions(true);
-
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-
-        // Shorter debounce for better responsiveness
-        debounceTimerRef.current = setTimeout(() => {
-          fetchSuggestions(newValue);
-
-          // If the input looks like a complete address, try to geocode it immediately
-          if (newValue.length > 10 && newValue.includes(" ")) {
-            const province = "Nova Scotia";
-            setIsLoading(true);
-            mapService
-              .geocodeAddress(newValue, province)
-              .then((result) => {
-                if (result && result.latitude !== 0 && result.longitude !== 0) {
-                  onCoordinatesChange({
-                    lat: result.latitude,
-                    lng: result.longitude,
-                  });
-                }
-              })
-              .catch((err) => {
-                console.error(`Error geocoding ${type} address:`, err);
-              })
-              .finally(() => {
-                setIsLoading(false);
-              });
-          }
-        }, 300);
-      } else {
+      if (!newValue.trim()) {
         setShowSuggestions(false);
         setSuggestions([]);
         onCoordinatesChange(undefined);
       }
     },
-    [onChange, onCoordinatesChange, fetchSuggestions, type]
+    [onChange, onCoordinatesChange]
   );
 
   const handleBlur = useCallback(() => {
-    if (value && value.trim().length > 0) {
-      const province = "Nova Scotia";
-      setIsLoading(true);
-      mapService
-        .geocodeAddress(value, province)
-        .then((result) => {
-          if (result && result.latitude !== 0 && result.longitude !== 0) {
-            onCoordinatesChange({
-              lat: result.latitude,
-              lng: result.longitude,
+    // Use a short timeout to allow click events on suggestions to fire first
+    setTimeout(() => {
+      if (
+        !document.activeElement ||
+        document.activeElement !== inputRef.current
+      ) {
+        setShowSuggestions(false);
+
+        if (value && value.trim().length > 0) {
+          const province = "Nova Scotia";
+          setIsLoading(true);
+          mapService
+            .geocodeAddress(value, province)
+            .then((result) => {
+              if (result && result.latitude !== 0 && result.longitude !== 0) {
+                onCoordinatesChange({
+                  lat: result.latitude,
+                  lng: result.longitude,
+                });
+              }
+            })
+            .catch((err) => {
+              console.error(`Error geocoding ${type} address on blur:`, err);
+            })
+            .finally(() => {
+              setIsLoading(false);
             });
-          }
-        })
-        .catch((err) => {
-          console.error(`Error geocoding ${type} address on blur:`, err);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          setTimeout(() => setShowSuggestions(false), 200);
-        });
-    } else {
-      setTimeout(() => setShowSuggestions(false), 200);
-    }
+        }
+      }
+    }, 150);
   }, [value, type, onCoordinatesChange]);
 
   const handleSuggestionSelect = useCallback(
     (suggestion: any) => {
       const address = suggestion.description || suggestion.mainText || "";
-      onChange(address);
-      setShowSuggestions(false);
-      setIsLoading(true);
 
+      // Immediately hide suggestions and update state
+      setShowSuggestions(false);
+      setSuggestions([]);
+      onChange(address);
+
+      // Then geocode the address
+      setIsLoading(true);
       const province = "Nova Scotia";
       mapService
         .geocodeAddress(address, province)
@@ -256,9 +242,6 @@ export default function LocationInput({
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
     };
   }, [type]);
 
@@ -312,7 +295,7 @@ export default function LocationInput({
         />
       </div>
 
-      {showSuggestions && (
+      {showSuggestions && suggestions.length > 0 && (
         <LocationSuggestions
           id={`${type}-suggestions-container`}
           suggestions={suggestions}

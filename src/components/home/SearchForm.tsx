@@ -1,9 +1,9 @@
 "use client";
-
-import type React from "react";
 import { motion } from "framer-motion";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import type { DeliveryFormData } from "./DeliveryFlow";
+// Import useLocation
+import { useLocation } from "../../context/LocationContext";
 
 import LocationInput from "./location/LocationInput";
 import WeightInput from "./weight/WeightInput";
@@ -14,155 +14,77 @@ import { useLoadingState } from "../../hooks/useLoadingState";
 
 interface SearchFormProps {
   formData: DeliveryFormData;
-  setFormData: React.Dispatch<React.SetStateAction<DeliveryFormData>>;
+  onFormDataChange: (field: string, value: any) => void;
   onNext: () => void;
-  onLocationChange?: (pickup: string, dropoff: string) => void;
+  onLocationUpdate?: (pickup: string, dropoff: string) => void;
 }
 
 export default function SearchForm({
   formData,
-  setFormData,
+  onFormDataChange,
   onNext,
-  onLocationChange,
+  onLocationUpdate,
 }: SearchFormProps) {
-  const isInitialRender = useRef(true);
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const {
+    pickup,
+    dropoff,
+    pickupCoordinates,
+    dropoffCoordinates,
+    setPickup,
+    setDropoff,
+    setPickupCoordinates,
+    setDropoffCoordinates,
+    setShowRoute, // Add this
+  } = useLocation();
 
-  const { isLoading, startLoading, stopLoading } = useLoadingState([
+  const { isLoading } = useLoadingState([
     "pickupSuggestions",
     "dropoffSuggestions",
     "geocoding",
   ]);
 
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      handleFormChange("pickup", "");
-      handleFormChange("dropoff", "");
-
-      if (onLocationChange) {
-        onLocationChange("", "");
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(userPos);
-        },
-        (error) => {
-          console.error("Error getting user location:", error);
-        }
-      );
-    }
-  }, []);
-
-  const carriers = useMemo(
-    () => [
-      {
-        type: "car",
-        icon: <Car className="w-5 h-5" aria-hidden="true" />,
-        label: "Car",
-      },
-      {
-        type: "truck",
-        icon: <Truck className="w-5 h-5" aria-hidden="true" />,
-        label: "Truck",
-      },
-      {
-        type: "bike",
-        icon: <Bike className="w-5 h-5" aria-hidden="true" />,
-        label: "Bike",
-      },
-      {
-        type: "walk",
-        icon: <Package className="w-5 h-5" aria-hidden="true" />,
-        label: "Walk",
-      },
-    ],
-    []
-  );
-
-  const handleFormChange = useCallback(
-    (field: string, value: string) => {
-      setFormData((prevData) => ({
-        ...prevData,
-        [field]: value,
-      }));
-    },
-    [setFormData]
-  );
-
+  // Add a function to reset showRoute when location changes
   const handlePickupChange = useCallback(
     (value: string) => {
-      handleFormChange("pickup", value);
-
-      if (!value.trim()) {
-        setFormData((prev) => ({
-          ...prev,
-          pickupCoordinates: undefined,
-        }));
+      setPickup(value);
+      setShowRoute(false); // Reset route visibility when location changes
+      if (onLocationUpdate) {
+        onLocationUpdate(value, dropoff);
       }
     },
-    [handleFormChange, setFormData]
+    [setPickup, dropoff, onLocationUpdate, setShowRoute]
   );
 
   const handleDropoffChange = useCallback(
     (value: string) => {
-      handleFormChange("dropoff", value);
-
-      if (!value.trim()) {
-        setFormData((prev) => ({
-          ...prev,
-          dropoffCoordinates: undefined,
-        }));
+      setDropoff(value);
+      setShowRoute(false); // Reset route visibility when location changes
+      if (onLocationUpdate) {
+        onLocationUpdate(pickup, value);
       }
     },
-    [handleFormChange, setFormData]
+    [setDropoff, pickup, onLocationUpdate, setShowRoute]
   );
 
   const handlePickupCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
-      setFormData((prev) => ({
-        ...prev,
-        pickupCoordinates: coordinates,
-      }));
-
-      if (onLocationChange) {
-        onLocationChange(formData.pickup, formData.dropoff);
-      }
+      setPickupCoordinates(coordinates);
     },
-    [formData.pickup, formData.dropoff, onLocationChange, setFormData]
+    [setPickupCoordinates]
   );
 
   const handleDropoffCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
-      setFormData((prev) => ({
-        ...prev,
-        dropoffCoordinates: coordinates,
-      }));
-
-      if (onLocationChange) {
-        onLocationChange(formData.pickup, formData.dropoff);
-      }
+      setDropoffCoordinates(coordinates);
     },
-    [formData.pickup, formData.dropoff, onLocationChange, setFormData]
+    [setDropoffCoordinates]
   );
 
   const isFormValid = useMemo(() => {
-    const hasPickupAddress = formData.pickup.trim().length > 0;
-    const hasDropoffAddress = formData.dropoff.trim().length > 0;
+    const hasPickupAddress = pickup.trim().length > 0;
+    const hasDropoffAddress = dropoff.trim().length > 0;
     return hasPickupAddress && hasDropoffAddress;
-  }, [formData.pickup, formData.dropoff]);
+  }, [pickup, dropoff]);
 
   const isLoadingData = useMemo(() => {
     return (
@@ -191,7 +113,7 @@ export default function SearchForm({
 
       <div className="space-y-4">
         <LocationInput
-          value={formData.pickup}
+          value={pickup}
           onChange={handlePickupChange}
           onCoordinatesChange={handlePickupCoordinatesChange}
           placeholder="Pickup location"
@@ -200,7 +122,7 @@ export default function SearchForm({
         />
 
         <LocationInput
-          value={formData.dropoff}
+          value={dropoff}
           onChange={handleDropoffChange}
           onCoordinatesChange={handleDropoffCoordinatesChange}
           placeholder="Dropoff location"
@@ -210,34 +132,32 @@ export default function SearchForm({
 
         <WeightInput
           value={formData.weight}
-          onChange={(value) => handleFormChange("weight", value)}
+          onChange={(value) => onFormDataChange("weight", value)}
         />
 
         <CarrierSelection
           selectedCarrier={formData.carrier}
-          onChange={(carrier) => handleFormChange("carrier", carrier)}
+          onChange={(carrier) => onFormDataChange("carrier", carrier)}
         />
       </div>
 
       <CalculateButton
         isValid={isFormValid}
         isLoading={isLoadingData}
-        pickupAddress={formData.pickup}
-        dropoffAddress={formData.dropoff}
-        hasPickupCoordinates={!!formData.pickupCoordinates}
-        hasDropoffCoordinates={!!formData.dropoffCoordinates}
+        pickupAddress={pickup}
+        dropoffAddress={dropoff}
+        hasPickupCoordinates={!!pickupCoordinates}
+        hasDropoffCoordinates={!!dropoffCoordinates}
         onClick={onNext}
       />
 
       <FormValidationMessage
         isValid={isFormValid}
-        pickupAddress={formData.pickup}
-        dropoffAddress={formData.dropoff}
-        hasPickupCoordinates={!!formData.pickupCoordinates}
-        hasDropoffCoordinates={!!formData.dropoffCoordinates}
+        pickupAddress={pickup}
+        dropoffAddress={dropoff}
+        hasPickupCoordinates={!!pickupCoordinates}
+        hasDropoffCoordinates={!!dropoffCoordinates}
       />
     </motion.div>
   );
 }
-
-import { Car, Truck, Bike, Package } from "lucide-react";

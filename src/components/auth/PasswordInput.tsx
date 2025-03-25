@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useCallback } from "react";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/solid";
 
@@ -19,14 +18,12 @@ export default function PasswordInput({
   error = false,
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
-
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setPassword(e.target.value);
     },
     [setPassword]
   );
-
   const togglePasswordVisibility = useCallback(() => {
     setShowPassword((prev) => !prev);
   }, []);

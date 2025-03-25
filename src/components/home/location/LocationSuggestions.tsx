@@ -28,16 +28,19 @@ export default function LocationSuggestions({
           Loading suggestions...
         </div>
       )}
-
       {!isLoading && suggestions.length === 0 && searchText.length > 2 && (
         <div className="p-2 text-sm text-gray-500">No suggestions found</div>
       )}
-
       {suggestions.map((suggestion, index) => (
         <div
           key={index}
           className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
-          onClick={() => onSelect(suggestion)}
+          onMouseDown={(e) => {
+            // Prevent the blur event from firing
+            e.preventDefault();
+            // Call onSelect immediately
+            onSelect(suggestion);
+          }}
         >
           <div className="flex items-start">
             <MapPin className="w-4 h-4 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />

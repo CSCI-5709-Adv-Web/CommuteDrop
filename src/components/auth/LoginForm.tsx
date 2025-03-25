@@ -17,7 +17,6 @@ export default function LoginForm() {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-
       if (email.trim() && password.trim()) {
         try {
           const success = await login(email, password);

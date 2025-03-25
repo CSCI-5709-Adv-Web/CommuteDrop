@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
 import { deliveryService } from "../../services/delivery-service";
-import { mapService } from "../../services/map-service";
+import { useLocation } from "../../context/LocationContext";
 
 type FlowStep = "search" | "confirm" | "payment" | "estimate";
 
@@ -36,11 +36,24 @@ export default function DeliveryFlow({
 }: DeliveryFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
   const [estimateData, setEstimateData] = useState<any>(null);
-  const [formData, setFormData] = useState<DeliveryFormData>({
-    pickup: "",
-    dropoff: "",
-    pickupCoordinates: undefined,
-    dropoffCoordinates: undefined,
+
+  // Get location data from context
+  const locationData = useLocation();
+  const {
+    pickup,
+    dropoff,
+    pickupCoordinates,
+    dropoffCoordinates,
+    setShowRoute,
+  } = locationData;
+
+  // Additional form data not related to location
+  const [formData, setFormData] = useState<
+    Omit<
+      DeliveryFormData,
+      "pickup" | "dropoff" | "pickupCoordinates" | "dropoffCoordinates"
+    >
+  >({
     weight: "",
     carrier: "car",
     estimatedTime: "30-45 mins",
@@ -49,9 +62,18 @@ export default function DeliveryFlow({
     expiry: "",
     cvc: "",
   });
-  const [hasEnteredLocations, setHasEnteredLocations] = useState(false);
-  const [lastNotifiedPickup, setLastNotifiedPickup] = useState("");
-  const [lastNotifiedDropoff, setLastNotifiedDropoff] = useState("");
+
+  // Combine location data from context with other form data
+  const completeFormData: DeliveryFormData = useMemo(
+    () => ({
+      pickup,
+      dropoff,
+      pickupCoordinates,
+      dropoffCoordinates,
+      ...formData,
+    }),
+    [pickup, dropoff, pickupCoordinates, dropoffCoordinates, formData]
+  );
 
   const steps: FlowStep[] = useMemo(
     () => ["search", "confirm", "payment", "estimate"],
@@ -63,78 +85,9 @@ export default function DeliveryFlow({
     [steps, currentStep]
   );
 
-  // Improve the coordination between location updates and map rendering
-  // Update the handleLocationChange function to be more responsive
-  const handleLocationChange = useCallback(
-    (pickup: string, dropoff: string) => {
-      if (pickup !== formData.pickup) {
-        setFormData((prev) => ({ ...prev, pickup }));
-      }
-
-      if (dropoff !== formData.dropoff) {
-        setFormData((prev) => ({ ...prev, dropoff }));
-      }
-
-      if (
-        (pickup && pickup.trim().length > 0) ||
-        (dropoff && dropoff.trim().length > 0)
-      ) {
-        setHasEnteredLocations(true);
-      }
-
-      if (pickup !== lastNotifiedPickup || dropoff !== lastNotifiedDropoff) {
-        if (onLocationUpdate) {
-          onLocationUpdate(pickup, dropoff);
-          setLastNotifiedPickup(pickup);
-          setLastNotifiedDropoff(dropoff);
-        }
-      }
-
-      // Trigger route calculation when coordinates are available
-      if (formData.pickupCoordinates || formData.dropoffCoordinates) {
-        if (onCalculateRoute) {
-          // Use a short timeout to allow state updates to complete
-          setTimeout(() => {
-            onCalculateRoute();
-          }, 100);
-        }
-      }
-    },
-    [
-      formData.pickup,
-      formData.dropoff,
-      formData.pickupCoordinates,
-      formData.dropoffCoordinates,
-      onLocationUpdate,
-      onCalculateRoute,
-      lastNotifiedPickup,
-      lastNotifiedDropoff,
-    ]
-  );
-
-  const updateMapWithCoordinates = useCallback(() => {
-    if (
-      onCalculateRoute &&
-      (formData.pickupCoordinates || formData.dropoffCoordinates)
-    ) {
-      onCalculateRoute();
-      setHasEnteredLocations(true);
-    }
-  }, [
-    formData.pickupCoordinates,
-    formData.dropoffCoordinates,
-    onCalculateRoute,
-  ]);
-
-  useEffect(() => {
-    if (formData.pickupCoordinates || formData.dropoffCoordinates) {
-      updateMapWithCoordinates();
-    }
-  }, [
-    formData.pickupCoordinates,
-    formData.dropoffCoordinates,
-    updateMapWithCoordinates,
-  ]);
+  const handleFormDataChange = useCallback((field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   const handleNavigate = useCallback(
     async (step: FlowStep) => {
@@ -144,54 +97,16 @@ export default function DeliveryFlow({
         }
 
         try {
-          let pickupCoords = formData.pickupCoordinates;
-          let dropoffCoords = formData.dropoffCoordinates;
-
-          if (!pickupCoords && formData.pickup) {
-            try {
-              const pickupResult = await mapService.geocodeAddress(
-                formData.pickup
-              );
-              if (pickupResult.latitude !== 0 && pickupResult.longitude !== 0) {
-                pickupCoords = {
-                  lat: pickupResult.latitude,
-                  lng: pickupResult.longitude,
-                };
-              }
-            } catch (error) {
-              console.error("Error geocoding pickup address:", error);
-            }
-          }
-
-          if (!dropoffCoords && formData.dropoff) {
-            try {
-              const dropoffResult = await mapService.geocodeAddress(
-                formData.dropoff
-              );
-              if (
-                dropoffResult.latitude !== 0 &&
-                dropoffResult.longitude !== 0
-              ) {
-                dropoffCoords = {
-                  lat: dropoffResult.latitude,
-                  lng: dropoffResult.longitude,
-                };
-              }
-            } catch (error) {
-              console.error("Error geocoding dropoff address:", error);
-            }
-          }
-
           const requestData = {
             pickup: {
-              address: formData.pickup,
-              latitude: pickupCoords?.lat || 44.6488,
-              longitude: pickupCoords?.lng || -63.5752,
+              address: pickup,
+              latitude: pickupCoordinates?.lat || 44.6488,
+              longitude: pickupCoordinates?.lng || -63.5752,
             },
             dropoff: {
-              address: formData.dropoff,
-              latitude: dropoffCoords?.lat || 32.532,
-              longitude: dropoffCoords?.lng || 75.971,
+              address: dropoff,
+              latitude: dropoffCoordinates?.lat || 32.532,
+              longitude: dropoffCoordinates?.lng || 75.971,
             },
             packageDetails: {
               weight: Number.parseFloat(formData.weight) || 0,
@@ -234,24 +149,25 @@ export default function DeliveryFlow({
         } catch (error) {
           console.error("Error in navigation process:", error);
         }
+      } else if (step === "search") {
+        // Reset showRoute when going back to search
+        setShowRoute(false);
+        setCurrentStep(step);
       } else {
         setCurrentStep(step);
       }
     },
-    [currentStep, formData, onCalculateRoute]
+    [
+      currentStep,
+      pickup,
+      dropoff,
+      pickupCoordinates,
+      dropoffCoordinates,
+      formData,
+      onCalculateRoute,
+      setShowRoute,
+    ]
   );
-
-  useEffect(() => {
-    if (formData.pickupCoordinates || formData.dropoffCoordinates) {
-      handleLocationChange(formData.pickup, formData.dropoff);
-    }
-  }, [
-    formData.pickupCoordinates,
-    formData.dropoffCoordinates,
-    handleLocationChange,
-    formData.pickup,
-    formData.dropoff,
-  ]);
 
   const transitionConfig = {
     duration: 0.3,
@@ -282,10 +198,10 @@ export default function DeliveryFlow({
               transition={transitionConfig}
             >
               <SearchForm
-                formData={formData}
-                setFormData={setFormData}
+                formData={completeFormData}
+                onFormDataChange={handleFormDataChange}
                 onNext={() => handleNavigate("confirm")}
-                onLocationChange={handleLocationChange}
+                onLocationUpdate={onLocationUpdate}
               />
             </motion.div>
           )}
@@ -298,7 +214,7 @@ export default function DeliveryFlow({
               transition={transitionConfig}
             >
               <ConfirmDelivery
-                formData={formData}
+                formData={completeFormData}
                 estimateData={estimateData}
                 onBack={() => handleNavigate("search")}
                 onNext={() => handleNavigate("payment")}
@@ -328,7 +244,7 @@ export default function DeliveryFlow({
               transition={transitionConfig}
             >
               <DeliveryEstimate
-                formData={formData}
+                formData={completeFormData}
                 estimateData={estimateData}
                 onBack={() => handleNavigate("payment")}
               />

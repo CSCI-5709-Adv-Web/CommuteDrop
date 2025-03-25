@@ -6,8 +6,6 @@ import { Elements } from "@stripe/react-stripe-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-
-// Import modularized components
 import PaymentMethodSelector from "./payment/PaymentMethodSelector";
 import CardInput from "./payment/CardInput";
 import OrderSummary from "./payment/OrderSummary";
@@ -70,9 +68,7 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             },
           ],
         };
-
         setSavedCards(mockUserData.paymentMethods);
-
         // Select default card
         const defaultCard = mockUserData.paymentMethods.find(
           (card) => card.isDefault
@@ -84,7 +80,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         console.error("Error fetching saved cards:", error);
       }
     };
-
     fetchSavedCards();
   }, [user]);
 
@@ -101,7 +96,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
       <AnimatePresence>
         {paymentStatus === "success" && <SuccessConfetti />}
       </AnimatePresence>
-
       {/* Header with Back Button */}
       <div className="flex items-center mb-6">
         <button
@@ -112,13 +106,11 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         </button>
         <h2 className="text-2xl font-bold text-gray-900 ml-4">Payment</h2>
       </div>
-
       {/* Secure Payment */}
       <div className="flex items-center mb-4">
         <ShieldCheck className="w-5 h-5 text-green-600 mr-2" />
         <p className="text-sm text-gray-700">Secure payment processing</p>
       </div>
-
       {/* Payment Method Selection */}
       {savedCards.length > 0 && paymentStatus === "idle" && (
         <PaymentMethodSelector
@@ -135,12 +127,10 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
           }}
         />
       )}
-
       {/* Stripe Card Input */}
       {(useNewCard || savedCards.length === 0) && (
         <CardInput paymentStatus={paymentStatus} />
       )}
-
       {error && (
         <motion.p
           initial={{ opacity: 0, y: -10 }}
@@ -150,10 +140,8 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
           {error}
         </motion.p>
       )}
-
       {/* Order Summary */}
       <OrderSummary deliveryFee="12.99" serviceFee="3.00" total="15.99" />
-
       {/* Pay Button */}
       <PaymentButton
         paymentStatus={paymentStatus}
@@ -167,7 +155,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         amount="15.99"
         onClick={paymentStatus === "error" ? handleRetry : handlePayment}
       />
-
       {/* Success Message */}
       <AnimatePresence>
         {paymentStatus === "success" && (

@@ -13,10 +13,7 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* Base background */}
         <rect width="800" height="600" fill="#eef2ff" />
-
-        {/* Grid lines */}
         <g opacity="0.3">
           <path d="M0 50H800" stroke="#6366f1" strokeWidth="1" />
           <path d="M0 100H800" stroke="#6366f1" strokeWidth="1" />
@@ -29,7 +26,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           <path d="M0 450H800" stroke="#6366f1" strokeWidth="1" />
           <path d="M0 500H800" stroke="#6366f1" strokeWidth="1" />
           <path d="M0 550H800" stroke="#6366f1" strokeWidth="1" />
-
           <path d="M50 0V600" stroke="#6366f1" strokeWidth="1" />
           <path d="M100 0V600" stroke="#6366f1" strokeWidth="1" />
           <path d="M150 0V600" stroke="#6366f1" strokeWidth="1" />
@@ -46,16 +42,12 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           <path d="M700 0V600" stroke="#6366f1" strokeWidth="1" />
           <path d="M750 0V600" stroke="#6366f1" strokeWidth="1" />
         </g>
-
-        {/* Main roads */}
         <g opacity="0.7">
           <path d="M200 0V600" stroke="#4f46e5" strokeWidth="6" />
           <path d="M600 0V600" stroke="#4f46e5" strokeWidth="6" />
           <path d="M0 150H800" stroke="#4f46e5" strokeWidth="6" />
           <path d="M0 450H800" stroke="#4f46e5" strokeWidth="6" />
         </g>
-
-        {/* Parks (green areas) */}
         <rect
           x="250"
           y="200"
@@ -74,15 +66,11 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           opacity="0.6"
           rx="10"
         />
-
-        {/* Water (blue area) */}
         <path
           d="M0 500C50 520 100 510 150 520C200 530 250 520 300 510C350 500 400 510 450 520C500 530 550 520 600 510C650 500 700 510 750 520C800 530 800 600 0 600Z"
           fill="#60a5fa"
           opacity="0.6"
         />
-
-        {/* Curved roads */}
         <path
           d="M100 300C150 200 250 250 300 150"
           stroke="#4f46e5"
@@ -95,8 +83,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           strokeWidth="4"
           opacity="0.6"
         />
-
-        {/* Buildings */}
         <rect
           x="220"
           y="170"
@@ -161,8 +147,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           fill="#94a3b8"
           opacity="0.8"
         />
-
-        {/* Province boundaries */}
         <path
           d="M50 100C100 80 150 120 200 100C250 80 300 120 350 100"
           stroke="#9333ea"
@@ -170,7 +154,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           strokeDasharray="10 5"
           opacity="0.7"
         />
-
         <path
           d="M450 100C500 80 550 120 600 100C650 80 700 120 750 100"
           stroke="#9333ea"
@@ -178,8 +161,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
           strokeDasharray="10 5"
           opacity="0.7"
         />
-
-        {/* Compass */}
         <circle cx="730" cy="70" r="30" fill="white" opacity="0.9" />
         <path d="M730 40V100" stroke="#4f46e5" strokeWidth="2" />
         <path d="M700 70H760" stroke="#4f46e5" strokeWidth="2" />
@@ -195,20 +176,14 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
         <text x="745" y="74" fill="#4f46e5" fontSize="12" fontWeight="bold">
           E
         </text>
-
-        {/* Route markers */}
         <circle cx="250" cy="200" r="10" fill="#22c55e" />
         <circle cx="550" cy="400" r="10" fill="#ef4444" />
-
-        {/* Route line - now curved to look more like a real route */}
         <path
           d="M250 200C300 230 320 280 350 320C380 360 450 380 550 400"
           stroke="#2563eb"
           strokeWidth="5"
           strokeLinecap="round"
         />
-
-        {/* Add some location labels */}
         <rect
           x="230"
           y="160"
@@ -221,7 +196,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
         <text x="240" y="175" fill="#1e3a8a" fontSize="10" fontWeight="bold">
           Halifax
         </text>
-
         <rect
           x="530"
           y="410"
@@ -234,7 +208,6 @@ export default function MapBackground({ className = "" }: MapBackgroundProps) {
         <text x="540" y="425" fill="#1e3a8a" fontSize="10" fontWeight="bold">
           Dartmouth
         </text>
-
         <rect
           x="350"
           y="100"

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useGoogleMaps } from "../../context/GoogleMapsContext";
 import { Loader } from "lucide-react";
+import type { Position } from "../../hooks/useLocationState";
 
 import MapMarker from "./map/MapMarker";
 import MapRoute from "./map/MapRoute";
@@ -10,16 +11,13 @@ import RouteInfo from "./map/RouteInfo";
 import NoRouteMessage from "./map/NoRouteMessage";
 import MapPlaceholder from "./map/MapPlaceholder";
 
-interface Position {
-  lat: number;
-  lng: number;
-}
-
 interface MapProps {
   positions: Position[];
   center: Position;
   drawRoute?: boolean;
   hasEnteredLocations?: boolean;
+  isLoading?: boolean;
+  showRoute?: boolean; // Add this prop
 }
 
 export default function Map({
@@ -27,6 +25,8 @@ export default function Map({
   center,
   drawRoute = true,
   hasEnteredLocations = false,
+  isLoading = false,
+  showRoute = false, // Add default value
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
@@ -145,6 +145,20 @@ export default function Map({
     return <MapPlaceholder />;
   }
 
+  if (isLoading) {
+    return (
+      <div
+        className="relative w-full h-full rounded-lg flex items-center justify-center bg-gray-100"
+        style={{ minHeight: "500px" }}
+      >
+        <div className="flex flex-col items-center">
+          <Loader className="w-10 h-10 text-primary animate-spin" />
+          <p className="mt-2 text-gray-600">Calculating route...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative w-full h-full rounded-lg"
@@ -170,25 +184,28 @@ export default function Map({
           />
         ))}
 
-      {googleMapRef.current && mapInitialized && positions.length > 1 && (
-        <MapRoute
-          origin={positions[0]}
-          destination={positions[positions.length - 1]}
-          map={googleMapRef.current}
-          drawRoute={drawRoute}
-          onRouteInfoChange={handleRouteInfoChange}
-          onRouteError={handleRouteError}
-        />
-      )}
+      {googleMapRef.current &&
+        mapInitialized &&
+        positions.length > 1 &&
+        showRoute && (
+          <MapRoute
+            origin={positions[0]}
+            destination={positions[positions.length - 1]}
+            map={googleMapRef.current}
+            drawRoute={drawRoute}
+            onRouteInfoChange={handleRouteInfoChange}
+            onRouteError={handleRouteError}
+          />
+        )}
 
-      {routeInfo && !noRouteFound && positions.length > 1 && (
+      {routeInfo && !noRouteFound && positions.length > 1 && showRoute && (
         <RouteInfo
           distance={routeInfo.distance}
           duration={routeInfo.duration}
         />
       )}
 
-      {noRouteFound && positions.length > 1 && (
+      {noRouteFound && positions.length > 1 && showRoute && (
         <NoRouteMessage origin={routeOrigin} destination={routeDestination} />
       )}
     </div>

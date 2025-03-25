@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import MapBackground from "../MapBackground";
+import MapBackground from "./MapBackground";
 
 export default function MapPlaceholder() {
   return (

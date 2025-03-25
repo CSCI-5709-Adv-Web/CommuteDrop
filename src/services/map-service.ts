@@ -50,7 +50,7 @@ export const mapService = {
       const language = "en"
       let searchText = text
       searchText = `${searchText}, ${location.city}, ${location.province}, ${location.country}`
-      let url = `${ENDPOINTS.MAPS.AUTOCOMPLETE}?text=${encodeURIComponent(searchText)}&maxResults=${maxResults}&language=${encodeURIComponent(language)}`
+      const url = `${ENDPOINTS.MAPS.AUTOCOMPLETE}?text=${encodeURIComponent(searchText)}&maxResults=${maxResults}&language=${encodeURIComponent(language)}`
       const response = await fetch(url, {
         signal: AbortSignal.timeout(3000),
         headers: {
@@ -94,6 +94,7 @@ export const mapService = {
   },
 
   geocodeAddress: async (address: string): Promise<GeocodingResult> => {
+    // Early return if address is too short (less than 3 characters)
     if (!address || address.trim().length < 3) {
       return {
         address,
@@ -101,8 +102,11 @@ export const mapService = {
         longitude: 0,
       }
     }
+
     try {
-      const isCoordinatePair = address.match(/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/)
+      const isCoordinatePair = address.match(
+        /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/,
+      )
       let addressWithContext = address
       if (!isCoordinatePair) {
         const location = defaultLocation

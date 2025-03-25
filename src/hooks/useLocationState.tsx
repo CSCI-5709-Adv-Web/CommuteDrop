@@ -13,7 +13,7 @@ export interface LocationState {
   mapCenter: Position;
   hasEnteredLocations: boolean;
   isLoadingMap: boolean;
-  showRoute: boolean; // Add this flag to control when to show the route
+  showRoute: boolean;
 }
 
 export interface Position {
@@ -63,49 +63,23 @@ export function useLocationState() {
     []
   );
 
-  // Update setPickup to only geocode when the address is meaningful
-  const setPickup = useCallback(
-    async (address: string) => {
-      setState((prev) => ({ ...prev, pickup: address }));
+  // Update setPickup to NOT geocode automatically
+  const setPickup = useCallback(async (address: string) => {
+    setState((prev) => ({
+      ...prev,
+      pickup: address,
+      // Don't update coordinates here - only update the text value
+    }));
+  }, []);
 
-      // Only geocode if the address is meaningful (at least 3 characters)
-      if (address.trim().length > 2) {
-        setState((prev) => ({ ...prev, isLoadingMap: true }));
-        const coordinates = await geocodeAddress(address);
-        setState((prev) => ({
-          ...prev,
-          pickupCoordinates: coordinates,
-          isLoadingMap: false,
-          hasEnteredLocations: prev.hasEnteredLocations || !!coordinates,
-        }));
-      } else {
-        setState((prev) => ({ ...prev, pickupCoordinates: undefined }));
-      }
-    },
-    [geocodeAddress]
-  );
-
-  // Update setDropoff to only geocode when the address is meaningful
-  const setDropoff = useCallback(
-    async (address: string) => {
-      setState((prev) => ({ ...prev, dropoff: address }));
-
-      // Only geocode if the address is meaningful (at least 3 characters)
-      if (address.trim().length > 2) {
-        setState((prev) => ({ ...prev, isLoadingMap: true }));
-        const coordinates = await geocodeAddress(address);
-        setState((prev) => ({
-          ...prev,
-          dropoffCoordinates: coordinates,
-          isLoadingMap: false,
-          hasEnteredLocations: prev.hasEnteredLocations || !!coordinates,
-        }));
-      } else {
-        setState((prev) => ({ ...prev, dropoffCoordinates: undefined }));
-      }
-    },
-    [geocodeAddress]
-  );
+  // Update setDropoff to NOT geocode automatically
+  const setDropoff = useCallback(async (address: string) => {
+    setState((prev) => ({
+      ...prev,
+      dropoff: address,
+      // Don't update coordinates here - only update the text value
+    }));
+  }, []);
 
   // Set coordinates directly (used when selecting from suggestions or current location)
   const setPickupCoordinates = useCallback(
@@ -169,7 +143,7 @@ export function useLocationState() {
     setState((prev) => ({ ...prev, showRoute: show }));
   }, []);
 
-  // Modify the calculateRoute function to set showRoute to true
+  // Keep the calculateRoute function to geocode if needed
   const calculateRoute = useCallback(async () => {
     console.log("Calculating route");
 
@@ -186,7 +160,7 @@ export function useLocationState() {
     }));
 
     try {
-      // Geocode pickup if needed
+      // Geocode pickup if needed (only if we don't already have coordinates)
       if (state.pickup && !state.pickupCoordinates) {
         const pickupCoords = await geocodeAddress(state.pickup);
         if (pickupCoords) {
@@ -194,7 +168,7 @@ export function useLocationState() {
         }
       }
 
-      // Geocode dropoff if needed
+      // Geocode dropoff if needed (only if we don't already have coordinates)
       if (state.dropoff && !state.dropoffCoordinates) {
         const dropoffCoords = await geocodeAddress(state.dropoff);
         if (dropoffCoords) {

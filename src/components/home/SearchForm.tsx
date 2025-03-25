@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { useCallback, useMemo } from "react";
 import type { DeliveryFormData } from "./DeliveryFlow";
@@ -48,6 +50,7 @@ export default function SearchForm({
       if (onLocationUpdate) {
         onLocationUpdate(value, dropoff);
       }
+      // Don't trigger coordinate changes here - only update the text value
     },
     [setPickup, dropoff, onLocationUpdate, setShowRoute]
   );
@@ -60,6 +63,7 @@ export default function SearchForm({
       if (onLocationUpdate) {
         onLocationUpdate(pickup, value);
       }
+      // Don't trigger coordinate changes here - only update the text value
     },
     [setDropoff, pickup, onLocationUpdate, setShowRoute]
   );

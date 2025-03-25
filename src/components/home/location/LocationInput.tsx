@@ -64,12 +64,14 @@ export default function LocationInput({
     [type]
   );
 
-  // Handle debounced value changes
+  // Improve the debouncing logic in the useEffect hook
   useEffect(() => {
     if (ignoreNextDebounceRef.current) {
       ignoreNextDebounceRef.current = false;
       return;
     }
+
+    // Only fetch suggestions if the input is at least 3 characters
     if (debouncedValue.trim().length > 2) {
       fetchSuggestions(debouncedValue);
       setShowSuggestions(true);
@@ -79,7 +81,7 @@ export default function LocationInput({
     }
   }, [debouncedValue, fetchSuggestions]);
 
-  // Input change handler
+  // Update the handleInputChange function to avoid unnecessary coordinate changes
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
@@ -88,11 +90,12 @@ export default function LocationInput({
         setSuggestions([]);
         onCoordinatesChange(undefined);
       }
+      // Don't trigger geocoding here - only update the text value
     },
     [onChange, onCoordinatesChange]
   );
 
-  // Suggestion selection handler
+  // Suggestion selection handler - this is where we'll do the geocoding
   const handleSuggestionSelect = useCallback(
     (suggestion: any) => {
       const address = suggestion.description || suggestion.mainText || "";
@@ -102,29 +105,35 @@ export default function LocationInput({
       onChange(address);
       // Flag to ignore next debounce trigger
       ignoreNextDebounceRef.current = true;
-      // Geocode selected address
-      setIsLoading(true);
-      mapService
-        .geocodeAddress(address)
-        .then((result) => {
-          if (result?.latitude && result?.longitude) {
-            onCoordinatesChange({
-              lat: result.latitude,
-              lng: result.longitude,
-            });
-          } else {
-            console.error(`Invalid coordinates for ${type}:`, address);
+
+      // Only geocode when a suggestion is selected
+      if (suggestion.placeId) {
+        setIsLoading(true);
+        mapService
+          .geocodeAddress(address)
+          .then((result) => {
+            if (result?.latitude && result?.longitude) {
+              onCoordinatesChange({
+                lat: result.latitude,
+                lng: result.longitude,
+              });
+            } else {
+              console.error(`Invalid coordinates for ${type}:`, address);
+              onCoordinatesChange(undefined);
+            }
+          })
+          .catch((err) => {
+            console.error(`Error geocoding ${type}:`, err);
             onCoordinatesChange(undefined);
-          }
-        })
-        .catch((err) => {
-          console.error(`Error geocoding ${type}:`, err);
-          onCoordinatesChange(undefined);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          inputRef.current?.blur();
-        });
+          })
+          .finally(() => {
+            setIsLoading(false);
+            inputRef.current?.blur();
+          });
+      } else {
+        // If no placeId, just blur the input without geocoding
+        inputRef.current?.blur();
+      }
     },
     [onChange, onCoordinatesChange, type]
   );

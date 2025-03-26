@@ -19,25 +19,78 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
       markerRef.current.setMap(null);
     }
 
-    const marker = new window.google.maps.Marker({
+    // Create custom marker icons based on type
+    const markerIcon = {
+      path: window.google.maps.SymbolPath.CIRCLE,
+      fillColor: type === "pickup" ? "#10b981" : "#ef4444", // Green for pickup, red for dropoff
+      fillOpacity: 1,
+      strokeColor: "#FFFFFF",
+      strokeWeight: 2,
+      scale: 8,
+    };
+
+    // Create a pulse effect marker (larger circle with animation)
+    const pulseCircle = new window.google.maps.Marker({
       position,
       map,
       icon: {
         path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: "#000000", // Changed to black for both pickup and dropoff
-        fillOpacity: 1,
-        strokeColor: "#FFFFFF",
-        strokeWeight: 2,
-        scale: 8,
+        fillColor: type === "pickup" ? "#10b981" : "#ef4444",
+        fillOpacity: 0.3,
+        strokeColor: type === "pickup" ? "#10b981" : "#ef4444",
+        strokeWeight: 1,
+        scale: 16,
       },
+      zIndex: 1,
+    });
+
+    // Create the main marker
+    const marker = new window.google.maps.Marker({
+      position,
+      map,
+      icon: markerIcon,
+      zIndex: 2,
+      animation: window.google.maps.Animation.DROP,
     });
 
     markerRef.current = marker;
 
+    // Add pulse animation
+    let scale = 16;
+    let increasing = false;
+    const animatePulse = () => {
+      if (increasing) {
+        scale += 0.2;
+        if (scale >= 20) {
+          increasing = false;
+        }
+      } else {
+        scale -= 0.2;
+        if (scale <= 16) {
+          increasing = true;
+        }
+      }
+
+      pulseCircle.setIcon({
+        path: window.google.maps.SymbolPath.CIRCLE,
+        fillColor: type === "pickup" ? "#10b981" : "#ef4444",
+        fillOpacity: 0.3,
+        strokeColor: type === "pickup" ? "#10b981" : "#ef4444",
+        strokeWeight: 1,
+        scale: scale,
+      });
+
+      window.requestAnimationFrame(animatePulse);
+    };
+
+    const animationFrame = window.requestAnimationFrame(animatePulse);
+
     return () => {
+      window.cancelAnimationFrame(animationFrame);
       if (markerRef.current) {
         markerRef.current.setMap(null);
       }
+      pulseCircle.setMap(null);
     };
   }, [map, position, type]);
 

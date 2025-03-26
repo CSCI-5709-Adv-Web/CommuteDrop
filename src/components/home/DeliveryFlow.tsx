@@ -6,7 +6,6 @@ import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
-import { deliveryService } from "../../services/delivery-service";
 import { useLocation } from "../../context/LocationContext";
 
 type FlowStep = "search" | "confirm" | "payment" | "estimate";
@@ -107,77 +106,15 @@ export default function DeliveryFlow({
           onCalculateRoute();
         }
 
-        try {
-          const requestData = {
-            pickup: {
-              address: pickup,
-              latitude: pickupCoordinates?.lat || 44.6488,
-              longitude: pickupCoordinates?.lng || -63.5752,
-            },
-            dropoff: {
-              address: dropoff,
-              latitude: dropoffCoordinates?.lat || 32.532,
-              longitude: dropoffCoordinates?.lng || 75.971,
-            },
-            packageDetails: {
-              weight: Number.parseFloat(formData.weight) || 0,
-            },
-            carrierType: formData.carrier as any,
-          };
-
-          const response = await deliveryService.getEstimate(requestData);
-
-          if (response.success && response.data) {
-            setFormData((prev) => ({
-              ...prev,
-              estimatedTime: response.data.estimatedTime.text,
-              estimatedPrice: response.data.estimatedPrice.total.toFixed(2),
-            }));
-            setEstimateData(response.data);
-          } else {
-            const fallbackData = {
-              estimatedTime: { text: "3-5 days" },
-              estimatedPrice: {
-                total: 299.99,
-                base: 50,
-                distance: 229.99,
-                time: 20,
-                currency: "USD",
-              },
-              distance: { text: "7,500 km", meters: 7500000 },
-              route: { points: [] },
-            };
-
-            setFormData((prev) => ({
-              ...prev,
-              estimatedTime: fallbackData.estimatedTime.text,
-              estimatedPrice: fallbackData.estimatedPrice.total.toFixed(2),
-            }));
-            setEstimateData(fallbackData);
-          }
-
-          // Set showRoute to true only when moving to confirm step
-          setShowRoute(true);
-          setCurrentStep(step);
-        } catch (error) {
-          console.error("Error in navigation process:", error);
-        }
+        // Set showRoute to true when moving to confirm step
+        setShowRoute(true);
+        setCurrentStep(step);
       } else {
         // For other transitions, just update the step
         setCurrentStep(step);
       }
     },
-    [
-      currentStep,
-      pickup,
-      dropoff,
-      pickupCoordinates,
-      dropoffCoordinates,
-      formData,
-      onCalculateRoute,
-      setShowRoute,
-      setRouteInfo,
-    ]
+    [currentStep, onCalculateRoute, setShowRoute, setRouteInfo]
   );
 
   const transitionConfig = {

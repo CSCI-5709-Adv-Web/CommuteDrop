@@ -12,6 +12,9 @@ import RouteInfo from "./map/RouteInfo";
 import NoRouteMessage from "./map/NoRouteMessage";
 import MapPlaceholder from "./map/MapPlaceholder";
 
+// Remove the custom map styles array
+const mapStyles = []; // Empty array to use default Google Maps styling
+
 interface MapProps {
   positions: Position[];
   center: Position;
@@ -46,6 +49,7 @@ export default function Map({
     console.log("Initializing map with Google Maps API");
 
     try {
+      // Update the map initialization to use default styling
       const mapOptions = {
         center: center,
         zoom: 13,
@@ -53,13 +57,14 @@ export default function Map({
         fullscreenControl: false,
         streetViewControl: false,
         zoomControl: true,
-        styles: [
-          {
-            featureType: "poi",
-            elementType: "labels",
-            stylers: [{ visibility: "off" }],
-          },
-        ],
+        // Remove the styles property or set to empty array
+        styles: [],
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        gestureHandling: "cooperative",
+        disableDefaultUI: false,
+        zoomControlOptions: {
+          position: google.maps.ControlPosition.RIGHT_BOTTOM,
+        },
       };
 
       const map = new google.maps.Map(mapRef.current, mapOptions);
@@ -80,7 +85,13 @@ export default function Map({
       const bounds = new google.maps.LatLngBounds();
       positions.forEach((pos) => bounds.extend(pos));
 
-      googleMapRef.current.fitBounds(bounds, 50);
+      // Add padding to the bounds
+      googleMapRef.current.fitBounds(bounds, {
+        top: 50,
+        right: 50,
+        bottom: 50,
+        left: 50,
+      });
 
       // If only one position, set appropriate zoom
       if (positions.length === 1) {
@@ -160,7 +171,7 @@ export default function Map({
 
   return (
     <div
-      className="relative w-full h-full rounded-lg"
+      className="relative w-full h-full rounded-lg overflow-hidden"
       style={{ minHeight: "500px" }}
     >
       <div

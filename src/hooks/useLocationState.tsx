@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { mapService } from "../services/map-service";
 
-// Update the LocationState interface to include a showRoute flag
+// Update the LocationState interface to include routeInfo
 export interface LocationState {
   pickup: string;
   dropoff: string;
@@ -14,6 +14,10 @@ export interface LocationState {
   hasEnteredLocations: boolean;
   isLoadingMap: boolean;
   showRoute: boolean;
+  routeInfo: {
+    distance: string;
+    duration: string;
+  } | null;
 }
 
 export interface Position {
@@ -21,7 +25,7 @@ export interface Position {
   lng: number;
 }
 
-// Update the initial state to include showRoute: false
+// Update the initial state to include routeInfo: null
 export function useLocationState() {
   // Default center (Halifax)
   const defaultCenter = { lat: 44.6488, lng: -63.5752 };
@@ -35,7 +39,8 @@ export function useLocationState() {
     mapCenter: defaultCenter,
     hasEnteredLocations: false,
     isLoadingMap: false,
-    showRoute: false, // Initialize as false
+    showRoute: false,
+    routeInfo: null,
   });
 
   // Geocode an address and return coordinates
@@ -203,10 +208,19 @@ export function useLocationState() {
       mapCenter: defaultCenter,
       hasEnteredLocations: false,
       showRoute: false,
+      routeInfo: null,
     }));
   }, [defaultCenter]);
 
-  // Update the return value to include setShowRoute
+  // Add a function to update routeInfo
+  const setRouteInfo = useCallback(
+    (info: { distance: string; duration: string } | null) => {
+      setState((prev) => ({ ...prev, routeInfo: info }));
+    },
+    []
+  );
+
+  // Update the return value to include routeInfo and setRouteInfo
   return {
     ...state,
     setPickup,
@@ -216,5 +230,6 @@ export function useLocationState() {
     calculateRoute,
     setShowRoute,
     resetLocations,
+    setRouteInfo,
   };
 }

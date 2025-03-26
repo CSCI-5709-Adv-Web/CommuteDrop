@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useGoogleMaps } from "../../context/GoogleMapsContext";
+import { useLocation } from "../../context/LocationContext";
 import { Loader } from "lucide-react";
 import type { Position } from "../../hooks/useLocationState";
 
@@ -32,14 +33,13 @@ export default function Map({
   const [noRouteFound, setNoRouteFound] = useState(false);
   const [routeOrigin, setRouteOrigin] = useState("");
   const [routeDestination, setRouteDestination] = useState("");
-  const [routeInfo, setRouteInfo] = useState<{
-    distance: string;
-    duration: string;
-  } | null>(null);
+
+  // Use the location context instead of local state
+  const { setRouteInfo, routeInfo } = useLocation();
 
   const { google, isLoading: isMapLoading, error } = useGoogleMaps();
 
-  // Initialize map when Google Maps is loaded
+  // Update map when Google Maps is loaded
   useEffect(() => {
     if (!google || !mapRef.current || googleMapRef.current) return;
 
@@ -92,11 +92,12 @@ export default function Map({
     }
   }, [google, positions]);
 
+  // Update the handleRouteInfoChange to use context
   const handleRouteInfoChange = useCallback(
     (info: { distance: string; duration: string } | null) => {
       setRouteInfo(info);
     },
-    []
+    [setRouteInfo]
   );
 
   const handleRouteError = useCallback(

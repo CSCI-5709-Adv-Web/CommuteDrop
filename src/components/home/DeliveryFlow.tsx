@@ -45,6 +45,7 @@ export default function DeliveryFlow({
     pickupCoordinates,
     dropoffCoordinates,
     setShowRoute,
+    setRouteInfo,
   } = locationData;
 
   // Additional form data not related to location
@@ -92,9 +93,10 @@ export default function DeliveryFlow({
   // Update the handleNavigate function to properly manage state transitions
   const handleNavigate = useCallback(
     async (step: FlowStep) => {
-      // When going back to search, reset the route visibility
+      // When going back to search, reset the route visibility and routeInfo
       if (step === "search") {
         setShowRoute(false);
+        setRouteInfo(null); // Reset route info when going back to search
         setCurrentStep(step);
         return;
       }
@@ -174,6 +176,7 @@ export default function DeliveryFlow({
       formData,
       onCalculateRoute,
       setShowRoute,
+      setRouteInfo,
     ]
   );
 

@@ -13,6 +13,10 @@ interface LocationContextType {
   hasEnteredLocations: boolean;
   isLoadingMap: boolean;
   showRoute: boolean;
+  routeInfo: {
+    distance: string;
+    duration: string;
+  } | null;
   setPickup: (address: string) => Promise<void>;
   setDropoff: (address: string) => Promise<void>;
   setPickupCoordinates: (coordinates: Position | undefined) => void;
@@ -20,6 +24,7 @@ interface LocationContextType {
   calculateRoute: () => Promise<void>;
   setShowRoute: (show: boolean) => void;
   resetLocations: () => void; // Add this function
+  setRouteInfo: (info: { distance: string; duration: string } | null) => void;
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(

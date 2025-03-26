@@ -10,6 +10,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
+import { useLocation } from "../../context/LocationContext";
 
 interface ConfirmDeliveryProps {
   formData: any;
@@ -24,9 +25,14 @@ export default function ConfirmDelivery({
   onBack,
   onNext,
 }: ConfirmDeliveryProps) {
-  // Use real estimated data if available
-  const estimatedDistance = estimateData?.distance?.text || "7,500 km";
-  const estimatedTime = estimateData?.estimatedTime?.text || "3-5 days";
+  // Get routeInfo from context
+  const { routeInfo } = useLocation();
+
+  // Use routeInfo if available, otherwise fall back to estimateData
+  const estimatedDistance =
+    routeInfo?.distance || estimateData?.distance?.text || "7,500 km";
+  const estimatedTime =
+    routeInfo?.duration || estimateData?.estimatedTime?.text || "3-5 days";
   const estimatedPrice =
     estimateData?.estimatedPrice?.total.toFixed(2) || "299.99";
 
@@ -95,7 +101,7 @@ export default function ConfirmDelivery({
           </div>
         </div>
 
-        {/* Distance Information */}
+        {/* Distance Information - now using routeInfo */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-start">
             <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
@@ -106,7 +112,7 @@ export default function ConfirmDelivery({
           </div>
         </div>
 
-        {/* Delivery Estimates */}
+        {/* Delivery Estimates - now using routeInfo */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-50 p-4 rounded-lg">
             <div className="flex items-start">

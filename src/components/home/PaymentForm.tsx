@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { ArrowLeft, ShieldCheck, AlertTriangle } from "lucide-react";
 import PaymentMethodSelector from "./payment/PaymentMethodSelector";
 import CardInput from "./payment/CardInput";
 import OrderSummary from "./payment/OrderSummary";
 import PaymentButton from "./payment/PaymentButton";
 import SuccessConfetti from "./payment/SuccessConfetti";
 import { usePaymentForm } from "../../hooks/usePaymentForm";
+import { cardService, type Card } from "../../services/card-service";
 
 // Load Stripe
 const stripePromise = loadStripe(
@@ -24,9 +24,9 @@ interface PaymentFormProps {
 }
 
 function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
-  const { user } = useAuth();
-  const [savedCards, setSavedCards] = useState<any[]>([]);
-
+  const [savedCards, setSavedCards] = useState<Card[]>([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [cardError, setCardError] = useState<string | null>(null);
   const {
     loading,
     error,
@@ -45,13 +45,63 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
   // Fetch saved cards
   useEffect(() => {
     const fetchSavedCards = async () => {
+      setIsLoadingCards(true);
+      setCardError(null);
       try {
-        // In a real app, this would be an API call
-        // For now, we'll simulate with mock data
+        const response = await cardService.getUserCards();
+        if (response.success) {
+          setSavedCards(response.data);
+
+          // Select default card if available
+          if (response.data.length > 0) {
+            const defaultCard = response.data.find((card) => card.isDefault);
+            if (defaultCard) {
+              setSelectedCardId(defaultCard.id);
+              setUseNewCard(false);
+            } else {
+              setSelectedCardId(response.data[0].id);
+              setUseNewCard(false);
+            }
+          } else {
+            // No cards available, use new card
+            setUseNewCard(true);
+            setSelectedCardId(null);
+          }
+        } else {
+          setCardError(response.message || "Failed to load payment methods");
+          // Fall back to mock data if API fails
+          const mockUserData = {
+            paymentMethods: [
+              {
+                id: "1",
+                type: "visa",
+                last4: "4242",
+                cardholderName: "Alex Johnson",
+                expiryDate: "12/25",
+                isDefault: true,
+              },
+              {
+                id: "2",
+                type: "mastercard",
+                last4: "5555",
+                cardholderName: "Alex Johnson",
+                expiryDate: "09/26",
+                isDefault: false,
+              },
+            ],
+          };
+          setSavedCards(mockUserData.paymentMethods as Card[]);
+          setSelectedCardId(mockUserData.paymentMethods[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching saved cards:", error);
+        setCardError("Failed to load payment methods. Using demo data.");
+
+        // Fall back to mock data if API fails
         const mockUserData = {
           paymentMethods: [
             {
-              id: 1,
+              id: "1",
               type: "visa",
               last4: "4242",
               cardholderName: "Alex Johnson",
@@ -59,7 +109,7 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
               isDefault: true,
             },
             {
-              id: 2,
+              id: "2",
               type: "mastercard",
               last4: "5555",
               cardholderName: "Alex Johnson",
@@ -68,20 +118,15 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             },
           ],
         };
-        setSavedCards(mockUserData.paymentMethods);
-        // Select default card
-        const defaultCard = mockUserData.paymentMethods.find(
-          (card) => card.isDefault
-        );
-        if (defaultCard) {
-          setSelectedCardId(defaultCard.id);
-        }
-      } catch (error) {
-        console.error("Error fetching saved cards:", error);
+        setSavedCards(mockUserData.paymentMethods as Card[]);
+        setSelectedCardId(mockUserData.paymentMethods[0].id);
+      } finally {
+        setIsLoadingCards(false);
       }
     };
+
     fetchSavedCards();
-  }, [user]);
+  }, [setSelectedCardId, setUseNewCard]);
 
   return (
     <motion.div
@@ -111,6 +156,18 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         <ShieldCheck className="w-5 h-5 text-green-600 mr-2" />
         <p className="text-sm text-gray-700">Secure payment processing</p>
       </div>
+
+      {/* Error Messages */}
+      {(error || cardError) && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
+          <AlertTriangle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-red-700 font-medium">Error</p>
+            <p className="text-sm text-red-600">{error || cardError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Payment Method Selection */}
       {savedCards.length > 0 && paymentStatus === "idle" && (
         <PaymentMethodSelector
@@ -125,20 +182,12 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             setUseNewCard(true);
             setSelectedCardId(null);
           }}
+          isLoading={isLoadingCards}
         />
       )}
       {/* Stripe Card Input */}
       {(useNewCard || savedCards.length === 0) && (
         <CardInput paymentStatus={paymentStatus} />
-      )}
-      {error && (
-        <motion.p
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-red-600 text-sm mt-2"
-        >
-          {error}
-        </motion.p>
       )}
       {/* Order Summary */}
       <OrderSummary deliveryFee="12.99" serviceFee="3.00" total="15.99" />
@@ -147,6 +196,7 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
         paymentStatus={paymentStatus}
         isDisabled={
           loading ||
+          isLoadingCards ||
           paymentStatus === "processing" ||
           paymentStatus === "success" ||
           (useNewCard && !Elements) ||

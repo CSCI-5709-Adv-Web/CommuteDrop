@@ -1,6 +1,8 @@
 "use client";
 
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader } from "lucide-react";
+import { useEffect, useState } from "react";
+import { cardService, type Card } from "../../../services/card-service";
 
 // Define card types with their icons and colors
 const CARD_TYPES = {
@@ -32,19 +34,82 @@ const CARD_TYPES = {
 
 interface PaymentMethodSelectorProps {
   savedCards: any[];
-  selectedCardId: number | null;
+  selectedCardId: string | null;
   useNewCard: boolean;
-  onSelectCard: (cardId: number) => void;
+  onSelectCard: (cardId: string) => void;
   onSelectNewCard: () => void;
+  isLoading?: boolean;
 }
 
 export default function PaymentMethodSelector({
-  savedCards,
+  savedCards: initialSavedCards,
   selectedCardId,
   useNewCard,
   onSelectCard,
   onSelectNewCard,
+  isLoading = false,
 }: PaymentMethodSelectorProps) {
+  const [savedCards, setSavedCards] = useState<Card[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch cards from API
+  useEffect(() => {
+    const fetchCards = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await cardService.getUserCards();
+        if (response.success) {
+          setSavedCards(response.data);
+
+          // If we have cards but no selection, select the default card
+          if (response.data.length > 0 && !selectedCardId && !useNewCard) {
+            const defaultCard = response.data.find((card) => card.isDefault);
+            if (defaultCard) {
+              onSelectCard(defaultCard.id);
+            } else {
+              onSelectCard(response.data[0].id);
+            }
+          }
+        } else {
+          setError(response.message || "Failed to load payment methods");
+          // Fall back to initial saved cards if API fails
+          if (initialSavedCards.length > 0) {
+            setSavedCards(initialSavedCards);
+          }
+        }
+      } catch (err) {
+        setError("An unexpected error occurred while loading payment methods");
+        console.error("Error fetching cards:", err);
+        // Fall back to initial saved cards if API fails
+        if (initialSavedCards.length > 0) {
+          setSavedCards(initialSavedCards);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, [initialSavedCards, onSelectCard, selectedCardId, useNewCard]);
+
+  if (loading || isLoading) {
+    return (
+      <div className="mb-6 flex justify-center items-center py-8">
+        <Loader className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-6 p-4 bg-red-50 rounded-lg">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-6">
       <h3 className="text-lg font-medium mb-3">Payment Method</h3>
@@ -52,7 +117,14 @@ export default function PaymentMethodSelector({
       {/* Saved Cards */}
       <div className="space-y-3 mb-4">
         {savedCards.map((card) => {
-          const cardType = CARD_TYPES[card.type as keyof typeof CARD_TYPES];
+          const cardTypeKey = Object.keys(CARD_TYPES).includes(
+            card.type.toLowerCase()
+          )
+            ? card.type.toLowerCase()
+            : "visa";
+
+          const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
+
           return (
             <div
               key={card.id}

@@ -10,11 +10,8 @@ import { useAuth } from "../../context/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
 import { Home, Truck, CreditCard, Settings, Loader } from "lucide-react";
 import Navbar from "../../components/Navbar";
-import {
-  userService,
-  type SavedLocation,
-  type PaymentMethod,
-} from "../../services/user-service";
+import type { SavedLocation } from "../../services/user-service";
+import { cardService, type Card } from "../../services/card-service";
 import {
   deliveryService,
   type DeliveryHistoryItem,
@@ -38,7 +35,7 @@ export default function Profile() {
     rating: userProfile?.rating || 0,
     profileImage:
       userProfile?.profileImage || "/placeholder.svg?height=150&width=150",
-    paymentMethods: [] as PaymentMethod[],
+    paymentMethods: [] as Card[],
     savedLocations: [] as SavedLocation[],
   });
   const [deliveryHistory, setDeliveryHistory] = useState<DeliveryHistoryItem[]>(
@@ -78,7 +75,7 @@ export default function Profile() {
 
         // Only fetch payment methods and delivery history if we're on those tabs
         if (activeTab === "payment") {
-          const paymentMethodsResponse = await userService.getPaymentMethods();
+          const paymentMethodsResponse = await cardService.getUserCards();
           if (isMounted && paymentMethodsResponse.success) {
             setUserData((prevData) => ({
               ...prevData,
@@ -117,7 +114,7 @@ export default function Profile() {
     const fetchTabData = async () => {
       if (activeTab === "payment" && userData.paymentMethods.length === 0) {
         try {
-          const response = await userService.getPaymentMethods();
+          const response = await cardService.getUserCards();
           if (response.success) {
             setUserData((prev) => ({
               ...prev,
@@ -322,7 +319,7 @@ export default function Profile() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <PaymentMethodsSection userData={userData} />
+                <PaymentMethodsSection />
               </motion.div>
             )}
             {activeTab === "settings" && (

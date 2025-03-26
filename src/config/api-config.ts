@@ -35,13 +35,12 @@ export const ENDPOINTS = {
     NEW: `${API_CONFIG.TOKEN_BASE_URL}/connect/token`,
   },
 
-  // User endpoints - updated to match the external API
+  // User endpoints - updated to match the backend controller
   USER: {
     DETAILS: `${API_CONFIG.AUTH_BASE_URL}/user/details`,
     UPDATE: `${API_CONFIG.AUTH_BASE_URL}/user/update`,
     DELETE: `${API_CONFIG.AUTH_BASE_URL}/user/delete`,
-    SAVED_LOCATIONS: `${API_CONFIG.AUTH_BASE_URL}/user/locations`,
-    PAYMENT_METHODS: `${API_CONFIG.AUTH_BASE_URL}/user/payment-methods`,
+    CARDS: `${API_CONFIG.AUTH_BASE_URL}/user/cards`,
   },
   // Delivery endpoints
   DELIVERY: {

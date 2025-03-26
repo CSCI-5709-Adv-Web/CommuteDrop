@@ -53,3 +53,12 @@ export interface AuthState {
   error: string | null
 }
 
+// Add the UpdateCardRequest interface to match the backend
+export interface UpdateCardRequest {
+  cardNumber: string
+  cardholderName: string
+  expiryDate: string
+  cvv: string
+  isDefault: boolean
+}
+

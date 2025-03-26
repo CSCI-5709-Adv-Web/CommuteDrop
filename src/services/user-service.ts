@@ -2,7 +2,6 @@ import { apiClient } from "./api-client"
 import { ENDPOINTS } from "../config/api-config"
 import type { User } from "../types/auth"
 
-// Extended user profile information
 export interface UserProfile extends User {
   name: string
   phone?: string
@@ -38,11 +37,8 @@ export interface ApiResponse<T> {
   errors?: string[]
 }
 
-// User service for handling user profile related API calls
 export const userService = {
-  /**
-   * Get current user profile
-   */
+
   getProfile: async (): Promise<ApiResponse<UserProfile>> => {
     try {
       return await apiClient.get<ApiResponse<UserProfile>>(ENDPOINTS.USER.PROFILE)
@@ -56,9 +52,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Update user profile
-   */
   updateProfile: async (profileData: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> => {
     try {
       return await apiClient.put<ApiResponse<UserProfile>>(ENDPOINTS.USER.UPDATE_PROFILE, profileData)
@@ -72,9 +65,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Upload profile image
-   */
   uploadProfileImage: async (imageFile: File): Promise<ApiResponse<{ imageUrl: string }>> => {
     try {
       const formData = new FormData()
@@ -95,73 +85,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Get user's saved locations
-   */
-  getSavedLocations: async (): Promise<ApiResponse<SavedLocation[]>> => {
-    try {
-      return await apiClient.get<ApiResponse<SavedLocation[]>>(ENDPOINTS.USER.SAVED_LOCATIONS)
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || "Failed to fetch saved locations",
-        data: [],
-        errors: [error.message || "Unknown error occurred"],
-      }
-    }
-  },
-
-  /**
-   * Add a saved location
-   */
-  addSavedLocation: async (location: Omit<SavedLocation, "id">): Promise<ApiResponse<SavedLocation>> => {
-    try {
-      return await apiClient.post<ApiResponse<SavedLocation>>(ENDPOINTS.USER.SAVED_LOCATIONS, location)
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || "Failed to add saved location",
-        data: {} as SavedLocation,
-        errors: [error.message || "Unknown error occurred"],
-      }
-    }
-  },
-
-  /**
-   * Update a saved location
-   */
-  updateSavedLocation: async (id: number, location: Partial<SavedLocation>): Promise<ApiResponse<SavedLocation>> => {
-    try {
-      return await apiClient.put<ApiResponse<SavedLocation>>(`${ENDPOINTS.USER.SAVED_LOCATIONS}/${id}`, location)
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || "Failed to update saved location",
-        data: {} as SavedLocation,
-        errors: [error.message || "Unknown error occurred"],
-      }
-    }
-  },
-
-  /**
-   * Delete a saved location
-   */
-  deleteSavedLocation: async (id: number): Promise<ApiResponse<null>> => {
-    try {
-      return await apiClient.delete<ApiResponse<null>>(`${ENDPOINTS.USER.SAVED_LOCATIONS}/${id}`)
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || "Failed to delete saved location",
-        data: null,
-        errors: [error.message || "Unknown error occurred"],
-      }
-    }
-  },
-
-  /**
-   * Get user's payment methods
-   */
   getPaymentMethods: async (): Promise<ApiResponse<PaymentMethod[]>> => {
     try {
       return await apiClient.get<ApiResponse<PaymentMethod[]>>(ENDPOINTS.USER.PAYMENT_METHODS)
@@ -175,9 +98,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Add a payment method
-   */
   addPaymentMethod: async (paymentMethod: Omit<PaymentMethod, "id">): Promise<ApiResponse<PaymentMethod>> => {
     try {
       return await apiClient.post<ApiResponse<PaymentMethod>>(ENDPOINTS.USER.PAYMENT_METHODS, paymentMethod)
@@ -191,9 +111,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Update a payment method
-   */
   updatePaymentMethod: async (
     id: number,
     paymentMethod: Partial<PaymentMethod>,
@@ -210,9 +127,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Delete a payment method
-   */
   deletePaymentMethod: async (id: number): Promise<ApiResponse<null>> => {
     try {
       return await apiClient.delete<ApiResponse<null>>(`${ENDPOINTS.USER.PAYMENT_METHODS}/${id}`)
@@ -226,9 +140,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Set a payment method as default
-   */
   setDefaultPaymentMethod: async (id: number): Promise<ApiResponse<null>> => {
     try {
       return await apiClient.put<ApiResponse<null>>(`${ENDPOINTS.USER.PAYMENT_METHODS}/${id}/default`, {})

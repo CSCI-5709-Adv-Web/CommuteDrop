@@ -68,42 +68,71 @@ export function useLocationState() {
     []
   );
 
-  // Update setPickup to NOT geocode automatically
+  // Update setPickup to explicitly clear route info when address is empty
   const setPickup = useCallback(async (address: string) => {
     setState((prev) => ({
       ...prev,
       pickup: address,
-      // Don't update coordinates here - only update the text value
+      // Clear coordinates and route info if address is empty
+      ...(address.trim() === ""
+        ? {
+            pickupCoordinates: undefined,
+            showRoute: false,
+            routeInfo: null,
+          }
+        : {}),
     }));
   }, []);
 
-  // Update setDropoff to NOT geocode automatically
+  // Update setDropoff to explicitly clear route info when address is empty
   const setDropoff = useCallback(async (address: string) => {
     setState((prev) => ({
       ...prev,
       dropoff: address,
-      // Don't update coordinates here - only update the text value
+      // Clear coordinates and route info if address is empty
+      ...(address.trim() === ""
+        ? {
+            dropoffCoordinates: undefined,
+            showRoute: false,
+            routeInfo: null,
+          }
+        : {}),
     }));
   }, []);
 
-  // Set coordinates directly (used when selecting from suggestions or current location)
+  // Update setPickupCoordinates to clear route info when coordinates are undefined
   const setPickupCoordinates = useCallback(
     (coordinates: Position | undefined) => {
       setState((prev) => ({
         ...prev,
         pickupCoordinates: coordinates,
         hasEnteredLocations: prev.hasEnteredLocations || !!coordinates,
+        // Clear route info if coordinates are undefined
+        ...(coordinates === undefined
+          ? {
+              showRoute: false,
+              routeInfo: null,
+            }
+          : {}),
       }));
     },
     []
   );
 
+  // Update setDropoffCoordinates to clear route info when coordinates are undefined
   const setDropoffCoordinates = useCallback(
     (coordinates: Position | undefined) => {
       setState((prev) => ({
         ...prev,
         dropoffCoordinates: coordinates,
         hasEnteredLocations: prev.hasEnteredLocations || !!coordinates,
+        // Clear route info if coordinates are undefined
+        ...(coordinates === undefined
+          ? {
+              showRoute: false,
+              routeInfo: null,
+            }
+          : {}),
       }));
     },
     []
@@ -145,7 +174,13 @@ export function useLocationState() {
 
   // Add a function to toggle the route visibility
   const setShowRoute = useCallback((show: boolean) => {
-    setState((prev) => ({ ...prev, showRoute: show }));
+    setState((prev) => {
+      // If we're turning off the route, also clear route info
+      if (!show) {
+        return { ...prev, showRoute: false, routeInfo: null };
+      }
+      return { ...prev, showRoute: show };
+    });
   }, []);
 
   // Keep the calculateRoute function to geocode if needed
@@ -219,6 +254,18 @@ export function useLocationState() {
     },
     []
   );
+
+  // Clear route when positions change
+  useEffect(() => {
+    // If we don't have both pickup and dropoff coordinates, clear the route
+    if (!state.pickupCoordinates || !state.dropoffCoordinates) {
+      setState((prev) => ({
+        ...prev,
+        showRoute: false,
+        routeInfo: null,
+      }));
+    }
+  }, [state.mapPositions]);
 
   // Update the return value to include routeInfo and setRouteInfo
   return {

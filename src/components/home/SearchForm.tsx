@@ -50,9 +50,12 @@ export default function SearchForm({
       if (onLocationUpdate) {
         onLocationUpdate(value, dropoff);
       }
-      // Don't trigger coordinate changes here - only update the text value
+      // Clear coordinates if input is empty
+      if (!value.trim()) {
+        setPickupCoordinates(undefined);
+      }
     },
-    [setPickup, dropoff, onLocationUpdate, setShowRoute]
+    [setPickup, dropoff, onLocationUpdate, setShowRoute, setPickupCoordinates]
   );
 
   // Update the handleDropoffChange function to reset showRoute
@@ -63,9 +66,12 @@ export default function SearchForm({
       if (onLocationUpdate) {
         onLocationUpdate(pickup, value);
       }
-      // Don't trigger coordinate changes here - only update the text value
+      // Clear coordinates if input is empty
+      if (!value.trim()) {
+        setDropoffCoordinates(undefined);
+      }
     },
-    [setDropoff, pickup, onLocationUpdate, setShowRoute]
+    [setDropoff, pickup, onLocationUpdate, setShowRoute, setDropoffCoordinates]
   );
 
   // Add handlers for coordinate changes to also reset showRoute

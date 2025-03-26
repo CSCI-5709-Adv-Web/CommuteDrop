@@ -30,6 +30,8 @@ export default function LocationInput({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const ignoreNextDebounceRef = useRef(false);
+  // Add a new focusState to track when the input is focused
+  const [isFocused, setIsFocused] = useState(false);
 
   // Debounce the input value
   const debouncedValue = useDebounce(value, 300);
@@ -80,7 +82,7 @@ export default function LocationInput({
     }
   }, [debouncedValue, fetchSuggestions]);
 
-  // Update the handleInputChange function to avoid unnecessary coordinate changes
+  // Update the handleInputChange function to clear coordinates when input is cleared
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
@@ -152,6 +154,7 @@ export default function LocationInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [type]);
 
+  // Update the return statement to include onFocus and onBlur handlers
   return (
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -168,12 +171,25 @@ export default function LocationInput({
         onChange={(e) => handleInputChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        onFocus={() => {}}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          // Use setTimeout to allow click events on suggestions to fire before hiding them
+          setTimeout(() => setIsFocused(false), 200);
+        }}
       />
       {/* Clear input button */}
       {value && (
         <button
-          onClick={() => handleInputChange("")}
+          onClick={() => {
+            // Clear input and coordinates
+            handleInputChange("");
+            onCoordinatesChange(undefined);
+
+            // Force a re-render of the map component
+            setTimeout(() => {
+              window.dispatchEvent(new Event("resize"));
+            }, 100);
+          }}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
           aria-label={`Clear ${type} location`}
         >
@@ -190,8 +206,8 @@ export default function LocationInput({
           aria-hidden="true"
         />
       </div>
-      {/* Suggestions list */}
-      {showSuggestions && suggestions.length > 0 && (
+      {/* Suggestions list - only show when focused AND we have suggestions */}
+      {isFocused && showSuggestions && suggestions.length > 0 && (
         <LocationSuggestions
           id={`${type}-suggestions-container`}
           suggestions={suggestions}

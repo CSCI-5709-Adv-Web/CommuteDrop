@@ -12,9 +12,6 @@ import RouteInfo from "./map/RouteInfo";
 import NoRouteMessage from "./map/NoRouteMessage";
 import MapPlaceholder from "./map/MapPlaceholder";
 
-// Remove the custom map styles array
-const mapStyles = []; // Empty array to use default Google Maps styling
-
 interface MapProps {
   positions: Position[];
   center: Position;
@@ -79,9 +76,15 @@ export default function Map({
 
   // Update map bounds when positions change
   useEffect(() => {
-    if (!google || !googleMapRef.current || positions.length === 0) return;
+    if (!google || !googleMapRef.current) return;
 
     try {
+      // If we have no positions, clear the map and return
+      if (positions.length === 0) {
+        // Don't update bounds, just return
+        return;
+      }
+
       const bounds = new google.maps.LatLngBounds();
       positions.forEach((pos) => bounds.extend(pos));
 
@@ -98,10 +101,19 @@ export default function Map({
         googleMapRef.current.setCenter(positions[0]);
         googleMapRef.current.setZoom(15);
       }
+
+      // If we have positions but no route info, try to calculate it
+      if (positions.length > 1 && !routeInfo && drawRoute) {
+        // This will trigger the MapRoute component to calculate and update route info
+        setMapInitialized((prev) => {
+          if (prev) return prev; // Don't toggle - this was causing markers to disappear
+          return true;
+        });
+      }
     } catch (err) {
       console.error("Error updating map bounds:", err);
     }
-  }, [google, positions]);
+  }, [google, positions, routeInfo, drawRoute]);
 
   // Update the handleRouteInfoChange to use context
   const handleRouteInfoChange = useCallback(
@@ -194,25 +206,33 @@ export default function Map({
           />
         ))}
 
-      {googleMapRef.current && mapInitialized && positions.length > 1 && (
-        <MapRoute
-          origin={positions[0]}
-          destination={positions[positions.length - 1]}
-          map={googleMapRef.current}
-          drawRoute={drawRoute}
-          onRouteInfoChange={handleRouteInfoChange}
-          onRouteError={handleRouteError}
-        />
-      )}
+      {googleMapRef.current &&
+        mapInitialized &&
+        positions.length > 1 &&
+        drawRoute && (
+          <MapRoute
+            key={`route-${positions.length}-${positions[0]?.lat}-${
+              positions[0]?.lng
+            }-${positions[positions.length - 1]?.lat}-${
+              positions[positions.length - 1]?.lng
+            }`}
+            origin={positions[0]}
+            destination={positions[positions.length - 1]}
+            map={googleMapRef.current}
+            drawRoute={drawRoute}
+            onRouteInfoChange={handleRouteInfoChange}
+            onRouteError={handleRouteError}
+          />
+        )}
 
-      {routeInfo && !noRouteFound && positions.length > 1 && (
+      {routeInfo && !noRouteFound && positions.length > 1 && drawRoute && (
         <RouteInfo
           distance={routeInfo.distance}
           duration={routeInfo.duration}
         />
       )}
 
-      {noRouteFound && positions.length > 1 && (
+      {noRouteFound && positions.length > 1 && drawRoute && (
         <NoRouteMessage origin={routeOrigin} destination={routeDestination} />
       )}
     </div>

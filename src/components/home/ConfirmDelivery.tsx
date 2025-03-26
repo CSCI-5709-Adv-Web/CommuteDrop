@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
 import { useLocation } from "../../context/LocationContext";
-import { deliveryService } from "../../services/delivery-service";
+import {
+  orderService,
+  type OrderEstimateResponse,
+  type CreateOrderRequest,
+} from "../../services/order-service";
+import { useAuth } from "../../context/AuthContext";
 
 // Replace the CountUp component with this enhanced version
 const PriceAnimation = ({
@@ -139,15 +144,22 @@ export default function ConfirmDelivery({
   onNext,
 }: ConfirmDeliveryProps) {
   // Get routeInfo from context
-  const { routeInfo, pickupCoordinates, dropoffCoordinates } = useLocation();
+  const { routeInfo, pickupCoordinates, dropoffCoordinates, setRouteInfo } =
+    useLocation();
+  const { user } = useAuth();
 
   // State to track the current step within the component
   const [step, setStep] = useState<ConfirmStep>("initial");
 
   // State to store the estimate data from API
-  const [estimateData, setEstimateData] = useState<
-    DeliveryEstimateResponse | undefined
-  >(initialEstimateData);
+  const [estimateData] = useState<DeliveryEstimateResponse | undefined>(
+    initialEstimateData
+  );
+
+  // State to store the order data from API
+  const [orderData, setOrderData] = useState<OrderEstimateResponse | null>(
+    null
+  );
 
   // State to store error messages
   const [error, setError] = useState<string | null>(null);
@@ -163,96 +175,146 @@ export default function ConfirmDelivery({
     estimateData?.estimatedTime?.text ||
     "Calculating...";
   const estimatedPrice =
-    estimateData?.estimatedPrice?.total.toFixed(2) || "Calculating...";
+    orderData?.estimatedPrice?.total.toFixed(2) ||
+    estimateData?.estimatedPrice?.total.toFixed(2) ||
+    "Calculating...";
 
-  // Function to calculate price estimate
+  // Parse distance and time values for API request
+  const parseDistance = useCallback(() => {
+    if (!estimatedDistance || estimatedDistance === "Calculating...")
+      return { value: 0, unit: "km" };
+
+    // Extract numeric value and unit from string like "1.81 km"
+    const match = estimatedDistance.match(/^([\d.]+)\s*(\w+)$/);
+    if (match) {
+      return {
+        value: Number.parseFloat(match[1]),
+        unit: match[2],
+      };
+    }
+
+    return { value: 0, unit: "km" };
+  }, [estimatedDistance]);
+
+  const parseTime = useCallback(() => {
+    if (!estimatedTime || estimatedTime === "Calculating...")
+      return { value: 0, unit: "mins" };
+
+    // Extract numeric value and unit from string like "3.65 mins"
+    const match = estimatedTime.match(/^([\d.]+)\s*(\w+)$/);
+    if (match) {
+      return {
+        value: Number.parseFloat(match[1]),
+        unit: match[2],
+      };
+    }
+
+    return { value: 0, unit: "mins" };
+  }, [estimatedTime]);
+
+  // Update the calculateEstimate function to call the order service API
   const calculateEstimate = useCallback(async () => {
     setStep("estimating");
     setError(null);
 
     try {
-      const requestData = {
+      // Parse distance and time
+      const distance = parseDistance();
+      const time = parseTime();
+
+      // Prepare request payload
+      const requestData: CreateOrderRequest = {
         pickup: {
           address: formData.pickup,
-          latitude: pickupCoordinates?.lat || 44.6488,
-          longitude: pickupCoordinates?.lng || -63.5752,
+          latitude: pickupCoordinates?.lat,
+          longitude: pickupCoordinates?.lng,
         },
         dropoff: {
           address: formData.dropoff,
-          latitude: dropoffCoordinates?.lat || 32.532,
-          longitude: dropoffCoordinates?.lng || 75.971,
+          latitude: dropoffCoordinates?.lat,
+          longitude: dropoffCoordinates?.lng,
         },
         packageDetails: {
           weight: Number.parseFloat(formData.weight) || 0,
         },
-        carrierType: formData.carrier as any,
+        carrierType: formData.carrier,
+        distance,
+        estimatedTime: time,
+        userId: user?.email, // Use user email as ID for demo
       };
 
-      // Add a 2-second delay to simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const response = await deliveryService.getEstimate(requestData);
+      // Call the order service API
+      const response = await orderService.createOrder(requestData);
 
       if (response.success && response.data) {
-        setEstimateData(response.data);
+        // Store the order data
+        setOrderData(response.data);
+        setOrderId(response.data.orderId);
+
+        // Update route info if needed
+        if (!routeInfo) {
+          setRouteInfo({
+            distance: estimatedDistance,
+            duration: estimatedTime,
+          });
+        }
+
         setStep("estimated");
       } else {
-        // If API call fails, use fallback data
-        const fallbackData = {
-          estimatedTime: { text: "3-5 days" },
-          estimatedPrice: {
-            total: 299.99,
-            base: 50,
-            distance: 229.99,
-            time: 20,
-            currency: "USD",
-          },
-          distance: { text: "7,500 km", meters: 7500000 },
-          route: { points: [] },
-          availableCarriers: [
-            {
-              type: formData.carrier,
-              name:
-                formData.carrier.charAt(0).toUpperCase() +
-                formData.carrier.slice(1),
-              estimatedTime: "3-5 days",
-              price: 299.99,
-            },
-          ],
-        };
-
-        setEstimateData(fallbackData as any);
-        setStep("estimated");
+        throw new Error(response.message || "Failed to create order");
       }
     } catch (error) {
       console.error("Error calculating estimate:", error);
-      setError("Failed to calculate price estimate. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to calculate price estimate. Please try again."
+      );
       setStep("error");
     }
-  }, [formData, pickupCoordinates, dropoffCoordinates]);
+  }, [
+    formData,
+    pickupCoordinates,
+    dropoffCoordinates,
+    routeInfo,
+    setRouteInfo,
+    parseDistance,
+    parseTime,
+    user?.email,
+    estimatedDistance,
+    estimatedTime,
+  ]);
 
   // Function to confirm order
   const confirmOrder = useCallback(async () => {
+    if (!orderId) {
+      setError("No order ID found. Please try again.");
+      return;
+    }
+
     setStep("confirming");
     setError(null);
 
     try {
-      // In a real app, you would call the API to create the delivery
-      // For this demo, we'll simulate a successful response
+      // Call the order service API to confirm the order
+      const response = await orderService.confirmOrder(orderId);
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Mock order ID
-      const mockOrderId = `ORD-${Math.floor(Math.random() * 10000)}`;
-      setOrderId(mockOrderId);
-      setStep("confirmed");
+      if (response.success) {
+        setOrderData(response.data);
+        setStep("confirmed");
+      } else {
+        throw new Error(response.message || "Failed to confirm order");
+      }
     } catch (error) {
       console.error("Error confirming order:", error);
-      setError("Failed to confirm your order. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm your order. Please try again."
+      );
       setStep("error");
     }
-  }, []);
+  }, [orderId]);
 
   // Function to handle retry on error
   const handleRetry = useCallback(() => {
@@ -298,6 +360,11 @@ export default function ConfirmDelivery({
           <div>
             <p className="text-green-700 font-medium">Order Confirmed!</p>
             <p className="text-sm text-green-600">Your order ID is {orderId}</p>
+            {orderData?.tracking && (
+              <p className="text-sm text-green-600">
+                Tracking ID: {orderData.tracking.trackingId}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -381,7 +448,11 @@ export default function ConfirmDelivery({
                   {step === "estimating" ? (
                     <div className="mt-2">
                       <div className="relative h-16 w-full overflow-hidden rounded-md bg-gray-50 flex items-center justify-center">
-                        <PriceAnimation start={0} end={299.99} duration={2} />
+                        <PriceAnimation
+                          start={0}
+                          end={orderData?.estimatedPrice?.total || 15.99}
+                          duration={2}
+                        />
                       </div>
                     </div>
                   ) : (
@@ -394,6 +465,38 @@ export default function ConfirmDelivery({
             </div>
           )}
         </div>
+
+        {/* Order Details - Show when order is estimated or confirmed */}
+        {(step === "estimated" || step === "confirmed") && orderData && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start">
+              <CheckCircle className="w-5 h-5 mr-3 text-green-500 mt-1 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-gray-900">Order Details</p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Order ID:</span>{" "}
+                    {orderData.orderId}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Status:</span>{" "}
+                    {orderData.status}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Delivery Window:</span>{" "}
+                    {orderData.estimatedDelivery.timeWindow}
+                  </p>
+                  {orderData.tracking && (
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium">Tracking ID:</span>{" "}
+                      {orderData.tracking.trackingId}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6">

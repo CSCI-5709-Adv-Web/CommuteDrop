@@ -1,11 +1,9 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useRef } from "react";
-import { Plus, MapPin, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 
-// Update the PersonalInfoSectionProps interface to include profileImage
 interface PersonalInfoSectionProps {
   userData: {
     name: string;
@@ -214,34 +212,6 @@ export default function PersonalInfoSection({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Saved Locations */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Saved Locations
-          </h2>
-          <button className="flex items-center text-primary font-medium hover:underline">
-            <Plus size={16} className="mr-1" />
-            Add Location
-          </button>
-        </div>
-        <div className="border-t border-gray-200 mb-6"></div>
-
-        <div className="space-y-6">
-          {userData.savedLocations.map((location) => (
-            <div key={location.id} className="flex items-start">
-              <MapPin className="w-5 h-5 text-gray-500 mt-0.5 mr-3 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-900">{location.name}</p>
-                <p className="text-sm text-gray-600 font-normal">
-                  {location.address}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

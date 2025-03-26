@@ -28,8 +28,6 @@ export default function Profile() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // State for user data
   const [userData, setUserData] = useState({
     name: user?.name || "User",
     email: user?.email || "",
@@ -42,28 +40,19 @@ export default function Profile() {
     paymentMethods: [] as PaymentMethod[],
     savedLocations: [] as SavedLocation[],
   });
-
-  // State for delivery history
   const [deliveryHistory, setDeliveryHistory] = useState<DeliveryHistoryItem[]>(
     []
   );
 
-  // Load user profile data
   useEffect(() => {
     let isMounted = true;
-
     const fetchUserData = async () => {
       if (!isMounted) return;
-
       setIsLoading(true);
       setError(null);
-
       try {
-        // Fetch user profile
         const profileResponse = await userService.getProfile();
-
         if (isMounted && profileResponse.success) {
-          // Update user data with profile info
           setUserData((prevData) => ({
             ...prevData,
             name: profileResponse.data.name || user?.name || "User",
@@ -78,17 +67,6 @@ export default function Profile() {
               "/placeholder.svg?height=150&width=150",
           }));
         }
-
-        // Fetch saved locations
-        const locationsResponse = await userService.getSavedLocations();
-        if (isMounted && locationsResponse.success) {
-          setUserData((prevData) => ({
-            ...prevData,
-            savedLocations: locationsResponse.data,
-          }));
-        }
-
-        // Fetch payment methods
         const paymentMethodsResponse = await userService.getPaymentMethods();
         if (isMounted && paymentMethodsResponse.success) {
           setUserData((prevData) => ({
@@ -96,8 +74,6 @@ export default function Profile() {
             paymentMethods: paymentMethodsResponse.data,
           }));
         }
-
-        // Fetch delivery history
         const deliveryHistoryResponse = await deliveryService.getHistory();
         if (isMounted && deliveryHistoryResponse.success) {
           setDeliveryHistory(deliveryHistoryResponse.data);
@@ -113,9 +89,7 @@ export default function Profile() {
         }
       }
     };
-
     fetchUserData();
-
     return () => {
       isMounted = false;
     };
@@ -133,7 +107,6 @@ export default function Profile() {
     { id: "settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
@@ -148,7 +121,6 @@ export default function Profile() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
@@ -170,12 +142,8 @@ export default function Profile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
-      {/* Use the Navbar component */}
       <Navbar />
-
-      {/* Main content with sticky sidebar */}
       <div className="flex flex-1">
-        {/* Sidebar - sticky */}
         <aside className="w-48 border-r bg-white sticky top-[72px] self-start h-[calc(100vh-72px)]">
           <nav className="py-6 px-4">
             <ul className="space-y-1">
@@ -197,8 +165,6 @@ export default function Profile() {
             </ul>
           </nav>
         </aside>
-
-        {/* Main content area - scrollable */}
         <main className="flex-1 overflow-y-auto">
           <div className="py-6 px-8">
             <AnimatePresence mode="wait">
@@ -213,7 +179,6 @@ export default function Profile() {
                   <PersonalInfoSection userData={userData} />
                 </motion.div>
               )}
-
               {activeTab === "deliveries" && (
                 <motion.div
                   key="deliveries"
@@ -225,7 +190,6 @@ export default function Profile() {
                   <DeliveryHistorySection deliveryHistory={deliveryHistory} />
                 </motion.div>
               )}
-
               {activeTab === "payment" && (
                 <motion.div
                   key="payment"
@@ -237,7 +201,6 @@ export default function Profile() {
                   <PaymentMethodsSection userData={userData} />
                 </motion.div>
               )}
-
               {activeTab === "settings" && (
                 <motion.div
                   key="settings"

@@ -35,28 +35,11 @@ export default function MapRoute({
   const { google } = useGoogleMaps();
 
   useEffect(() => {
-    if (!map || !drawRoute || !google) {
-      // Clean up existing polylines and animation
-      if (mainPolylineRef.current) {
-        mainPolylineRef.current.setMap(null);
-        mainPolylineRef.current = null;
-      }
-      if (animatedPolylineRef.current) {
-        animatedPolylineRef.current.setMap(null);
-        animatedPolylineRef.current = null;
-      }
-      if (pulsePolylineRef.current) {
-        pulsePolylineRef.current.setMap(null);
-        pulsePolylineRef.current = null;
-      }
-      if (animationFrameRef.current) {
-        window.cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+    if (!map || !google) {
       return;
     }
 
-    // Clean up existing polylines and animation before creating new ones
+    // Always clean up existing polylines when positions change or drawRoute is false
     if (mainPolylineRef.current) {
       mainPolylineRef.current.setMap(null);
       mainPolylineRef.current = null;
@@ -72,6 +55,11 @@ export default function MapRoute({
     if (animationFrameRef.current) {
       window.cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+    }
+
+    // If we're not supposed to draw the route, exit early
+    if (!drawRoute) {
+      return;
     }
 
     const fetchDirections = async () => {
@@ -160,7 +148,6 @@ export default function MapRoute({
 
           // Start the animation
           let progress = 0;
-          const direction = 1; // 1 for forward, -1 for backward
           let lastTimestamp = 0;
 
           const animate = (timestamp: number) => {
@@ -288,6 +275,7 @@ export default function MapRoute({
 
     // Clean up function
     return () => {
+      console.log("Cleaning up route polylines");
       if (mainPolylineRef.current) {
         mainPolylineRef.current.setMap(null);
         mainPolylineRef.current = null;
@@ -303,6 +291,14 @@ export default function MapRoute({
       if (animationFrameRef.current) {
         window.cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
+      }
+
+      // Clear path reference
+      pathRef.current = [];
+
+      // Notify parent that route info is cleared
+      if (onRouteInfoChange) {
+        onRouteInfoChange(null);
       }
     };
   }, [

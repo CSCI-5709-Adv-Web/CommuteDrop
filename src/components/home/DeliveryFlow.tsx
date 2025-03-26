@@ -33,8 +33,8 @@ export default function DeliveryFlow({
   onLocationUpdate,
   onCalculateRoute,
 }: DeliveryFlowProps) {
+  const [estimateData] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
-  const [estimateData, setEstimateData] = useState<any>(null);
 
   // Get location data from context
   const locationData = useLocation();
@@ -85,17 +85,32 @@ export default function DeliveryFlow({
     [steps, currentStep]
   );
 
-  const handleFormDataChange = useCallback((field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  const handleFormDataChange = useCallback(
+    (field: string, value: any) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
 
-  // Update the handleNavigate function to properly manage state transitions
+      // If clearing a location field, update the map
+      if ((field === "pickup" || field === "dropoff") && !value.trim()) {
+        setShowRoute(false);
+        setRouteInfo(null); // Also clear route info
+      }
+    },
+    [setShowRoute, setRouteInfo]
+  );
+
+  // Update the handleNavigate function to preserve map state
   const handleNavigate = useCallback(
     async (step: FlowStep) => {
-      // When going back to search, reset the route visibility and routeInfo
+      // When going back to search, reset the route visibility but preserve route info
       if (step === "search") {
-        setShowRoute(false);
-        setRouteInfo(null); // Reset route info when going back to search
+        // Don't reset showRoute - this was causing markers to disappear
+        // setShowRoute(false);
+
+        // Force blur on any active input elements to hide suggestions
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+
         setCurrentStep(step);
         return;
       }
@@ -114,7 +129,7 @@ export default function DeliveryFlow({
         setCurrentStep(step);
       }
     },
-    [currentStep, onCalculateRoute, setShowRoute, setRouteInfo]
+    [currentStep, onCalculateRoute, setShowRoute]
   );
 
   const transitionConfig = {

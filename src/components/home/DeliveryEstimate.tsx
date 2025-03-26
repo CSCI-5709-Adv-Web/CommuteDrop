@@ -64,7 +64,7 @@ export default function DeliveryEstimate({
       currency: "USD",
     }
   );
-  const [error, setError] = useState("");
+  const [, setError] = useState("");
 
   const startSearch = useCallback(() => {
     setStatus("searching");
@@ -153,11 +153,6 @@ export default function DeliveryEstimate({
     const cleanup = startSearch();
     return cleanup;
   }, [startSearch]);
-
-  const handleRetry = () => {
-    const cleanup = startSearch();
-    return cleanup;
-  };
 
   return (
     <motion.div

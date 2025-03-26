@@ -15,6 +15,7 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
   useEffect(() => {
     if (!map) return;
 
+    // Clear existing markers to prevent duplicates
     if (markerRef.current) {
       markerRef.current.setMap(null);
     }
@@ -71,26 +72,34 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
         }
       }
 
-      pulseCircle.setIcon({
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: type === "pickup" ? "#10b981" : "#ef4444",
-        fillOpacity: 0.3,
-        strokeColor: type === "pickup" ? "#10b981" : "#ef4444",
-        strokeWeight: 1,
-        scale: scale,
-      });
+      if (pulseCircle) {
+        pulseCircle.setIcon({
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: type === "pickup" ? "#10b981" : "#ef4444",
+          fillOpacity: 0.3,
+          strokeColor: type === "pickup" ? "#10b981" : "#ef4444",
+          strokeWeight: 1,
+          scale: scale,
+        });
+      }
 
-      window.requestAnimationFrame(animatePulse);
+      animationFrameRef.current = window.requestAnimationFrame(animatePulse);
     };
 
-    const animationFrame = window.requestAnimationFrame(animatePulse);
+    const animationFrameRef = {
+      current: window.requestAnimationFrame(animatePulse),
+    };
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
+      if (animationFrameRef.current) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
       if (markerRef.current) {
         markerRef.current.setMap(null);
       }
-      pulseCircle.setMap(null);
+      if (pulseCircle) {
+        pulseCircle.setMap(null);
+      }
     };
   }, [map, position, type]);
 

@@ -25,13 +25,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    marketing: false,
-  });
-
-  // Settings categories
   const settingsCategories = [
     {
       title: "Account",
@@ -104,7 +97,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
       const response = await userService.deleteAccount();
 
       if (response.success) {
-        // Account deleted successfully, log the user out
         onLogout();
       } else {
         setDeleteError(response.message || "Failed to delete account");
@@ -116,8 +108,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
       setShowDeleteConfirm(false);
     }
   };
-
-  // Toggle component
   const Toggle = ({
     isOn,
     onToggle,
@@ -142,8 +132,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
   return (
     <div className="w-full">
       <h2 className="text-xl font-semibold mb-6">Account Settings</h2>
-
-      {/* Settings Categories */}
       {settingsCategories.map((category, categoryIndex) => (
         <div key={category.title} className="mb-8">
           <h3 className="text-lg font-medium text-gray-700 mb-4">
@@ -193,15 +181,11 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
           </div>
         </div>
       ))}
-
-      {/* Account Actions */}
       <div className="mt-8">
         <h3 className="text-lg font-medium text-gray-700 mb-4">
           Account Actions
         </h3>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {/* Logout Button */}
           <motion.button
             onClick={onLogout}
             className="flex items-center gap-3 w-full p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
@@ -214,8 +198,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
             <span className="font-medium text-gray-900">Log Out</span>
           </motion.button>
         </div>
-
-        {/* Delete Account Section */}
         <motion.div
           className="p-5 rounded-xl border border-red-200 bg-red-50"
           initial={{ opacity: 0, y: 10 }}

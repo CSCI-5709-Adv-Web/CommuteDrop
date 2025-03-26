@@ -125,7 +125,7 @@ export default function MapRoute({
         const backgroundPolyline = new google.maps.Polyline({
           path: pathCoordinates,
           geodesic: true,
-          strokeColor: "#e2e8f0", // Light gray (slate-200)
+          strokeColor: "#000000", // Light gray (slate-200)
           strokeOpacity: 0.6,
           strokeWeight: 5,
           map,
@@ -138,7 +138,7 @@ export default function MapRoute({
         const mainPolyline = new google.maps.Polyline({
           path: [], // Start empty
           geodesic: true,
-          strokeColor: "#2563eb", // Primary blue color
+          strokeColor: "#000000", // Primary blue color
           strokeOpacity: 0.9,
           strokeWeight: 6,
           map,
@@ -177,7 +177,7 @@ export default function MapRoute({
         pulsePolylineRef.current = glowPolyline;
 
         // Animation variables
-        const animationDuration = 8000; // 8 seconds for one complete cycle
+        const animationDuration = 3000; // 8 seconds for one complete cycle
         let startTime: number | null = null;
         let lastPulseTime = 0;
         let pulseOpacity = 0.6;

@@ -149,7 +149,7 @@ export const deliveryService = {
   getHistory: async (): Promise<ApiResponse<DeliveryHistoryItem[]>> => {
     try {
       try {
-        return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.DELIVERY.HISTORY)
+        return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.ORDER.USER_ORDERS)
       } catch (apiError: any) {
         // If endpoint returns 404, return empty array instead of error
         if (apiError.status === 404) {
@@ -174,7 +174,7 @@ export const deliveryService = {
 
   getDeliveryById: async (id: string): Promise<ApiResponse<DeliveryHistoryItem>> => {
     try {
-      return await apiClient.get<ApiResponse<DeliveryHistoryItem>>(`${ENDPOINTS.DELIVERY.HISTORY}/${id}`)
+      return await apiClient.get<ApiResponse<DeliveryHistoryItem>>(`${ENDPOINTS.ORDER.USER_ORDERS}/${id}`)
     } catch (error: any) {
       return {
         success: false,

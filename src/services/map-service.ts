@@ -1,4 +1,6 @@
+import { tokenService } from "./token-service"
 import { ENDPOINTS, API_CONFIG } from "../config/api-config"
+import { tokenStorage } from "../utils/tokenStorage"
 
 export interface GeocodingResult {
   address: string
@@ -51,15 +53,28 @@ export const mapService = {
       let searchText = text
       searchText = `${searchText}, ${location.city}, ${location.province}, ${location.country}`
       const url = `${ENDPOINTS.MAPS.AUTOCOMPLETE}?text=${encodeURIComponent(searchText)}&maxResults=${maxResults}&language=${encodeURIComponent(language)}`
+
+      // Try to get a service token first, fall back to user token if needed
+      let token
+      try {
+        token = await tokenService.getServiceToken("location")
+      } catch (error) {
+        console.warn("Failed to get service token, falling back to user token")
+        token = tokenStorage.getToken()
+      }
+
       const response = await fetch(url, {
         signal: AbortSignal.timeout(3000),
         headers: {
           "Accept-Language": language,
+          Authorization: `Bearer ${token}`,
         },
       })
+
       if (!response.ok) {
         throw new Error(`Autocomplete failed with status: ${response.status}`)
       }
+
       const data = await response.json()
       if (Array.isArray(data)) {
         return data.map((item: Record<string, any>) => ({
@@ -118,11 +133,22 @@ export const mapService = {
       }
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+      // Try to get a service token first, fall back to user token if needed
+      let token
+      try {
+        token = await tokenService.getServiceToken("location")
+      } catch (error) {
+        console.warn("Failed to get service token, falling back to user token")
+        token = tokenStorage.getToken()
+      }
+
       try {
         const response = await fetch(ENDPOINTS.MAPS.GEOCODE, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
@@ -171,10 +197,20 @@ export const mapService = {
     duration: { text: string; value: number }
   }> => {
     try {
+      // Try to get a service token first, fall back to user token if needed
+      let token
+      try {
+        token = await tokenService.getServiceToken("location")
+      } catch (error) {
+        console.warn("Failed to get service token, falling back to user token")
+        token = tokenStorage.getToken()
+      }
+
       const response = await fetch(ENDPOINTS.MAPS.DISTANCE_MATRIX, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ fromAddress, toAddress }),
         signal: AbortSignal.timeout(5000),
@@ -210,10 +246,20 @@ export const mapService = {
     const fromAddress = typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`
     const toAddress = typeof destination === "string" ? destination : `${destination.lat},${destination.lng}`
     try {
+      // Try to get a service token first, fall back to user token if needed
+      let token
+      try {
+        token = await tokenService.getServiceToken("location")
+      } catch (error) {
+        console.warn("Failed to get service token, falling back to user token")
+        token = tokenStorage.getToken()
+      }
+
       const response = await fetch(ENDPOINTS.MAPS.DIRECTIONS, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           fromAddress,

@@ -2,19 +2,14 @@
 
 import { motion } from "framer-motion";
 import {
-  MapPin,
   ArrowLeft,
-  Package,
+  MapPin,
   Weight,
+  Car,
   Clock,
   DollarSign,
-  Car,
-  Truck,
-  Bike,
 } from "lucide-react";
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
-import DeliveryLocationCard from "./confirm/DeliveryLocationCard";
-import DeliveryDetailCard from "./confirm/DeliveryDetailCard";
 
 interface ConfirmDeliveryProps {
   formData: any;
@@ -23,36 +18,17 @@ interface ConfirmDeliveryProps {
   onNext: () => void;
 }
 
-const carriers = {
-  car: { icon: <Car className="w-5 h-5 mr-3 text-primary" />, label: "Car" },
-  truck: {
-    icon: <Truck className="w-5 h-5 mr-3 text-primary" />,
-    label: "Truck",
-  },
-  bike: { icon: <Bike className="w-5 h-5 mr-3 text-primary" />, label: "Bike" },
-  walk: {
-    icon: <Package className="w-5 h-5 mr-3 text-primary" />,
-    label: "Walk",
-  },
-};
-
 export default function ConfirmDelivery({
   formData,
   estimateData,
   onBack,
   onNext,
 }: ConfirmDeliveryProps) {
-  const selectedCarrier =
-    carriers[formData.carrier as keyof typeof carriers] || carriers.car;
-
   // Use real estimated data if available
-  const estimatedDistance = estimateData?.distance?.text || "3.2 km";
-  const estimatedTime =
-    estimateData?.estimatedTime?.text || formData.estimatedTime || "30-45 mins";
+  const estimatedDistance = estimateData?.distance?.text || "7,500 km";
+  const estimatedTime = estimateData?.estimatedTime?.text || "3-5 days";
   const estimatedPrice =
-    estimateData?.estimatedPrice?.total.toFixed(2) ||
-    formData.estimatedPrice ||
-    "15.99";
+    estimateData?.estimatedPrice?.total.toFixed(2) || "299.99";
 
   return (
     <motion.div
@@ -61,7 +37,7 @@ export default function ConfirmDelivery({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
-      className="p-6 h-full flex flex-col"
+      className="p-4 h-full flex flex-col"
     >
       <div className="flex items-center mb-6">
         <button
@@ -73,48 +49,84 @@ export default function ConfirmDelivery({
         <h2 className="text-xl font-bold text-gray-800">Confirm Delivery</h2>
       </div>
 
-      <div className="space-y-6 flex-grow">
+      <div className="space-y-4 flex-grow">
         {/* Pickup Location */}
-        <DeliveryLocationCard type="pickup" address={formData.pickup} />
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-start">
+            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900">Pickup Location</p>
+              <p className="text-gray-700">{formData.pickup}</p>
+            </div>
+          </div>
+        </div>
 
         {/* Dropoff Location */}
-        <DeliveryLocationCard type="dropoff" address={formData.dropoff} />
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-start">
+            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900">Dropoff Location</p>
+              <p className="text-gray-700">{formData.dropoff}</p>
+            </div>
+          </div>
+        </div>
 
         {/* Package Details */}
-        <div className="grid grid-cols-2 gap-4">
-          <DeliveryDetailCard
-            icon={<Weight className="w-5 h-5 mr-3 text-primary" />}
-            title="Weight"
-            value={`${formData.weight || "0"} kg`}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start">
+              <Weight className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-gray-900">Weight</p>
+                <p className="text-gray-700">{formData.weight || "0"} kg</p>
+              </div>
+            </div>
+          </div>
 
-          <DeliveryDetailCard
-            icon={selectedCarrier.icon}
-            title="Carrier"
-            value={selectedCarrier.label}
-          />
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start">
+              <Car className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-gray-900">Carrier</p>
+                <p className="text-gray-700">{formData.carrier || "Car"}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Distance Information */}
-        <DeliveryDetailCard
-          icon={<MapPin className="w-5 h-5 mr-3 text-primary" />}
-          title="Distance"
-          value={estimatedDistance}
-        />
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-start">
+            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900">Distance</p>
+              <p className="text-gray-700">{estimatedDistance}</p>
+            </div>
+          </div>
+        </div>
 
         {/* Delivery Estimates */}
-        <div className="grid grid-cols-2 gap-4">
-          <DeliveryDetailCard
-            icon={<Clock className="w-5 h-5 mr-3 text-primary" />}
-            title="Estimated Time"
-            value={estimatedTime}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start">
+              <Clock className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-gray-900">Estimated Time</p>
+                <p className="text-gray-700">{estimatedTime}</p>
+              </div>
+            </div>
+          </div>
 
-          <DeliveryDetailCard
-            icon={<DollarSign className="w-5 h-5 mr-3 text-primary" />}
-            title="Estimated Cost"
-            value={`$${estimatedPrice}`}
-          />
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start">
+              <DollarSign className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-gray-900">Estimated Cost</p>
+                <p className="text-gray-700">${estimatedPrice}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

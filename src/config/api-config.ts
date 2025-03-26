@@ -18,10 +18,11 @@ export const ENDPOINTS = {
     REFRESH_TOKEN: `${API_CONFIG.AUTH_BASE_URL}/auth/refresh-token`,
     VERIFY_EMAIL: `${API_CONFIG.AUTH_BASE_URL}/auth/verify-email`,
   },
-  // User endpoints
+  // User endpoints - updated to match the external API
   USER: {
-    PROFILE: `${API_CONFIG.AUTH_BASE_URL}/user/profile`,
-    UPDATE_PROFILE: `${API_CONFIG.AUTH_BASE_URL}/user/profile`,
+    DETAILS: `${API_CONFIG.AUTH_BASE_URL}/user/details`,
+    UPDATE: `${API_CONFIG.AUTH_BASE_URL}/user/update`,
+    DELETE: `${API_CONFIG.AUTH_BASE_URL}/user/delete`,
     SAVED_LOCATIONS: `${API_CONFIG.AUTH_BASE_URL}/user/locations`,
     PAYMENT_METHODS: `${API_CONFIG.AUTH_BASE_URL}/user/payment-methods`,
   },
@@ -40,7 +41,7 @@ export const ENDPOINTS = {
     USER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/order/user/:user_id`,
     RIDER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/order/rider/:rider_id`,
   },
-  // Maps endpoints - updated to match the new location service API structure
+  // Maps endpoints
   MAPS: {
     GEOCODE: `${API_CONFIG.LOCATION_SERVICE_URL}/geocode`,
     REVERSE_GEOCODE: `${API_CONFIG.LOCATION_SERVICE_URL}/geocode`,

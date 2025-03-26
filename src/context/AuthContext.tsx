@@ -9,13 +9,15 @@ import {
   useState,
   useMemo,
 } from "react";
-import type { AuthState, User } from "../types/auth";
+import type { AuthState, User, UserProfile } from "../types/auth";
 import { tokenStorage } from "../utils/tokenStorage";
 import { jwtUtils } from "../utils/jwtUtils";
 import { api } from "../services/auth-service";
+import { userService } from "../services/user-service";
 
 const initialState: AuthState = {
   user: null,
+  userProfile: null,
   token: null,
   refreshToken: null,
   isAuthenticated: false,
@@ -41,6 +43,10 @@ type AuthAction =
   | {
       type: "REFRESH_TOKEN_SUCCESS";
       payload: { token: string; refreshToken: string };
+    }
+  | {
+      type: "UPDATE_USER_PROFILE";
+      payload: UserProfile;
     };
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -70,6 +76,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         isLoading: false,
         isAuthenticated: false,
         user: null,
+        userProfile: null,
         token: null,
         refreshToken: null,
         error: action.payload,
@@ -79,6 +86,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state,
         isAuthenticated: false,
         user: null,
+        userProfile: null,
         token: null,
         refreshToken: null,
         error: null,
@@ -94,6 +102,17 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         token: action.payload.token,
         refreshToken: action.payload.refreshToken,
       };
+    case "UPDATE_USER_PROFILE":
+      return {
+        ...state,
+        userProfile: action.payload,
+        // Also update the basic user info
+        user: {
+          ...state.user!,
+          name: action.payload.name,
+          email: action.payload.email,
+        },
+      };
     default:
       return state;
   }
@@ -105,6 +124,8 @@ interface AuthContextType extends AuthState {
   logout: () => void;
   clearError: () => void;
   isInitializing: boolean;
+  updateUserProfile: (profile: UserProfile) => void;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,6 +135,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // Function to fetch user profile
+  const fetchUserProfile = async (email: string) => {
+    try {
+      // Check if we already have the profile in localStorage
+      const cachedProfile = tokenStorage.getUserProfile();
+      if (cachedProfile && cachedProfile.email === email) {
+        dispatch({
+          type: "UPDATE_USER_PROFILE",
+          payload: cachedProfile,
+        });
+        return;
+      }
+
+      // If not cached or email doesn't match, fetch from API
+      const response = await userService.getProfile();
+      if (response.success && response.data) {
+        dispatch({
+          type: "UPDATE_USER_PROFILE",
+          payload: response.data,
+        });
+        // Store in localStorage
+        tokenStorage.setUserProfile(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  // Function to refresh user profile
+  const refreshUserProfile = async () => {
+    if (!state.user?.email) return;
+
+    try {
+      const response = await userService.getProfile();
+      if (response.success && response.data) {
+        dispatch({
+          type: "UPDATE_USER_PROFILE",
+          payload: response.data,
+        });
+        // Store in localStorage
+        tokenStorage.setUserProfile(response.data);
+      }
+    } catch (error) {
+      console.error("Error refreshing user profile:", error);
+    }
+  };
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -148,6 +216,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                     user: { email },
                   },
                 });
+
+                // Fetch user profile after successful token refresh
+                await fetchUserProfile(email);
+
                 setIsInitializing(false);
                 return;
               }
@@ -163,14 +235,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const email = jwtUtils.getUserEmail(token);
 
           if (email) {
+            const user = tokenStorage.getUser() || { email };
+
             dispatch({
               type: "LOGIN_SUCCESS",
               payload: {
                 token,
                 refreshToken,
-                user: { email },
+                user,
               },
             });
+
+            // Fetch user profile after successful authentication
+            await fetchUserProfile(email);
           } else {
             tokenStorage.clearTokens();
             dispatch({ type: "LOGOUT" });
@@ -206,6 +283,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             type: "LOGIN_SUCCESS",
             payload: { token, refreshToken, user },
           });
+
+          // Fetch user profile after successful login
+          await fetchUserProfile(userEmail);
 
           return true;
         } else {
@@ -251,6 +331,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           payload: { token, refreshToken, user },
         });
 
+        // Fetch user profile after successful registration
+        await fetchUserProfile(email);
+
         return true;
       } else {
         dispatch({
@@ -280,6 +363,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     dispatch({ type: "CLEAR_ERROR" });
   };
 
+  const updateUserProfile = (profile: UserProfile) => {
+    dispatch({
+      type: "UPDATE_USER_PROFILE",
+      payload: profile,
+    });
+  };
+
   const contextValue = useMemo(
     () => ({
       ...state,
@@ -288,6 +378,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       logout,
       clearError,
       isInitializing,
+      updateUserProfile,
+      refreshUserProfile,
     }),
     [state, isInitializing]
   );

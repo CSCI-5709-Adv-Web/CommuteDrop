@@ -24,19 +24,20 @@ export type TabType = "profile" | "deliveries" | "payment" | "settings";
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const { logout, user } = useAuth();
+  const { logout, user, userProfile, refreshUserProfile } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userData, setUserData] = useState({
-    name: user?.name || "User",
-    email: user?.email || "",
-    phone: "",
-    address: "",
-    joinDate: "January 2023",
-    deliveriesCompleted: 0,
-    rating: 0,
-    profileImage: "/placeholder.svg?height=150&width=150",
+    name: userProfile?.name || user?.name || "User",
+    email: userProfile?.email || user?.email || "",
+    phone: userProfile?.phone || "",
+    address: userProfile?.address || "",
+    joinDate: userProfile?.joinDate || "January 2023",
+    deliveriesCompleted: userProfile?.deliveriesCompleted || 0,
+    rating: userProfile?.rating || 0,
+    profileImage:
+      userProfile?.profileImage || "/placeholder.svg?height=150&width=150",
     paymentMethods: [] as PaymentMethod[],
     savedLocations: [] as SavedLocation[],
   });
@@ -44,39 +45,53 @@ export default function Profile() {
     []
   );
 
+  // Update userData when userProfile changes
+  useEffect(() => {
+    if (userProfile) {
+      setUserData((prevData) => ({
+        ...prevData,
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone || "",
+        address: userProfile.address || "",
+        joinDate: userProfile.joinDate || "January 2023",
+        deliveriesCompleted: userProfile.deliveriesCompleted || 0,
+        rating: userProfile.rating || 0,
+        profileImage:
+          userProfile.profileImage || "/placeholder.svg?height=150&width=150",
+      }));
+    }
+  }, [userProfile]);
+
+  // Fetch additional data (payment methods, delivery history)
   useEffect(() => {
     let isMounted = true;
-    const fetchUserData = async () => {
+    const fetchAdditionalData = async () => {
       if (!isMounted) return;
       setIsLoading(true);
       setError(null);
       try {
-        const profileResponse = await userService.getProfile();
-        if (isMounted && profileResponse.success) {
-          setUserData((prevData) => ({
-            ...prevData,
-            name: profileResponse.data.name || user?.name || "User",
-            email: profileResponse.data.email || user?.email || "",
-            phone: profileResponse.data.phone || "",
-            address: profileResponse.data.address || "",
-            joinDate: profileResponse.data.joinDate || "January 2023",
-            deliveriesCompleted: profileResponse.data.deliveriesCompleted || 0,
-            rating: profileResponse.data.rating || 0,
-            profileImage:
-              profileResponse.data.profileImage ||
-              "/placeholder.svg?height=150&width=150",
-          }));
+        // Only refresh user profile if we don't already have it
+        if (!userProfile || !userProfile.name) {
+          await refreshUserProfile();
         }
-        const paymentMethodsResponse = await userService.getPaymentMethods();
-        if (isMounted && paymentMethodsResponse.success) {
-          setUserData((prevData) => ({
-            ...prevData,
-            paymentMethods: paymentMethodsResponse.data,
-          }));
+
+        // Only fetch payment methods and delivery history if we're on those tabs
+        if (activeTab === "payment") {
+          const paymentMethodsResponse = await userService.getPaymentMethods();
+          if (isMounted && paymentMethodsResponse.success) {
+            setUserData((prevData) => ({
+              ...prevData,
+              paymentMethods: paymentMethodsResponse.data,
+            }));
+          }
         }
-        const deliveryHistoryResponse = await deliveryService.getHistory();
-        if (isMounted && deliveryHistoryResponse.success) {
-          setDeliveryHistory(deliveryHistoryResponse.data);
+
+        if (activeTab === "deliveries") {
+          const deliveryHistoryResponse = await deliveryService.getHistory();
+          if (isMounted && deliveryHistoryResponse.success) {
+            setDeliveryHistory(deliveryHistoryResponse.data);
+          }
         }
       } catch (err) {
         if (isMounted) {
@@ -89,11 +104,43 @@ export default function Profile() {
         }
       }
     };
-    fetchUserData();
+
+    fetchAdditionalData();
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [refreshUserProfile, userProfile, activeTab]);
+
+  // Add a new useEffect to handle tab changes
+  useEffect(() => {
+    // When tab changes, fetch data specific to that tab
+    const fetchTabData = async () => {
+      if (activeTab === "payment" && userData.paymentMethods.length === 0) {
+        try {
+          const response = await userService.getPaymentMethods();
+          if (response.success) {
+            setUserData((prev) => ({
+              ...prev,
+              paymentMethods: response.data,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching payment methods:", error);
+        }
+      } else if (activeTab === "deliveries" && deliveryHistory.length === 0) {
+        try {
+          const response = await deliveryService.getHistory();
+          if (response.success) {
+            setDeliveryHistory(response.data);
+          }
+        } catch (error) {
+          console.error("Error fetching delivery history:", error);
+        }
+      }
+    };
+
+    fetchTabData();
+  }, [activeTab, userData.paymentMethods.length, deliveryHistory.length]);
 
   const handleLogout = () => {
     logout();
@@ -176,7 +223,10 @@ export default function Profile() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <PersonalInfoSection userData={userData} />
+                  <PersonalInfoSection
+                    userData={userData}
+                    onProfileUpdated={refreshUserProfile}
+                  />
                 </motion.div>
               )}
               {activeTab === "deliveries" && (

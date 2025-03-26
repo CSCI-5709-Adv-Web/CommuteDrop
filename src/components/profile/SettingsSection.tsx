@@ -1,12 +1,17 @@
 "use client";
 
-import { Bell, Shield, HelpCircle } from "lucide-react";
+import { Bell, Shield, HelpCircle, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { userService } from "../../services/user-service";
 
 interface SettingsSectionProps {
   onLogout: () => void;
 }
 
 export default function SettingsSection({ onLogout }: SettingsSectionProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const settingsItems = [
     {
       id: "notifications",
@@ -30,6 +35,33 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
       action: () => console.log("Help clicked"),
     },
   ];
+
+  const handleDeleteAccount = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your account? This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await userService.deleteAccount();
+
+      if (response.success) {
+        // Account deleted successfully, log the user out
+        onLogout();
+      } else {
+        setDeleteError(response.message || "Failed to delete account");
+      }
+    } catch (error) {
+      setDeleteError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div>
@@ -58,6 +90,36 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
         <button onClick={onLogout} className="text-red-600 font-medium">
           Log Out
         </button>
+
+        <div className="border-t border-gray-200 my-4"></div>
+
+        {/* Delete Account Section */}
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50">
+          <div className="flex items-start">
+            <Trash2 className="w-5 h-5 text-red-500 mt-0.5 mr-3" />
+            <div>
+              <p className="font-medium text-red-700">Delete Account</p>
+              <p className="text-sm text-red-600 mb-4">
+                This will permanently delete your account and all associated
+                data. This action cannot be undone.
+              </p>
+
+              {deleteError && (
+                <p className="text-sm bg-red-100 p-2 rounded mb-3 text-red-800">
+                  {deleteError}
+                </p>
+              )}
+
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Delete My Account"}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -148,7 +148,20 @@ export const deliveryService = {
 
   getHistory: async (): Promise<ApiResponse<DeliveryHistoryItem[]>> => {
     try {
-      return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.DELIVERY.HISTORY)
+      try {
+        return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.DELIVERY.HISTORY)
+      } catch (apiError: any) {
+        // If endpoint returns 404, return empty array instead of error
+        if (apiError.status === 404) {
+          console.warn("Delivery history endpoint not found, returning empty array")
+          return {
+            success: true,
+            message: "No delivery history found",
+            data: [],
+          }
+        }
+        throw apiError
+      }
     } catch (error: any) {
       return {
         success: false,

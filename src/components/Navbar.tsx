@@ -1,15 +1,40 @@
 "use client";
 
+import type React from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Menu, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { DEFAULT_AVATAR_IMAGE } from "../utils/tokenStorage";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Memoize the profile image to prevent unnecessary re-renders
+  const profileImage = useMemo(() => {
+    // Only use the actual profile image if it exists and is not the default placeholder
+    if (
+      userProfile?.profileImage &&
+      !userProfile.profileImage.includes("placeholder.svg")
+    ) {
+      return userProfile.profileImage;
+    }
+    // Otherwise use our data URI
+    return DEFAULT_AVATAR_IMAGE;
+  }, [userProfile?.profileImage]);
+
+  // Memoize the display name to prevent unnecessary re-renders
+  const displayName = useMemo(
+    () =>
+      userProfile?.name ||
+      user?.name ||
+      user?.email?.split("@")[0] ||
+      "Account",
+    [userProfile?.name, user?.name, user?.email]
+  );
 
   const handleLogout = () => {
     logout();
@@ -22,6 +47,14 @@ export default function Navbar() {
 
   const handleProfileClick = () => {
     navigate("/profile");
+  };
+
+  // Add this function to handle image loading errors
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    // Prevent infinite loop by checking if the src is already the default
+    if (e.currentTarget.src !== DEFAULT_AVATAR_IMAGE) {
+      e.currentTarget.src = DEFAULT_AVATAR_IMAGE;
+    }
   };
 
   // Close menu when clicking outside
@@ -58,13 +91,16 @@ export default function Navbar() {
           className="flex items-center gap-3 cursor-pointer"
         >
           <div className="hidden md:block text-sm text-gray-300">
-            {user?.name || user?.email || "Account"}
+            {displayName}
           </div>
           <div className="w-8 h-8 bg-gray-300 rounded-full overflow-hidden">
             <img
-              src="/placeholder.svg?height=32&width=32"
+              src={profileImage || "/placeholder.svg"}
               alt="Profile"
               className="w-full h-full object-cover"
+              onError={handleImageError}
+              loading="eager"
+              fetchPriority="high"
             />
           </div>
         </button>

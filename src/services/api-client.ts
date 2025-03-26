@@ -5,7 +5,7 @@ import { tokenStorage } from "../utils/tokenStorage"
 import { jwtUtils } from "../utils/jwtUtils"
 
 const defaultConfig: AxiosRequestConfig = {
-  baseURL: API_CONFIG.BASE_URL,
+  baseURL: API_CONFIG.AUTH_BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
   headers: {
     "Content-Type": "application/json",
@@ -123,7 +123,7 @@ class ApiClient {
   private async refreshToken(refreshToken: string) {
     try {
       const response = await axios.post<any>(
-        `${API_CONFIG.BASE_URL}/auth/refresh-token`,
+        `${API_CONFIG.AUTH_BASE_URL}/auth/refresh-token`,
         { refreshToken },
         { headers: { "Content-Type": "application/json" } },
       )

@@ -147,11 +147,60 @@ export default function Profile() {
     navigate("/login");
   };
 
+  // Update the tabs array to include colorful icons with background circles
   const tabs = [
-    { id: "profile", label: "Profile", icon: <Home size={18} /> },
-    { id: "deliveries", label: "Deliveries", icon: <Truck size={18} /> },
-    { id: "payment", label: "Payment", icon: <CreditCard size={18} /> },
-    { id: "settings", label: "Settings", icon: <Settings size={18} /> },
+    {
+      id: "profile",
+      label: "Profile",
+      icon: (isActive: boolean) => (
+        <div
+          className={`p-2 rounded-full ${
+            isActive ? "bg-blue-100" : "bg-blue-50"
+          }`}
+        >
+          <Home size={18} className="text-blue-500" />
+        </div>
+      ),
+    },
+    {
+      id: "deliveries",
+      label: "Deliveries",
+      icon: (isActive: boolean) => (
+        <div
+          className={`p-2 rounded-full ${
+            isActive ? "bg-green-100" : "bg-green-50"
+          }`}
+        >
+          <Truck size={18} className="text-green-500" />
+        </div>
+      ),
+    },
+    {
+      id: "payment",
+      label: "Payment",
+      icon: (isActive: boolean) => (
+        <div
+          className={`p-2 rounded-full ${
+            isActive ? "bg-purple-100" : "bg-purple-50"
+          }`}
+        >
+          <CreditCard size={18} className="text-purple-500" />
+        </div>
+      ),
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: (isActive: boolean) => (
+        <div
+          className={`p-2 rounded-full ${
+            isActive ? "bg-orange-100" : "bg-orange-50"
+          }`}
+        >
+          <Settings size={18} className="text-orange-500" />
+        </div>
+      ),
+    },
   ];
 
   if (isLoading) {
@@ -191,79 +240,103 @@ export default function Profile() {
     <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
       <Navbar />
       <div className="flex flex-1">
-        <aside className="w-48 border-r bg-white sticky top-[72px] self-start h-[calc(100vh-72px)]">
-          <nav className="py-6 px-4">
+        {/* Update the sidebar navigation section */}
+        <aside className="w-64 border-r bg-white sticky top-[72px] self-start h-[calc(100vh-72px)] hidden md:block">
+          <nav className="py-6">
             <ul className="space-y-1">
-              {tabs.map((tab) => (
-                <li key={tab.id}>
-                  <button
-                    className={`w-full px-4 py-2 text-left font-medium rounded-md flex items-center ${
-                      activeTab === tab.id
-                        ? "bg-gray-100 text-black"
-                        : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-                    }`}
-                    onClick={() => setActiveTab(tab.id as TabType)}
-                  >
-                    <span className="mr-3">{tab.icon}</span>
-                    {tab.label}
-                  </button>
-                </li>
-              ))}
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <li key={tab.id}>
+                    <button
+                      className={`w-full px-6 py-3 text-left font-medium rounded-none flex items-center ${
+                        isActive
+                          ? "bg-gray-100 text-black"
+                          : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setActiveTab(tab.id as TabType)}
+                    >
+                      <span className="mr-4">{tab.icon(isActive)}</span>
+                      {tab.label}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
         </aside>
-        <main className="flex-1 overflow-y-auto">
-          <div className="py-6 px-8">
-            <AnimatePresence mode="wait">
-              {activeTab === "profile" && (
-                <motion.div
-                  key="profile"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+
+        {/* Update the mobile tabs section */}
+        <div className="md:hidden w-full border-b bg-white sticky top-[72px] z-10">
+          <div className="flex overflow-x-auto">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  className={`flex-1 min-w-[80px] px-4 py-3 text-center font-medium flex flex-col items-center justify-center ${
+                    isActive ? "bg-gray-100 text-black" : "text-gray-500"
+                  }`}
+                  onClick={() => setActiveTab(tab.id as TabType)}
                 >
-                  <PersonalInfoSection
-                    userData={userData}
-                    onProfileUpdated={refreshUserProfile}
-                  />
-                </motion.div>
-              )}
-              {activeTab === "deliveries" && (
-                <motion.div
-                  key="deliveries"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <DeliveryHistorySection deliveryHistory={deliveryHistory} />
-                </motion.div>
-              )}
-              {activeTab === "payment" && (
-                <motion.div
-                  key="payment"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <PaymentMethodsSection userData={userData} />
-                </motion.div>
-              )}
-              {activeTab === "settings" && (
-                <motion.div
-                  key="settings"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <SettingsSection onLogout={handleLogout} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  {tab.icon(isActive)}
+                  <span className="text-xs mt-1">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <AnimatePresence mode="wait">
+            {activeTab === "profile" && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PersonalInfoSection
+                  userData={userData}
+                  onProfileUpdated={refreshUserProfile}
+                />
+              </motion.div>
+            )}
+            {activeTab === "deliveries" && (
+              <motion.div
+                key="deliveries"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <DeliveryHistorySection deliveryHistory={deliveryHistory} />
+              </motion.div>
+            )}
+            {activeTab === "payment" && (
+              <motion.div
+                key="payment"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PaymentMethodsSection userData={userData} />
+              </motion.div>
+            )}
+            {activeTab === "settings" && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SettingsSection onLogout={handleLogout} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
     </div>

@@ -95,7 +95,7 @@ export default function Navbar() {
           </div>
           <div className="w-8 h-8 bg-gray-300 rounded-full overflow-hidden">
             <img
-              src={profileImage || "/placeholder.svg"}
+              src={profileImage || DEFAULT_AVATAR_IMAGE}
               alt="Profile"
               className="w-full h-full object-cover"
               onError={handleImageError}

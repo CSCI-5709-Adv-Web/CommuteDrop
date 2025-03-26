@@ -1,12 +1,18 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
+// Add imports for the different carrier icons
 import {
   ArrowLeft,
   MapPin,
   Weight,
   Car,
+  Truck,
+  Bike,
+  Package,
   Clock,
   DollarSign,
   Loader,
@@ -322,6 +328,46 @@ export default function ConfirmDelivery({
     setError(null);
   }, []);
 
+  // Create a reusable card component for delivery details
+  // Replace the existing DeliveryDetailCard implementation with this updated version that includes dynamic carrier icon selection
+  const DeliveryDetailCard = ({
+    icon,
+    title,
+    value,
+    bgColor = "bg-gray-50",
+  }: {
+    icon: React.ReactNode;
+    title: string;
+    value: string;
+    bgColor?: string;
+  }) => (
+    <div className={`${bgColor} p-4 rounded-lg`}>
+      <div className="flex items-start">
+        {icon}
+        <div className="ml-3">
+          <p className="font-medium text-gray-900">{title}</p>
+          <p className="text-gray-700">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Add a function to get the appropriate carrier icon based on the carrier type
+  const getCarrierIcon = (carrierType: string) => {
+    switch (carrierType.toLowerCase()) {
+      case "car":
+        return <Car className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+      case "truck":
+        return <Truck className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+      case "bike":
+        return <Bike className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+      case "walk":
+        return <Package className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+      default:
+        return <Car className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+    }
+  };
+
   return (
     <motion.div
       key="confirm"
@@ -371,83 +417,72 @@ export default function ConfirmDelivery({
 
       <div className="space-y-4 flex-grow">
         {/* Pickup Location */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-start">
-            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-            <div>
-              <p className="font-medium text-gray-900">Pickup Location</p>
-              <p className="text-gray-700">{formData.pickup}</p>
-            </div>
-          </div>
-        </div>
+        <DeliveryDetailCard
+          icon={<MapPin className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />}
+          title="Pickup Location"
+          value={formData.pickup}
+          bgColor="bg-blue-50"
+        />
 
         {/* Dropoff Location */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-start">
-            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-            <div>
-              <p className="font-medium text-gray-900">Dropoff Location</p>
-              <p className="text-gray-700">{formData.dropoff}</p>
-            </div>
-          </div>
-        </div>
+        <DeliveryDetailCard
+          icon={<MapPin className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />}
+          title="Dropoff Location"
+          value={formData.dropoff}
+          bgColor="bg-red-50"
+        />
 
         {/* Package Details */}
+        {/* Replace the carrier card in the grid with this updated version that uses the dynamic icon */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <Weight className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-900">Weight</p>
-                <p className="text-gray-700">{formData.weight || "0"} kg</p>
-              </div>
-            </div>
-          </div>
+          <DeliveryDetailCard
+            icon={
+              <Weight className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+            }
+            title="Weight"
+            value={`${formData.weight || "0"} kg`}
+            bgColor="bg-purple-50"
+          />
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <Car className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-900">Carrier</p>
-                <p className="text-gray-700">{formData.carrier || "Car"}</p>
-              </div>
-            </div>
-          </div>
+          <DeliveryDetailCard
+            icon={getCarrierIcon(formData.carrier)}
+            title="Carrier"
+            value={formData.carrier || "Car"}
+            bgColor="bg-blue-50"
+          />
         </div>
 
-        {/* Distance Information - now using routeInfo */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-start">
-            <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-            <div>
-              <p className="font-medium text-gray-900">Distance</p>
-              <p className="text-gray-700">{estimatedDistance}</p>
-            </div>
-          </div>
-        </div>
+        {/* Distance Information */}
+        <DeliveryDetailCard
+          icon={
+            <MapPin className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
+          }
+          title="Distance"
+          value={estimatedDistance}
+          bgColor="bg-green-50"
+        />
 
-        {/* Delivery Estimates - now using routeInfo */}
+        {/* Delivery Estimates */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <Clock className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-900">Estimated Time</p>
-                <p className="text-gray-700">{estimatedTime}</p>
-              </div>
-            </div>
-          </div>
+          <DeliveryDetailCard
+            icon={
+              <Clock className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
+            }
+            title="Estimated Time"
+            value={estimatedTime}
+            bgColor="bg-orange-50"
+          />
 
           {/* Estimated Cost - Only show when calculating or after calculation */}
           {step !== "initial" && (
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-yellow-50 p-4 rounded-lg">
               <div className="flex items-start">
-                <DollarSign className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-                <div className="w-full">
+                <DollarSign className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                <div className="ml-3 w-full">
                   <p className="font-medium text-gray-900">Estimated Cost</p>
                   {step === "estimating" ? (
                     <div className="mt-2">
-                      <div className="relative h-16 w-full overflow-hidden rounded-md bg-gray-50 flex items-center justify-center">
+                      <div className="relative h-8 w-full overflow-hidden rounded-md bg-yellow-50 flex items-center justify-center">
                         <PriceAnimation
                           start={0}
                           end={orderData?.estimatedPrice?.total || 15.99}
@@ -468,10 +503,10 @@ export default function ConfirmDelivery({
 
         {/* Order Details - Show when order is estimated or confirmed */}
         {(step === "estimated" || step === "confirmed") && orderData && (
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-green-50 p-4 rounded-lg">
             <div className="flex items-start">
-              <CheckCircle className="w-5 h-5 mr-3 text-green-500 mt-1 flex-shrink-0" />
-              <div>
+              <CheckCircle className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
+              <div className="ml-3">
                 <p className="font-medium text-gray-900">Order Details</p>
                 <div className="mt-2 space-y-1">
                   <p className="text-sm text-gray-700">

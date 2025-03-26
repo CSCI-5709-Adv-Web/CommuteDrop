@@ -2,9 +2,8 @@
 
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { Edit, Loader } from "lucide-react";
+import { Edit, Loader, User, Mail, Phone, MapPin, Camera } from "lucide-react";
 import { userService } from "../../services/user-service";
-import ImageCropper from "./ImageCropper";
 import { DEFAULT_PROFILE_IMAGE } from "../../utils/tokenStorage";
 
 interface PersonalInfoSectionProps {
@@ -50,7 +49,7 @@ export default function PersonalInfoSection({
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  // Add state for image cropping
+  // Remove the cropperFile state and related code
   const [cropperFile, setCropperFile] = useState<File | null>(null);
 
   // Update useEffect to use the same logic
@@ -116,7 +115,7 @@ export default function PersonalInfoSection({
     }
   };
 
-  // Update the handleFileChange function to use the cropper
+  // Update the handleFileChange function to properly handle the image URL
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -134,48 +133,49 @@ export default function PersonalInfoSection({
       return;
     }
 
-    // Open the cropper instead of uploading directly
-    setCropperFile(file);
-
-    // Clear the file input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // Add a function to handle the cropped image
-  const handleCroppedImage = async (croppedBlob: Blob) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Create a File from the Blob
-      const croppedFile = new File([croppedBlob], "profile-picture.jpg", {
-        type: "image/jpeg",
-        lastModified: Date.now(),
-      });
+      // Create a temporary URL for the selected file
+      const tempImageUrl = URL.createObjectURL(file);
 
-      // Create a local URL for preview
-      const imageUrl = URL.createObjectURL(croppedBlob);
-      setProfileImage(imageUrl);
+      // Process the image - resize and crop automatically
+      const processedFile = await processImage(file);
 
-      // Upload the image to the server
-      const response = await userService.uploadProfileImage(croppedFile);
+      // Show preview while uploading
+      setProfileImage(tempImageUrl);
+
+      // Upload the processed image
+      const response = await userService.uploadProfileImage(processedFile);
 
       if (response.success) {
         // Update the profile image with the URL from the server
-        setProfileImage(response.data.imageUrl);
+        if (response.data.imageUrl) {
+          // Revoke the temporary object URL to avoid memory leaks
+          URL.revokeObjectURL(tempImageUrl);
 
-        // Show success message
-        setSuccessMessage("Profile picture updated successfully!");
-        setTimeout(() => setSuccessMessage(null), 3000);
+          // Set the new image URL from the server response
+          setProfileImage(response.data.imageUrl);
 
-        // Notify parent component that profile was updated
-        if (onProfileUpdated) {
-          onProfileUpdated();
+          // Show success message
+          setSuccessMessage("Profile picture updated successfully!");
+          setTimeout(() => setSuccessMessage(null), 3000);
+
+          // Notify parent component that profile was updated
+          if (onProfileUpdated) {
+            onProfileUpdated();
+          }
+        } else {
+          // If no image URL in response, keep using the temp URL
+          console.warn(
+            "No image URL returned from server, using local preview"
+          );
         }
       } else {
         setError(response.message || "Failed to upload profile image");
+        // Revoke the temporary object URL
+        URL.revokeObjectURL(tempImageUrl);
         // Revert to the previous image
         setProfileImage(userData.profileImage || DEFAULT_PROFILE_IMAGE);
       }
@@ -185,12 +185,98 @@ export default function PersonalInfoSection({
       setProfileImage(userData.profileImage || DEFAULT_PROFILE_IMAGE);
     } finally {
       setIsLoading(false);
-      setCropperFile(null);
+
+      // Clear the file input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
-  // Add the ImageCropper component to the JSX, right before the return statement
-  // Add this right before the return statement:
+  // Update the processImage function to ensure proper image processing
+  const processImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          // Create a canvas element
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+
+          if (!ctx) {
+            reject(new Error("Could not get canvas context"));
+            return;
+          }
+
+          // Determine the size of the square crop (use the smaller dimension)
+          const size = Math.min(img.width, img.height);
+
+          // Set canvas size to desired output size (we'll use 300x300 for profile pics)
+          const outputSize = 300;
+          canvas.width = outputSize;
+          canvas.height = outputSize;
+
+          // Calculate crop position (center of the image)
+          const sourceX = (img.width - size) / 2;
+          const sourceY = (img.height - size) / 2;
+
+          // Draw a circle for the crop
+          ctx.beginPath();
+          ctx.arc(
+            outputSize / 2,
+            outputSize / 2,
+            outputSize / 2,
+            0,
+            Math.PI * 2
+          );
+          ctx.closePath();
+          ctx.clip();
+
+          // Draw the image with the crop applied
+          ctx.drawImage(
+            img,
+            sourceX,
+            sourceY,
+            size,
+            size, // Source rectangle
+            0,
+            0,
+            outputSize,
+            outputSize // Destination rectangle
+          );
+
+          // Convert canvas to blob
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Could not create image blob"));
+                return;
+              }
+
+              // Create a new file from the blob
+              const processedFile = new File([blob], "profile-picture.jpg", {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+
+              resolve(processedFile);
+            },
+            "image/jpeg",
+            0.9
+          );
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error("Failed to load image"));
+      };
+
+      img.crossOrigin = "anonymous";
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
   // Update the image error handler to use the constant
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -201,7 +287,7 @@ export default function PersonalInfoSection({
   };
 
   return (
-    <div className="font-sans">
+    <div className="w-full font-sans">
       {/* Error message */}
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -209,25 +295,22 @@ export default function PersonalInfoSection({
         </div>
       )}
 
-      {/* Profile Picture Section */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Profile Picture
-          </h2>
+      {/* Success message */}
+      {successMessage && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-600">{successMessage}</p>
         </div>
-        <div className="border-t border-gray-200 mb-6"></div>
+      )}
 
-        {successMessage && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-600">{successMessage}</p>
-          </div>
-        )}
+      <h2 className="text-2xl font-semibold mb-6">Profile Picture</h2>
+      <div className="border-t border-gray-200 mb-6"></div>
 
-        <div className="flex items-center gap-6">
+      {/* Profile Picture Card */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-8 overflow-hidden">
+        <div className="p-6 flex items-center">
           <div
-            className={`relative w-24 h-24 rounded-full overflow-hidden border-2 ${
-              isEditing ? "border-primary cursor-pointer" : "border-gray-200"
+            className={`relative w-20 h-20 rounded-full overflow-hidden bg-gray-100 mr-4 ${
+              isEditing ? "cursor-pointer" : ""
             }`}
             onClick={handleProfileImageClick}
           >
@@ -236,8 +319,9 @@ export default function PersonalInfoSection({
                 <Loader className="w-6 h-6 text-white animate-spin" />
               </div>
             )}
+            {/* Update the image display in the JSX to ensure proper rendering */}
             <img
-              src={profileImage || "/placeholder.svg"}
+              src={profileImage || "/placeholder.svg?height=150&width=150"}
               alt="Profile"
               className="w-full h-full object-cover"
               onError={handleImageError}
@@ -245,7 +329,8 @@ export default function PersonalInfoSection({
             />
             {isEditing && (
               <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xs font-medium">
-                Change Photo
+                <Camera size={16} className="mr-1" />
+                Change
               </div>
             )}
             <input
@@ -257,143 +342,182 @@ export default function PersonalInfoSection({
             />
           </div>
           <div>
-            {isEditing ? (
-              <div>
-                <p className="text-sm text-gray-600 mb-2">
-                  Click on the image to upload a new profile picture
-                </p>
-                <p className="text-xs text-gray-500">
-                  Supported formats: JPEG, PNG, GIF, WEBP (max 5MB)
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">Your profile picture</p>
+            <p className="text-gray-900">Your profile picture</p>
+            {isEditing && (
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: JPEG, PNG, GIF, WEBP (max 5MB)
+              </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Personal Information */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Personal Information
-          </h2>
-          <button
-            onClick={() =>
-              isEditing ? handleSaveProfile() : setIsEditing(true)
-            }
-            disabled={isLoading}
-            className="flex items-center gap-2 text-primary font-medium hover:underline disabled:opacity-50"
-          >
-            {isLoading ? (
-              <>
-                <Loader size={16} className="animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Edit size={16} />
-                {isEditing ? "Save" : "Edit"}
-              </>
-            )}
-          </button>
-        </div>
-        <div className="border-t border-gray-200 mb-6"></div>
+      {/* Personal Information Section */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold">Personal Information</h2>
+        <button
+          onClick={() => (isEditing ? handleSaveProfile() : setIsEditing(true))}
+          disabled={isLoading}
+          className="flex items-center gap-2 text-primary font-medium hover:underline disabled:opacity-50"
+        >
+          {isLoading ? (
+            <>
+              <Loader size={16} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Edit size={16} />
+              {isEditing ? "Save" : "Edit"}
+            </>
+          )}
+        </button>
+      </div>
+      <div className="border-t border-gray-200 mb-6"></div>
 
-        {isEditing ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">
-                Full Name
-              </label>
+      {isEditing ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Full Name */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-blue-50">
+                  <User className="w-5 h-5 text-blue-500" />
+                </div>
+                <label className="font-medium text-gray-900">Full Name</label>
+              </div>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal"
+                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">
-                Email
-              </label>
+          {/* Email */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-green-50">
+                  <Mail className="w-5 h-5 text-green-500" />
+                </div>
+                <label className="font-medium text-gray-900">Email</label>
+              </div>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 disabled
-                className="w-full p-2 border border-gray-300 rounded font-normal bg-gray-100"
+                className="w-full p-2 border border-gray-300 rounded font-normal bg-gray-100 mt-1"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Email cannot be changed
               </p>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">
-                Phone Number
-              </label>
+          {/* Phone Number */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-purple-50">
+                  <Phone className="w-5 h-5 text-purple-500" />
+                </div>
+                <label className="font-medium text-gray-900">
+                  Phone Number
+                </label>
+              </div>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal"
+                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
+                placeholder="Enter your phone number"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">
-                Address
-              </label>
+          {/* Address */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-orange-50">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                </div>
+                <label className="font-medium text-gray-900">Address</label>
+              </div>
               <input
                 type="text"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal"
+                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
+                placeholder="Enter your address"
               />
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
-              <p className="mt-1 text-gray-900 font-normal">{userData.name}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Full Name */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-blue-50">
+                  <User className="w-5 h-5 text-blue-500" />
+                </div>
+                <h3 className="font-medium text-gray-900">Full Name</h3>
+              </div>
+              <p className="text-gray-700 pl-10">{userData.name}</p>
             </div>
+          </div>
 
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Email</h3>
-              <p className="mt-1 text-gray-900 font-normal">{userData.email}</p>
+          {/* Email */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-green-50">
+                  <Mail className="w-5 h-5 text-green-500" />
+                </div>
+                <h3 className="font-medium text-gray-900">Email</h3>
+              </div>
+              <p className="text-gray-700 pl-10">{userData.email}</p>
             </div>
+          </div>
 
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">
-                Phone Number
-              </h3>
-              <p className="mt-1 text-gray-900 font-normal">
+          {/* Phone Number */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-purple-50">
+                  <Phone className="w-5 h-5 text-purple-500" />
+                </div>
+                <h3 className="font-medium text-gray-900">Phone Number</h3>
+              </div>
+              <p className="text-gray-700 pl-10">
                 {userData.phone || "Not provided"}
               </p>
             </div>
+          </div>
 
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Address</h3>
-              <p className="mt-1 text-gray-900 font-normal">
+          {/* Address */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-orange-50">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                </div>
+                <h3 className="font-medium text-gray-900">Address</h3>
+              </div>
+              <p className="text-gray-700 pl-10">
                 {userData.address || "Not provided"}
               </p>
             </div>
           </div>
-        )}
-      </div>
-      {cropperFile && (
-        <ImageCropper
-          imageFile={cropperFile}
-          onCrop={handleCroppedImage}
-          onCancel={() => setCropperFile(null)}
-        />
+        </div>
       )}
     </div>
   );

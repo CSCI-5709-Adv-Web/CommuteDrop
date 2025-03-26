@@ -289,10 +289,15 @@ export default function Profile() {
             {activeTab === "profile" && (
               <motion.div
                 key="profile"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  mass: 0.5,
+                }}
               >
                 <PersonalInfoSection
                   userData={userData}
@@ -303,10 +308,15 @@ export default function Profile() {
             {activeTab === "deliveries" && (
               <motion.div
                 key="deliveries"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  mass: 0.5,
+                }}
               >
                 <DeliveryHistorySection deliveryHistory={deliveryHistory} />
               </motion.div>
@@ -314,10 +324,15 @@ export default function Profile() {
             {activeTab === "payment" && (
               <motion.div
                 key="payment"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  mass: 0.5,
+                }}
               >
                 <PaymentMethodsSection />
               </motion.div>
@@ -325,10 +340,15 @@ export default function Profile() {
             {activeTab === "settings" && (
               <motion.div
                 key="settings"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  mass: 0.5,
+                }}
               >
                 <SettingsSection onLogout={handleLogout} />
               </motion.div>

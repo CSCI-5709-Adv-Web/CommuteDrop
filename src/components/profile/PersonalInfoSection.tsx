@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { Edit, Loader, User, Mail, Phone, MapPin, Camera } from "lucide-react";
 import { userService } from "../../services/user-service";
 import { DEFAULT_PROFILE_IMAGE } from "../../utils/tokenStorage";
+import { motion } from "framer-motion";
 
 interface PersonalInfoSectionProps {
   userData: {
@@ -309,132 +310,190 @@ export default function PersonalInfoSection({
 
       {isEditing ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-blue-50">
-                  <User className="w-5 h-5 text-blue-500" />
+          {[0, 1, 2, 3].map((index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 400,
+                damping: 25,
+                delay: index * 0.08,
+                mass: 0.7,
+              }}
+            >
+              {index === 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-blue-50">
+                        <User className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <label className="font-medium text-gray-900">
+                        Full Name
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
+                    />
+                  </div>
                 </div>
-                <label className="font-medium text-gray-900">Full Name</label>
-              </div>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
-              />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-green-50">
-                  <Mail className="w-5 h-5 text-green-500" />
+              )}
+              {index === 1 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-green-50">
+                        <Mail className="w-5 h-5 text-green-500" />
+                      </div>
+                      <label className="font-medium text-gray-900">Email</label>
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      disabled
+                      className="w-full p-2 border border-gray-300 rounded font-normal bg-gray-100 mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Email cannot be changed
+                    </p>
+                  </div>
                 </div>
-                <label className="font-medium text-gray-900">Email</label>
-              </div>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                disabled
-                className="w-full p-2 border border-gray-300 rounded font-normal bg-gray-100 mt-1"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Email cannot be changed
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-purple-50">
-                  <Phone className="w-5 h-5 text-purple-500" />
+              )}
+              {index === 2 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-purple-50">
+                        <Phone className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <label className="font-medium text-gray-900">
+                        Phone Number
+                      </label>
+                    </div>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
+                      placeholder="Enter your phone number"
+                    />
+                  </div>
                 </div>
-                <label className="font-medium text-gray-900">
-                  Phone Number
-                </label>
-              </div>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
-                placeholder="Enter your phone number"
-              />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-orange-50">
-                  <MapPin className="w-5 h-5 text-orange-500" />
+              )}
+              {index === 3 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-orange-50">
+                        <MapPin className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <label className="font-medium text-gray-900">
+                        Address
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
+                      placeholder="Enter your address"
+                    />
+                  </div>
                 </div>
-                <label className="font-medium text-gray-900">Address</label>
-              </div>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded font-normal mt-1"
-                placeholder="Enter your address"
-              />
-            </div>
-          </div>
+              )}
+            </motion.div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-blue-50">
-                  <User className="w-5 h-5 text-blue-500" />
+          {[0, 1, 2, 3].map((index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 400,
+                damping: 25,
+                delay: index * 0.08,
+                mass: 0.7,
+              }}
+              whileHover={{
+                y: -3,
+                boxShadow:
+                  "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)",
+                transition: { type: "spring", stiffness: 400, damping: 15 },
+              }}
+            >
+              {index === 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-blue-50">
+                        <User className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <h3 className="font-medium text-gray-900">Full Name</h3>
+                    </div>
+                    <p className="text-gray-700 pl-10">{userData.name}</p>
+                  </div>
                 </div>
-                <h3 className="font-medium text-gray-900">Full Name</h3>
-              </div>
-              <p className="text-gray-700 pl-10">{userData.name}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-green-50">
-                  <Mail className="w-5 h-5 text-green-500" />
+              )}
+              {index === 1 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-green-50">
+                        <Mail className="w-5 h-5 text-green-500" />
+                      </div>
+                      <h3 className="font-medium text-gray-900">Email</h3>
+                    </div>
+                    <p className="text-gray-700 pl-10">{userData.email}</p>
+                  </div>
                 </div>
-                <h3 className="font-medium text-gray-900">Email</h3>
-              </div>
-              <p className="text-gray-700 pl-10">{userData.email}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-purple-50">
-                  <Phone className="w-5 h-5 text-purple-500" />
+              )}
+              {index === 2 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-purple-50">
+                        <Phone className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <h3 className="font-medium text-gray-900">
+                        Phone Number
+                      </h3>
+                    </div>
+                    <p className="text-gray-700 pl-10">
+                      {userData.phone || "Not provided"}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-medium text-gray-900">Phone Number</h3>
-              </div>
-              <p className="text-gray-700 pl-10">
-                {userData.phone || "Not provided"}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-orange-50">
-                  <MapPin className="w-5 h-5 text-orange-500" />
+              )}
+              {index === 3 && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-full bg-orange-50">
+                        <MapPin className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <h3 className="font-medium text-gray-900">Address</h3>
+                    </div>
+                    <p className="text-gray-700 pl-10">
+                      {userData.address || "Not provided"}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-medium text-gray-900">Address</h3>
-              </div>
-              <p className="text-gray-700 pl-10">
-                {userData.address || "Not provided"}
-              </p>
-            </div>
-          </div>
+              )}
+            </motion.div>
+          ))}
         </div>
       )}
     </div>

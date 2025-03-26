@@ -141,13 +141,21 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
             {category.items.map((item, itemIndex) => (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{
-                  duration: 0.3,
-                  delay: itemIndex * 0.1 + categoryIndex * 0.2,
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                  delay: itemIndex * 0.08 + categoryIndex * 0.1,
                 }}
-                className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow h-full"
+                whileHover={{
+                  y: -4,
+                  boxShadow:
+                    "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                  transition: { type: "spring", stiffness: 400, damping: 15 },
+                }}
+                className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm transition-shadow h-full"
               >
                 <div className="flex items-center justify-between h-full">
                   <div className="flex items-center gap-3">
@@ -189,8 +197,14 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
           <motion.button
             onClick={onLogout}
             className="flex items-center gap-3 w-full p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
+            whileHover={{
+              scale: 1.02,
+              y: -4,
+              boxShadow:
+                "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+            }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
             <div className="p-2 rounded-full bg-gray-50">
               <LogOut className="w-5 h-5 text-gray-500" />
@@ -200,9 +214,20 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
         </div>
         <motion.div
           className="p-5 rounded-xl border border-red-200 bg-red-50"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            type: "spring",
+            stiffness: 300,
+            damping: 25,
+            delay: 0.5,
+            mass: 0.8,
+          }}
+          whileHover={{
+            boxShadow:
+              "0 10px 15px -3px rgba(239, 68, 68, 0.1), 0 4px 6px -2px rgba(239, 68, 68, 0.05)",
+            y: -2,
+          }}
         >
           <div className="flex items-start">
             <div className="p-2 rounded-full bg-red-100 mr-3 flex-shrink-0">

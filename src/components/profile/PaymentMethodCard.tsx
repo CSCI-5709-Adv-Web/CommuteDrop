@@ -82,17 +82,19 @@ export default function PaymentMethodCard({
         method.isDefault ? "border-black" : "border-gray-200"
       }`}
       whileHover={{
-        scale: 1.01,
+        scale: 1.02,
         boxShadow:
-          "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+          "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
         borderColor: method.isDefault
           ? "rgba(0, 0, 0, 0.8)"
           : "rgba(0, 0, 0, 0.2)",
+        y: -3,
       }}
       transition={{
         type: "spring",
-        stiffness: 500,
-        damping: 30,
+        stiffness: 400,
+        damping: 20,
+        mass: 0.6,
       }}
       layout
     >

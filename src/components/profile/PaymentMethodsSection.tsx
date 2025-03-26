@@ -7,12 +7,6 @@ import PaymentMethodCard from "./PaymentMethodCard";
 import AddPaymentMethodForm from "./AddPaymentMethodForm";
 import { cardService, type Card } from "../../services/card-service";
 
-interface PaymentMethodsSectionProps {
-  userData: {
-    paymentMethods: Card[];
-  };
-}
-
 // Remove the userData parameter since it's not being used
 export default function PaymentMethodsSection() {
   const [isAddingCard, setIsAddingCard] = useState(false);
@@ -167,48 +161,63 @@ export default function PaymentMethodsSection() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
+        staggerChildren: 0.12,
+        delayChildren: 0.05,
         when: "beforeChildren",
       },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
     visible: {
       opacity: 1,
       y: 0,
+      scale: 1,
       transition: {
         type: "spring",
-        stiffness: 300,
-        damping: 24,
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
       },
     },
     exit: {
       opacity: 0,
       y: -20,
+      scale: 0.95,
       transition: {
-        duration: 0.2,
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
       },
     },
   };
 
   const errorVariants = {
-    hidden: { opacity: 0, height: 0, marginBottom: 0 },
+    hidden: { opacity: 0, height: 0, marginBottom: 0, scale: 0.95 },
     visible: {
       opacity: 1,
       height: "auto",
       marginBottom: 16,
+      scale: 1,
       transition: {
-        duration: 0.3,
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
       },
     },
     exit: {
       opacity: 0,
       height: 0,
       marginBottom: 0,
+      scale: 0.95,
       transition: {
-        duration: 0.3,
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
       },
     },
   };
@@ -226,8 +235,9 @@ export default function PaymentMethodsSection() {
           onClick={() => setIsAddingCard(!isAddingCard)}
           className="flex items-center text-black font-medium"
           disabled={isLoading}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, x: isAddingCard ? 0 : 3 }}
           whileTap={{ scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
         >
           {isAddingCard ? (
             "Cancel"
@@ -292,10 +302,15 @@ export default function PaymentMethodsSection() {
         {isAddingCard && (
           <motion.div
             className="mb-8"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+            animate={{ opacity: 1, height: "auto", scale: 1 }}
+            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 25,
+              mass: 0.8,
+            }}
           >
             <AddPaymentMethodForm
               onAddCard={handleAddCard}

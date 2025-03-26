@@ -23,9 +23,21 @@ export default function DeliveryHistoryItem({
   return (
     <motion.div
       className="p-4 hover:bg-gray-50 transition-colors"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.1 }}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        delay: index * 0.08,
+        mass: 0.7,
+      }}
+      whileHover={{
+        y: -3,
+        boxShadow:
+          "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)",
+        transition: { type: "spring", stiffness: 400, damping: 15 },
+      }}
     >
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">

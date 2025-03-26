@@ -53,6 +53,9 @@ export default function AddPaymentMethodForm({
         else if (/^5[1-5]/.test(digitsOnly)) cardType = "mastercard";
         else if (/^3[47]/.test(digitsOnly)) cardType = "amex";
         else if (/^6(?:011|5)/.test(digitsOnly)) cardType = "discover";
+        else if (/^35/.test(digitsOnly)) cardType = "jcb";
+        else if (/^3(?:0[0-5]|[68])/.test(digitsOnly)) cardType = "diners";
+        else if (/^62/.test(digitsOnly)) cardType = "unionpay";
 
         setNewCardData({
           ...newCardData,

@@ -1,19 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Loader, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PaymentMethodCard from "./PaymentMethodCard";
 import AddPaymentMethodForm from "./AddPaymentMethodForm";
 import { cardService, type Card } from "../../services/card-service";
+import PaymentMethodSkeleton from "./PaymentMethodSkeleton";
 
-// Remove the userData parameter since it's not being used
-export default function PaymentMethodsSection() {
+interface PaymentMethodsSectionProps {
+  isInitialLoading?: boolean;
+}
+
+export default function PaymentMethodsSection({
+  isInitialLoading = false,
+}: PaymentMethodsSectionProps) {
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<Card[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(isInitialLoading);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   // Fetch cards from API
   useEffect(() => {
@@ -24,8 +31,17 @@ export default function PaymentMethodsSection() {
         const response = await cardService.getUserCards();
         if (response.success) {
           setPaymentMethods(response.data);
+
+          // If we have cards, select the default or first one
+          if (response.data.length > 0) {
+            const defaultCard = response.data.find((card) => card.isDefault);
+            setSelectedCardId(
+              defaultCard ? defaultCard.id : response.data[0].id
+            );
+          }
         } else {
           setError(response.message || "Failed to load payment methods");
+          setPaymentMethods([]);
         }
       } catch (err) {
         setError("An unexpected error occurred while loading payment methods");
@@ -36,7 +52,7 @@ export default function PaymentMethodsSection() {
     };
 
     fetchCards();
-  }, []);
+  }, []); // Empty dependency array to ensure it runs once on mount
 
   const handleSetDefaultCard = async (id: string) => {
     setIsLoading(true);
@@ -61,7 +77,6 @@ export default function PaymentMethodsSection() {
     }
   };
 
-  // Let's completely rewrite the handleDeleteCard function to fix all type issues
   const handleDeleteCard = async (id: string) => {
     setIsLoading(true);
     setError(null);
@@ -222,6 +237,9 @@ export default function PaymentMethodsSection() {
     },
   };
 
+  // Create sample skeleton items for loading state
+  const skeletonItems = Array(3).fill(0);
+
   return (
     <div>
       <motion.div
@@ -234,7 +252,6 @@ export default function PaymentMethodsSection() {
         <motion.button
           onClick={() => setIsAddingCard(!isAddingCard)}
           className="flex items-center text-black font-medium"
-          disabled={isLoading}
           whileHover={{ scale: 1.05, x: isAddingCard ? 0 : 3 }}
           whileTap={{ scale: 0.95 }}
           transition={{ type: "spring", stiffness: 400, damping: 15 }}
@@ -287,17 +304,6 @@ export default function PaymentMethodsSection() {
         )}
       </AnimatePresence>
 
-      {isLoading && (
-        <motion.div
-          className="flex justify-center items-center py-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <Loader className="w-8 h-8 text-primary animate-spin" />
-        </motion.div>
-      )}
-
       <AnimatePresence>
         {isAddingCard && (
           <motion.div
@@ -321,36 +327,53 @@ export default function PaymentMethodsSection() {
         )}
       </AnimatePresence>
 
-      <motion.div
-        className="space-y-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <AnimatePresence>
-          {!isLoading && paymentMethods.length === 0 ? (
-            <motion.p className="text-gray-500" variants={itemVariants}>
-              Your payment methods will appear here.
-            </motion.p>
-          ) : (
-            paymentMethods.map((method) => (
+      {isLoading ? (
+        <div className="space-y-4">
+          {skeletonItems.map((_, index) => (
+            <PaymentMethodSkeleton key={index} />
+          ))}
+        </div>
+      ) : (
+        <motion.div
+          className="space-y-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <AnimatePresence>
+            {paymentMethods.length === 0 ? (
               <motion.div
-                key={method.id}
-                variants={itemVariants}
-                exit="exit"
-                layout
+                className="text-center py-12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
               >
-                <PaymentMethodCard
-                  method={method}
-                  onSetDefault={handleSetDefaultCard}
-                  onDelete={handleDeleteCard}
-                  isProcessing={isLoading}
-                />
+                <p className="text-gray-500 mb-4">
+                  Your payment methods will appear here.
+                </p>
+                <p className="text-sm text-gray-400">
+                  Add a card to get started
+                </p>
               </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </motion.div>
+            ) : (
+              paymentMethods.map((method) => (
+                <motion.div
+                  key={method.id}
+                  variants={itemVariants}
+                  exit="exit"
+                  layout
+                >
+                  <PaymentMethodCard
+                    method={method}
+                    onSetDefault={handleSetDefaultCard}
+                    onDelete={handleDeleteCard}
+                  />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
     </div>
   );
 }

@@ -108,12 +108,14 @@ export default function Profile() {
     };
   }, [refreshUserProfile, userProfile, activeTab]);
 
-  // Add a new useEffect to handle tab changes
+  // Replace the useEffect that handles tab changes with this improved version
+  // that uses a more subtle loading approach
   useEffect(() => {
     // When tab changes, fetch data specific to that tab
     const fetchTabData = async () => {
       if (activeTab === "payment" && userData.paymentMethods.length === 0) {
         try {
+          // Don't set global loading state, we'll use component-level loading
           const response = await cardService.getUserCards();
           if (response.success) {
             setUserData((prev) => ({
@@ -126,6 +128,7 @@ export default function Profile() {
         }
       } else if (activeTab === "deliveries" && deliveryHistory.length === 0) {
         try {
+          // Don't set global loading state, we'll use component-level loading
           const response = await deliveryService.getHistory();
           if (response.success) {
             setDeliveryHistory(response.data);
@@ -233,11 +236,13 @@ export default function Profile() {
     );
   }
 
+  // Replace the main content section with this improved version that doesn't
+  // show a full loading screen when switching tabs
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
       <Navbar />
       <div className="flex flex-1">
-        {/* Update the sidebar navigation section */}
+        {/* Sidebar navigation section */}
         <aside className="w-64 border-r bg-white sticky top-[72px] self-start h-[calc(100vh-72px)] hidden md:block">
           <nav className="py-6">
             <ul className="space-y-1">
@@ -263,7 +268,7 @@ export default function Profile() {
           </nav>
         </aside>
 
-        {/* Update the mobile tabs section */}
+        {/* Mobile tabs section */}
         <div className="md:hidden w-full border-b bg-white sticky top-[72px] z-10">
           <div className="flex overflow-x-auto">
             {tabs.map((tab) => {
@@ -318,7 +323,10 @@ export default function Profile() {
                   mass: 0.5,
                 }}
               >
-                <DeliveryHistorySection deliveryHistory={deliveryHistory} />
+                <DeliveryHistorySection
+                  deliveryHistory={deliveryHistory}
+                  isLoading={deliveryHistory.length === 0}
+                />
               </motion.div>
             )}
             {activeTab === "payment" && (
@@ -334,7 +342,9 @@ export default function Profile() {
                   mass: 0.5,
                 }}
               >
-                <PaymentMethodsSection />
+                <PaymentMethodsSection
+                  isInitialLoading={userData.paymentMethods.length === 0}
+                />
               </motion.div>
             )}
             {activeTab === "settings" && (

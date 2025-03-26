@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { cardService } from "../services/card-service";
 
@@ -23,6 +23,7 @@ export function usePaymentForm({
   const [useNewCard, setUseNewCard] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [saveNewCard, setSaveNewCard] = useState(false);
+  const [savedCards, setSavedCards] = useState<any[]>([]);
 
   // Function to fetch client_secret from backend
   const fetchClientSecret = useCallback(async () => {
@@ -43,6 +44,12 @@ export function usePaymentForm({
       return null;
     }
   }, [amount]);
+
+  useEffect(() => {
+    // Start with empty cards
+    setSavedCards([]);
+    setUseNewCard(true);
+  }, []);
 
   // Handle Payment Submission
   const handlePayment = useCallback(async () => {
@@ -156,5 +163,7 @@ export function usePaymentForm({
     setSelectedCardId,
     handlePayment,
     handleRetry,
+    savedCards,
+    setSavedCards,
   };
 }

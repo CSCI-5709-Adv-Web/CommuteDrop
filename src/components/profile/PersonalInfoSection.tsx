@@ -81,7 +81,7 @@ export default function PersonalInfoSection({
     try {
       const response = await userService.updateProfile({
         name: formData.name,
-        phone: formData.phone,
+        phoneNumber: formData.phone,
         address: formData.address,
       });
 

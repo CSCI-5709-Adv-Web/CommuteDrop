@@ -95,7 +95,7 @@ export const userService = {
       // Prepare the update request
       const updateRequest: UpdateUserRequest = {
         name: profileData.name,
-        phone: profileData.phone,
+        phoneNumber: profileData.phoneNumber,
         address: profileData.address,
         profileImage: profileData.profileImage,
       }

@@ -11,7 +11,7 @@ export interface RegisterRequest {
 
 export interface UpdateUserRequest {
   name?: string
-  phone?: string
+  phoneNumber?: string
   address?: string
   profileImage?: string
 }
@@ -35,7 +35,7 @@ export interface User {
 export interface UserProfile {
   email: string
   name: string
-  phone?: string
+  phoneNumber?: string
   address?: string
   profileImage?: string
   joinDate?: string

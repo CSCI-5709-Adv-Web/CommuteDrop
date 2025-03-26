@@ -31,7 +31,7 @@ export default function Profile() {
   const [userData, setUserData] = useState({
     name: userProfile?.name || user?.name || "User",
     email: userProfile?.email || user?.email || "",
-    phone: userProfile?.phone || "",
+    phone: userProfile?.phoneNumber || "",
     address: userProfile?.address || "",
     joinDate: userProfile?.joinDate || "January 2023",
     deliveriesCompleted: userProfile?.deliveriesCompleted || 0,
@@ -52,7 +52,7 @@ export default function Profile() {
         ...prevData,
         name: userProfile.name,
         email: userProfile.email,
-        phone: userProfile.phone || "",
+        phone: userProfile.phoneNumber || "",
         address: userProfile.address || "",
         joinDate: userProfile.joinDate || "January 2023",
         deliveriesCompleted: userProfile.deliveriesCompleted || 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -16,6 +16,105 @@ import {
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
 import { useLocation } from "../../context/LocationContext";
 import { deliveryService } from "../../services/delivery-service";
+
+// Replace the CountUp component with this enhanced version
+const PriceAnimation = ({
+  start = 0,
+  end = 299.99,
+  duration = 2,
+}: {
+  start?: number;
+  end?: number;
+  duration?: number;
+}) => {
+  const [count, setCount] = useState(start);
+
+  useEffect(() => {
+    let startTime: number;
+    let animationFrame: number;
+
+    const updateCount = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
+
+      // Use easeOutExpo for a more dynamic feel
+      const easeOutExpo = 1 - Math.pow(2, -10 * progress);
+      const currentCount = start + (end - start) * easeOutExpo;
+
+      setCount(currentCount);
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(updateCount);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(updateCount);
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [start, end, duration]);
+
+  return (
+    <div className="relative flex items-center justify-center">
+      {/* Animated background */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-md opacity-20"
+        animate={{
+          opacity: [0.1, 0.3, 0.1],
+          scale: [0.95, 1.05, 0.95],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+      />
+
+      {/* Dollar sign with bounce effect */}
+      <motion.div
+        className="text-lg font-bold text-primary mr-1"
+        animate={{
+          y: [0, -5, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: 0.5,
+          delay: 0.5,
+          ease: "easeOut",
+        }}
+      >
+        $
+      </motion.div>
+
+      {/* The animated number */}
+      <motion.div
+        className="text-2xl font-bold text-primary"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {count.toFixed(2)}
+      </motion.div>
+
+      {/* Shimmer effect */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
+        animate={{
+          x: ["-100%", "100%"],
+        }}
+        transition={{
+          duration: 1.5,
+          repeat: 2,
+          ease: "easeInOut",
+          delay: 0.2,
+        }}
+      />
+    </div>
+  );
+};
 
 interface ConfirmDeliveryProps {
   formData: any;
@@ -88,6 +187,9 @@ export default function ConfirmDelivery({
         },
         carrierType: formData.carrier as any,
       };
+
+      // Add a 2-second delay to simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const response = await deliveryService.getEstimate(requestData);
 
@@ -252,16 +354,7 @@ export default function ConfirmDelivery({
             <MapPin className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
             <div>
               <p className="font-medium text-gray-900">Distance</p>
-              <p className="text-gray-700">
-                {step === "estimating" ? (
-                  <span className="flex items-center">
-                    <Loader className="w-3 h-3 mr-2 animate-spin" />
-                    Calculating...
-                  </span>
-                ) : (
-                  estimatedDistance
-                )}
-              </p>
+              <p className="text-gray-700">{estimatedDistance}</p>
             </div>
           </div>
         </div>
@@ -273,38 +366,33 @@ export default function ConfirmDelivery({
               <Clock className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
               <div>
                 <p className="font-medium text-gray-900">Estimated Time</p>
-                <p className="text-gray-700">
-                  {step === "estimating" ? (
-                    <span className="flex items-center">
-                      <Loader className="w-3 h-3 mr-2 animate-spin" />
-                      Calculating...
-                    </span>
-                  ) : (
-                    estimatedTime
-                  )}
-                </p>
+                <p className="text-gray-700">{estimatedTime}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <DollarSign className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-900">Estimated Cost</p>
-                <p className="text-gray-700">
+          {/* Estimated Cost - Only show when calculating or after calculation */}
+          {step !== "initial" && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-start">
+                <DollarSign className="w-5 h-5 mr-3 text-gray-500 mt-1 flex-shrink-0" />
+                <div className="w-full">
+                  <p className="font-medium text-gray-900">Estimated Cost</p>
                   {step === "estimating" ? (
-                    <span className="flex items-center">
-                      <Loader className="w-3 h-3 mr-2 animate-spin" />
-                      Calculating...
-                    </span>
+                    <div className="mt-2">
+                      <div className="relative h-16 w-full overflow-hidden rounded-md bg-gray-50 flex items-center justify-center">
+                        <PriceAnimation start={0} end={299.99} duration={2} />
+                      </div>
+                    </div>
                   ) : (
-                    `$${estimatedPrice}`
+                    <p className="text-gray-700 font-medium">
+                      ${estimatedPrice}
+                    </p>
                   )}
-                </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

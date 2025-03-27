@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cardService, type Card } from "../../../services/card-service";
 
@@ -34,58 +34,81 @@ const CARD_TYPES = {
 interface PaymentMethodSelectorProps {
   savedCards: any[];
   selectedCardId: string | null;
-  useNewCard: boolean;
   onSelectCard: (cardId: string) => void;
-  onSelectNewCard: () => void;
   isLoading?: boolean;
+  useNewCard?: boolean;
+  onSelectNewCard?: () => void;
 }
 
 export default function PaymentMethodSelector({
   savedCards: initialSavedCards,
   selectedCardId,
-  useNewCard,
   onSelectCard,
-  onSelectNewCard,
   isLoading = false,
+  useNewCard = false,
+  onSelectNewCard = () => {},
 }: PaymentMethodSelectorProps) {
   const [savedCards, setSavedCards] = useState<Card[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Fix the initial loading state to be false if we have cards
+  const [loading, setLoading] = useState(
+    initialSavedCards.length > 0 ? false : true
+  );
   const [error, setError] = useState<string | null>(null);
 
+  // Update the useEffect hook to properly handle undefined savedCards
   useEffect(() => {
-    const fetchCards = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await cardService.getUserCards();
-        if (response.success) {
-          setSavedCards(response.data);
-          if (response.data.length > 0 && !selectedCardId && !useNewCard) {
-            const defaultCard = response.data.find((card) => card.isDefault);
-            if (defaultCard) {
-              onSelectCard(defaultCard.id);
-            } else {
-              onSelectCard(response.data[0].id);
-            }
-          }
+    // Make sure initialSavedCards is an array before checking its length
+    const cards = Array.isArray(initialSavedCards) ? initialSavedCards : [];
+
+    // If we already have cards from props, use them and stop loading
+    if (cards.length > 0) {
+      setSavedCards(cards);
+      setLoading(false);
+
+      // Select a default card if none is selected
+      if (!selectedCardId) {
+        const defaultCard = cards.find((card) => card.isDefault);
+        if (defaultCard) {
+          onSelectCard(defaultCard.id);
         } else {
-          setError(response.message || "Failed to load payment methods");
-          if (initialSavedCards.length > 0) {
-            setSavedCards(initialSavedCards);
-          }
+          onSelectCard(cards[0].id);
         }
-      } catch (err) {
-        setError("An unexpected error occurred while loading payment methods");
-        console.error("Error fetching cards:", err);
-        if (initialSavedCards.length > 0) {
-          setSavedCards(initialSavedCards);
-        }
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchCards();
-  }, [initialSavedCards, onSelectCard, selectedCardId, useNewCard]);
+      return;
+    }
+
+    // Only fetch cards if we don't have any and we're not already loading
+    if (cards.length === 0 && !loading) {
+      const fetchCards = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await cardService.getUserCards();
+          if (response.success) {
+            setSavedCards(response.data || []);
+            if (response.data && response.data.length > 0 && !selectedCardId) {
+              const defaultCard = response.data.find((card) => card.isDefault);
+              if (defaultCard) {
+                onSelectCard(defaultCard.id);
+              } else {
+                onSelectCard(response.data[0].id);
+              }
+            }
+          } else {
+            setError(response.message || "Failed to load payment methods");
+          }
+        } catch (err) {
+          setError(
+            "An unexpected error occurred while loading payment methods"
+          );
+          console.error("Error fetching cards:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCards();
+    }
+  }, [initialSavedCards, selectedCardId, onSelectCard, loading]);
   if (loading || isLoading) {
     return (
       <div className="mb-6 flex justify-center items-center py-8">
@@ -105,19 +128,20 @@ export default function PaymentMethodSelector({
       <h3 className="text-lg font-medium mb-3">Payment Method</h3>
       <div className="space-y-3 mb-4">
         {savedCards.map((card) => {
-          const cardTypeKey = Object.keys(CARD_TYPES).includes(
-            card.type.toLowerCase()
-          )
-            ? card.type.toLowerCase()
-            : "visa";
+          const cardTypeKey =
+            card.type &&
+            typeof card.type === "string" &&
+            Object.keys(CARD_TYPES).includes(card.type.toLowerCase())
+              ? card.type.toLowerCase()
+              : "visa";
           const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
           return (
             <div
               key={card.id}
               onClick={() => onSelectCard(card.id)}
               className={`p-4 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-                selectedCardId === card.id && !useNewCard
-                  ? `border-primary ${cardType.bg}`
+                selectedCardId === card.id
+                  ? `border-primary ${cardType.bg} shadow-md`
                   : "border-gray-200 hover:border-gray-300"
               }`}
             >
@@ -139,33 +163,24 @@ export default function PaymentMethodSelector({
                 </div>
               </div>
               <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                {selectedCardId === card.id && !useNewCard && (
-                  <div className="w-3 h-3 rounded-full bg-primary" />
+                {selectedCardId === card.id && (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-green-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 )}
               </div>
             </div>
           );
         })}
-      </div>
-      <div
-        onClick={onSelectNewCard}
-        className={`p-4 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-          useNewCard
-            ? "border-primary bg-blue-50"
-            : "border-gray-200 hover:border-gray-300"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center">
-            <CreditCard className="w-5 h-5 text-gray-500" />
-          </div>
-          <div>
-            <p className="font-medium">Use a new card</p>
-          </div>
-        </div>
-        <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-          {useNewCard && <div className="w-3 h-3 rounded-full bg-primary" />}
-        </div>
       </div>
     </div>
   );

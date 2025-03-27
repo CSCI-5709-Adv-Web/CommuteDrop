@@ -5,6 +5,7 @@ export const API_CONFIG = {
   TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/location",
   ORDER_SERVICE_URL: import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
+  PAYMENT_SERVICE_URL: import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9003/payment",
   MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY || "",
   TIMEOUT: 15000,
   DEFAULT_COUNTRY: "Canada",
@@ -22,8 +23,12 @@ export const API_CONFIG = {
     order: {
       clientId: import.meta.env.VITE_ORDER_CLIENT_ID || "order_service_client",
       clientSecret: import.meta.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
-      // Update scopes to be more specific and match what the server expects
       scopes: ["order.read", "order.write"],
+    },
+    payment: {
+      clientId: import.meta.env.VITE_PAYMENT_CLIENT_ID || "payment_service_client",
+      clientSecret: import.meta.env.VITE_PAYMENT_CLIENT_SECRET || "payment_service_secret",
+      scopes: ["payment.read", "payment.write"],
     },
   },
 }
@@ -63,6 +68,13 @@ export const ENDPOINTS = {
     PAYMENT: `${API_CONFIG.ORDER_SERVICE_URL}/:order_id/payment`,
     USER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/:user_id`,
     RIDER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/rider/:rider_id`,
+  },
+  // Payment endpoints
+  PAYMENT: {
+    CREATE_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/create-intent`,
+    CONFIRM_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/confirm-intent`,
+    PROCESS: `${API_CONFIG.PAYMENT_SERVICE_URL}/process`,
+    REFUND: `${API_CONFIG.PAYMENT_SERVICE_URL}/refund`,
   },
   // Maps endpoints
   MAPS: {

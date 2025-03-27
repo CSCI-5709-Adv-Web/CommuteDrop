@@ -1,6 +1,5 @@
 import Home from "../pages/Home";
 import LoginPage from "../pages/auth/Login";
-import VerificationPage from "../pages/auth/Verification";
 import SplashScreen from "../pages/SplashScreen";
 import SignUpPage from "../pages/auth/Signup";
 import Profile from "../pages/user/Profile";
@@ -33,11 +32,6 @@ const routes: AppRouteObject[] = [
     element: <SignUpPage />,
     protected: false,
     redirectIfAuthenticated: true,
-  },
-  {
-    path: "/verify",
-    element: <VerificationPage />,
-    protected: false,
   },
   {
     path: "/home",

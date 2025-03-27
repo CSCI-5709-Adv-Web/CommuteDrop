@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { cardService } from "../services/card-service";
+import { paymentService } from "../services/payment-service";
 
 interface UsePaymentFormProps {
   onPaymentSuccess: (paymentIntentId: string) => void;
-  amount: number;
+  amount: number; // in cents
+  orderId?: string;
 }
 
 export function usePaymentForm({
   onPaymentSuccess,
   amount,
+  orderId = "temp_order",
 }: UsePaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -25,33 +28,7 @@ export function usePaymentForm({
   const [saveNewCard, setSaveNewCard] = useState(false);
   const [savedCards, setSavedCards] = useState<any[]>([]);
 
-  // Function to fetch client_secret from backend
-  const fetchClientSecret = useCallback(async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:8000/create-payment-intent",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }), // Amount in cents
-        }
-      );
-
-      const data = await response.json();
-      return data.clientSecret;
-    } catch (err) {
-      setError("Error fetching payment intent");
-      return null;
-    }
-  }, [amount]);
-
-  useEffect(() => {
-    // Start with empty cards
-    setSavedCards([]);
-    setUseNewCard(true);
-  }, []);
-
-  // Handle Payment Submission
+  // Handle payment submission
   const handlePayment = useCallback(async () => {
     if (!stripe || (!elements && !selectedCardId)) return;
 
@@ -59,21 +36,51 @@ export function usePaymentForm({
     setError("");
     setPaymentStatus("processing");
 
-    const clientSecret = await fetchClientSecret();
-    if (!clientSecret) {
-      setLoading(false);
-      setPaymentStatus("error");
-      return;
-    }
-
     try {
-      let result;
+      // If using a saved card
+      if (selectedCardId) {
+        // Process payment with the selected card
+        const paymentResponse = await paymentService.processPayment({
+          orderId,
+          paymentMethodId: selectedCardId,
+          amount: amount / 100, // Convert from cents to dollars for the API
+        });
 
-      if (useNewCard) {
-        // Use new card
-        result = await stripe.confirmCardPayment(clientSecret, {
+        if (paymentResponse.success) {
+          setPaymentStatus("success");
+          setTimeout(() => {
+            onPaymentSuccess(
+              paymentResponse.paymentIntentId || `pi_${Date.now()}`
+            );
+          }, 2000);
+        } else {
+          throw new Error(paymentResponse.message || "Payment failed");
+        }
+      } else {
+        // Using new card with Stripe Elements
+        if (!elements) {
+          throw new Error("Stripe Elements not initialized");
+        }
+
+        // Create a payment intent
+        const paymentIntentResponse = await paymentService.createPaymentIntent(
+          amount,
+          "usd"
+        );
+
+        if (
+          !paymentIntentResponse.success ||
+          !paymentIntentResponse.data.clientSecret
+        ) {
+          throw new Error("Failed to create payment intent");
+        }
+
+        const clientSecret = paymentIntentResponse.data.clientSecret;
+
+        // Confirm the payment with the card element
+        const result = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
-            card: elements!.getElement(CardElement)!,
+            card: elements.getElement(CardElement)!,
           },
           setup_future_usage: saveNewCard ? "off_session" : undefined,
         });
@@ -82,10 +89,8 @@ export function usePaymentForm({
         if (!result.error && saveNewCard) {
           try {
             // In a real implementation, we would get card details from the payment method
-            // Since retrievePaymentMethod is not available, we'll use a simpler approach
             if (result.paymentIntent && result.paymentIntent.payment_method) {
               // Extract card details from the payment method ID
-              // For demo purposes, we'll create a mock card
               const mockCard = {
                 cardNumber: "************1234", // We don't actually store the full number
                 cardholderName: "Card Holder", // This would come from a form in a real app
@@ -102,27 +107,20 @@ export function usePaymentForm({
             // We don't fail the payment if card saving fails
           }
         }
-      } else {
-        // Use saved card (in a real app, you'd use the actual payment method ID)
-        // For this demo, we'll simulate a successful payment
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        result = {
-          error: undefined,
-          paymentIntent: { id: `pi_${Date.now()}` },
-        };
-      }
 
-      if (result.error) {
-        setError(result.error.message || "Payment failed.");
-        setPaymentStatus("error");
-      } else if (result.paymentIntent) {
-        setPaymentStatus("success");
-        setTimeout(() => {
-          onPaymentSuccess(result.paymentIntent!.id);
-        }, 2000); // Give time for the success animation to play
+        if (result.error) {
+          throw new Error(result.error.message || "Payment failed");
+        } else if (result.paymentIntent) {
+          setPaymentStatus("success");
+          setTimeout(() => {
+            onPaymentSuccess(result.paymentIntent!.id);
+          }, 2000);
+        }
       }
     } catch (err) {
-      setError("An unexpected error occurred.");
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
       setPaymentStatus("error");
     } finally {
       setLoading(false);
@@ -131,10 +129,10 @@ export function usePaymentForm({
     stripe,
     elements,
     selectedCardId,
-    useNewCard,
-    saveNewCard,
-    fetchClientSecret,
     onPaymentSuccess,
+    orderId,
+    amount,
+    saveNewCard,
   ]);
 
   // Add a retry handler function

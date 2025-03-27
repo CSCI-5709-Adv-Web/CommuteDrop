@@ -8,6 +8,7 @@ interface PaymentButtonProps {
   isDisabled: boolean;
   amount: string;
   onClick: () => void;
+  orderId?: string;
 }
 
 export default function PaymentButton({
@@ -46,13 +47,14 @@ export default function PaymentButton({
 
   return (
     <motion.button
-      className="mt-6 py-4 rounded-xl text-lg font-semibold relative overflow-hidden"
+      className="w-full py-4 rounded-xl text-lg font-semibold relative overflow-hidden z-10"
       variants={buttonVariants}
       animate={paymentStatus}
       whileHover={paymentStatus === "idle" ? { scale: 1.02 } : undefined}
       whileTap={paymentStatus === "idle" ? { scale: 0.98 } : undefined}
       onClick={onClick}
       disabled={isDisabled}
+      aria-label={`Pay ${amount}`}
     >
       {paymentStatus === "idle" && (
         <motion.span

@@ -126,6 +126,7 @@ interface ConfirmDeliveryProps {
   estimateData?: DeliveryEstimateResponse;
   onBack: () => void;
   onNext: () => void;
+  onOrderConfirmed?: (orderId: string, amount?: number) => void; // Add callback for order confirmation
 }
 
 type ConfirmStep =
@@ -141,6 +142,7 @@ export default function ConfirmDelivery({
   estimateData: initialEstimateData,
   onBack,
   onNext,
+  onOrderConfirmed,
 }: ConfirmDeliveryProps) {
   const { routeInfo, setRouteInfo } = useLocation();
   const { user } = useAuth();
@@ -155,10 +157,7 @@ export default function ConfirmDelivery({
   const [orderId, setOrderId] = useState<string | null>(null);
   const estimatedDistance =
     routeInfo?.distance || estimateData?.distance?.text || "Calculating...";
-  const estimatedTime =
-    routeInfo?.duration ||
-    estimateData?.estimatedTime?.text ||
-    "Calculating...";
+  const estimatedTime = routeInfo?.duration || "Calculating...";
   const estimatedPrice =
     orderData?.pricing_details?.total_cost?.toFixed(2) ||
     orderData?.estimatedPrice?.total.toFixed(2) ||
@@ -272,8 +271,18 @@ export default function ConfirmDelivery({
       if (response.success) {
         setOrderData(response.data);
         setStep("confirmed");
-      } else {
-        throw new Error(response.message || "Failed to confirm order");
+
+        // Call the onOrderConfirmed callback with the orderId and amount
+        if (onOrderConfirmed) {
+          const totalAmount =
+            response.data?.pricing_details?.total_cost ||
+            response.data?.estimatedPrice?.total ||
+            Number.parseFloat(estimatedPrice) ||
+            15.99;
+          // Convert to cents for payment processing
+          const amountInCents = Math.round(totalAmount * 100);
+          onOrderConfirmed(orderId, amountInCents);
+        }
       }
     } catch (error) {
       console.error("Error confirming order:", error);
@@ -284,13 +293,14 @@ export default function ConfirmDelivery({
       );
       setStep("error");
     }
-  }, [orderId]);
+  }, [orderId, onOrderConfirmed, estimatedPrice]);
 
   const handleRetry = useCallback(() => {
     setStep("initial");
     setError(null);
   }, []);
 
+  // Update the DeliveryDetailCard component to ensure no unwanted text appears
   const DeliveryDetailCard = ({
     icon,
     title,
@@ -305,9 +315,9 @@ export default function ConfirmDelivery({
     <div className={`${bgColor} p-3 rounded-lg`}>
       <div className="flex items-start">
         {icon}
-        <div className="ml-2">
+        <div className="ml-2 flex-1">
           <p className="font-medium text-sm text-gray-900">{title}</p>
-          <p className="text-sm text-gray-700">{value}</p>
+          <p className="text-sm text-gray-700 break-words">{value}</p>
         </div>
       </div>
     </div>
@@ -357,9 +367,23 @@ export default function ConfirmDelivery({
         </div>
       )}
       {step === "confirmed" && orderId && (
-        <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start">
+        <motion.div
+          className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start overflow-hidden"
+          initial={{ opacity: 1, height: "auto", marginBottom: 12, padding: 8 }}
+          animate={{
+            opacity: [1, 1, 0],
+            height: ["auto", "auto", 0],
+            marginBottom: [12, 12, 0],
+            padding: [8, 8, 0],
+          }}
+          transition={{
+            times: [0, 0.7, 1], // Stay visible for 70% of the duration
+            duration: 5, // 5 seconds total (3.5s visible, 1.5s fading)
+            ease: "easeInOut",
+          }}
+        >
           <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="overflow-hidden">
             <p className="text-sm font-medium text-green-700">
               Order Confirmed!
             </p>
@@ -370,7 +394,7 @@ export default function ConfirmDelivery({
               </p>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
       <div className="space-y-3 flex-grow">
         <DeliveryDetailCard
@@ -528,7 +552,7 @@ export default function ConfirmDelivery({
         )}
         {step === "confirmed" && (
           <button
-            className="w-full bg-primary text-white py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             onClick={onNext}
           >
             Continue to Payment

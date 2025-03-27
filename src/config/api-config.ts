@@ -58,7 +58,7 @@ export const ENDPOINTS = {
   // Order endpoints - ensure these match exactly what the server expects
   ORDER: {
     CREATE: `${API_CONFIG.ORDER_SERVICE_URL}/create`,
-    UPDATE: `${API_CONFIG.ORDER_SERVICE_URL}/update-status`,
+    UPDATE: `${API_CONFIG.ORDER_SERVICE_URL}/updateStatus`,
     CANCEL: `${API_CONFIG.ORDER_SERVICE_URL}/:order_id`,
     PAYMENT: `${API_CONFIG.ORDER_SERVICE_URL}/:order_id/payment`,
     USER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/:user_id`,

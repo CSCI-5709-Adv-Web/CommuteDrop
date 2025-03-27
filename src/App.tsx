@@ -10,7 +10,6 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public routes */}
       {routes
         .filter((route) => !route.protected)
         .map((route) => (
@@ -26,8 +25,6 @@ export default function App() {
             }
           />
         ))}
-
-      {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         {routes
           .filter((route) => route.protected)
@@ -35,8 +32,6 @@ export default function App() {
             <Route key={route.path} path={route.path} element={route.element} />
           ))}
       </Route>
-
-      {/* Fallback route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

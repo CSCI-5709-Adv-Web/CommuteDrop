@@ -56,7 +56,6 @@ main {
     background: #9ca3af;
   }
 
-  /* Firefox support */
   .scrollbar {
     scrollbar-width: thin;
     scrollbar-color: #d1d5db #f3f4f6;

@@ -36,7 +36,6 @@ interface DetectedLocation {
   country: string
 }
 
-// Default location based on configuration
 const defaultLocation: DetectedLocation = {
   city: API_CONFIG.DEFAULT_CITY,
   province: API_CONFIG.DEFAULT_PROVINCE,
@@ -53,8 +52,6 @@ export const mapService = {
       let searchText = text
       searchText = `${searchText}, ${location.city}, ${location.province}, ${location.country}`
       const url = `${ENDPOINTS.MAPS.AUTOCOMPLETE}?text=${encodeURIComponent(searchText)}&maxResults=${maxResults}&language=${encodeURIComponent(language)}`
-
-      // Try to get a service token first, fall back to user token if needed
       let token
       try {
         token = await tokenService.getServiceToken("location")
@@ -62,7 +59,6 @@ export const mapService = {
         console.warn("Failed to get service token, falling back to user token")
         token = tokenStorage.getToken()
       }
-
       const response = await fetch(url, {
         signal: AbortSignal.timeout(3000),
         headers: {
@@ -70,11 +66,9 @@ export const mapService = {
           Authorization: `Bearer ${token}`,
         },
       })
-
       if (!response.ok) {
         throw new Error(`Autocomplete failed with status: ${response.status}`)
       }
-
       const data = await response.json()
       if (Array.isArray(data)) {
         return data.map((item: Record<string, any>) => ({
@@ -109,7 +103,6 @@ export const mapService = {
   },
 
   geocodeAddress: async (address: string): Promise<GeocodingResult> => {
-    // Early return if address is too short (less than 3 characters)
     if (!address || address.trim().length < 3) {
       return {
         address,
@@ -117,7 +110,6 @@ export const mapService = {
         longitude: 0,
       }
     }
-
     try {
       const isCoordinatePair = address.match(
         /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/,
@@ -133,8 +125,6 @@ export const mapService = {
       }
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-      // Try to get a service token first, fall back to user token if needed
       let token
       try {
         token = await tokenService.getServiceToken("location")
@@ -142,7 +132,6 @@ export const mapService = {
         console.warn("Failed to get service token, falling back to user token")
         token = tokenStorage.getToken()
       }
-
       try {
         const response = await fetch(ENDPOINTS.MAPS.GEOCODE, {
           method: "POST",
@@ -197,7 +186,6 @@ export const mapService = {
     duration: { text: string; value: number }
   }> => {
     try {
-      // Try to get a service token first, fall back to user token if needed
       let token
       try {
         token = await tokenService.getServiceToken("location")
@@ -205,7 +193,6 @@ export const mapService = {
         console.warn("Failed to get service token, falling back to user token")
         token = tokenStorage.getToken()
       }
-
       const response = await fetch(ENDPOINTS.MAPS.DISTANCE_MATRIX, {
         method: "POST",
         headers: {
@@ -215,7 +202,6 @@ export const mapService = {
         body: JSON.stringify({ fromAddress, toAddress }),
         signal: AbortSignal.timeout(5000),
       })
-
       if (!response.ok) {
         throw new Error(`Distance matrix failed with status: ${response.status}`)
       }
@@ -246,7 +232,6 @@ export const mapService = {
     const fromAddress = typeof origin === "string" ? origin : `${origin.lat},${origin.lng}`
     const toAddress = typeof destination === "string" ? destination : `${destination.lat},${destination.lng}`
     try {
-      // Try to get a service token first, fall back to user token if needed
       let token
       try {
         token = await tokenService.getServiceToken("location")
@@ -254,7 +239,6 @@ export const mapService = {
         console.warn("Failed to get service token, falling back to user token")
         token = tokenStorage.getToken()
       }
-
       const response = await fetch(ENDPOINTS.MAPS.DIRECTIONS, {
         method: "POST",
         headers: {

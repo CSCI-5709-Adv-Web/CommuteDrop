@@ -151,7 +151,6 @@ export const deliveryService = {
       try {
         return await apiClient.get<ApiResponse<DeliveryHistoryItem[]>>(ENDPOINTS.ORDER.USER_ORDERS)
       } catch (apiError: any) {
-        // If endpoint returns 404, return empty array instead of error
         if (apiError.status === 404) {
           console.warn("Delivery history endpoint not found, returning empty array")
           return {

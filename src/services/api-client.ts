@@ -28,7 +28,6 @@ class ApiClient {
   private setupInterceptors(): void {
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // If Authorization header is already set, don't override it
         if (config.headers && config.headers.Authorization) {
           console.log(`Using provided Authorization header for ${config.method?.toUpperCase()} ${config.url}`)
         } else {
@@ -38,7 +37,6 @@ class ApiClient {
             console.log(`Using user token for ${config.method?.toUpperCase()} ${config.url}`)
           }
         }
-
         if (import.meta.env.DEV) {
           console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
             headers: {
@@ -76,7 +74,6 @@ class ApiClient {
             },
           )
         }
-
         const originalRequest = error.config
         if (
           error.response?.status === 401 &&
@@ -145,7 +142,6 @@ class ApiClient {
     }
   }
 
-  // Generic request method
   public async request<T = any>(config: AxiosRequestConfig): Promise<T> {
     try {
       const response: AxiosResponse<T> = await this.instance.request(config)
@@ -194,6 +190,5 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient()
-
 export const createApiClient = (config?: AxiosRequestConfig) => new ApiClient(config)
 

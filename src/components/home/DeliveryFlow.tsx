@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
+import { useOrder } from "../../context/OrderContext";
 import { useLocation } from "../../context/LocationContext";
-
-type FlowStep = "search" | "confirm" | "payment" | "estimate";
-
-interface DeliveryFlowProps {
-  onLocationUpdate?: (pickup: string, dropoff: string) => void;
-  onCalculateRoute?: () => void;
-}
 
 export interface DeliveryFormData {
   pickup: string;
@@ -29,65 +23,70 @@ export interface DeliveryFormData {
   cvc: string;
 }
 
+interface DeliveryFlowProps {
+  onLocationUpdate?: (pickup: string, dropoff: string) => void;
+  onCalculateRoute?: () => void;
+}
+
 export default function DeliveryFlow({
   onLocationUpdate,
   onCalculateRoute,
 }: DeliveryFlowProps) {
-  const [estimateData] = useState<any>(null);
-  const [currentStep, setCurrentStep] = useState<FlowStep>("search");
-  const locationData = useLocation();
   const {
+    currentStep,
+    setCurrentStep,
     pickup,
     dropoff,
     pickupCoordinates,
     dropoffCoordinates,
-    setShowRoute,
-    setRouteInfo,
-  } = locationData;
-  const [formData, setFormData] = useState<
-    Omit<
-      DeliveryFormData,
-      "pickup" | "dropoff" | "pickupCoordinates" | "dropoffCoordinates"
-    >
-  >({
-    weight: "",
-    carrier: "car",
-    estimatedTime: "30-45 mins",
-    estimatedPrice: "15.99",
+    weight,
+    carrier,
+    estimatedTime,
+    estimatedPrice,
+    orderId,
+    orderData,
+    paymentAmount,
+    setOrderDetails,
+  } = useOrder();
+
+  const { setShowRoute } = useLocation();
+
+  // Create a complete form data object for components that expect it
+  const completeFormData: DeliveryFormData = {
+    pickup,
+    dropoff,
+    pickupCoordinates,
+    dropoffCoordinates,
+    weight,
+    carrier,
+    estimatedTime: estimatedTime || "Calculating...",
+    estimatedPrice: estimatedPrice
+      ? estimatedPrice.toFixed(2)
+      : "Calculating...",
     cardNumber: "",
     expiry: "",
     cvc: "",
-  });
-  const completeFormData: DeliveryFormData = useMemo(
-    () => ({
-      pickup,
-      dropoff,
-      pickupCoordinates,
-      dropoffCoordinates,
-      ...formData,
-    }),
-    [pickup, dropoff, pickupCoordinates, dropoffCoordinates, formData]
-  );
-  const steps: FlowStep[] = useMemo(
-    () => ["search", "confirm", "payment", "estimate"],
-    []
-  );
-  const progress = useMemo(
-    () => (steps.indexOf(currentStep) + 1) * 25,
-    [steps, currentStep]
-  );
+  };
+
+  // Calculate progress based on current step
+  const steps = ["search", "confirm", "payment", "estimate"];
+  const progress = (steps.indexOf(currentStep) + 1) * 25;
+
+  // Handle form data changes
   const handleFormDataChange = useCallback(
     (field: string, value: any) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
+      setOrderDetails({ [field]: value });
+
       if ((field === "pickup" || field === "dropoff") && !value.trim()) {
         setShowRoute(false);
-        setRouteInfo(null);
       }
     },
-    [setShowRoute, setRouteInfo]
+    [setOrderDetails, setShowRoute]
   );
+
+  // Handle navigation between steps
   const handleNavigate = useCallback(
-    async (step: FlowStep) => {
+    async (step: typeof currentStep) => {
       if (step === "search") {
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
@@ -95,18 +94,35 @@ export default function DeliveryFlow({
         setCurrentStep(step);
         return;
       }
+
+      // When going back from payment to confirm, don't recalculate or reset state
+      if (currentStep === "payment" && step === "confirm") {
+        setCurrentStep(step);
+        return;
+      }
+
       if (currentStep === "search" && step === "confirm") {
         if (onCalculateRoute) {
           onCalculateRoute();
         }
         setShowRoute(true);
-        setCurrentStep(step);
-      } else {
-        setCurrentStep(step);
       }
+
+      setCurrentStep(step);
     },
-    [currentStep, onCalculateRoute, setShowRoute]
+    [currentStep, onCalculateRoute, setShowRoute, setCurrentStep]
   );
+
+  // Handle order confirmation
+  const handleOrderConfirmed = useCallback(() => {
+    // We don't need to do anything here as the OrderContext handles the state
+    handleNavigate("payment");
+  }, [handleNavigate]);
+
+  // Handle payment success
+  const handlePaymentSuccess = useCallback(() => {
+    handleNavigate("estimate");
+  }, [handleNavigate]);
 
   const transitionConfig = {
     duration: 0.3,
@@ -153,9 +169,8 @@ export default function DeliveryFlow({
             >
               <ConfirmDelivery
                 formData={completeFormData}
-                estimateData={estimateData}
                 onBack={() => handleNavigate("search")}
-                onNext={() => handleNavigate("payment")}
+                onNext={handleOrderConfirmed}
               />
             </motion.div>
           )}
@@ -169,7 +184,9 @@ export default function DeliveryFlow({
             >
               <PaymentForm
                 onBack={() => handleNavigate("confirm")}
-                onPaymentSuccess={() => handleNavigate("estimate")}
+                onPaymentSuccess={handlePaymentSuccess}
+                orderId={orderId || undefined}
+                amount={paymentAmount}
               />
             </motion.div>
           )}
@@ -183,7 +200,7 @@ export default function DeliveryFlow({
             >
               <DeliveryEstimate
                 formData={completeFormData}
-                estimateData={estimateData}
+                estimateData={orderData}
                 onBack={() => handleNavigate("payment")}
               />
             </motion.div>

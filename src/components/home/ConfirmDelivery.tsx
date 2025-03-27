@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -18,18 +17,10 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
-import type { DeliveryEstimateResponse } from "../../services/delivery-service";
+import { useOrder } from "../../context/OrderContext";
 import { useLocation } from "../../context/LocationContext";
-import {
-  orderService,
-  type OrderEstimateResponse,
-  type CreateOrderRequest,
-} from "../../services/order-service";
-import { useAuth } from "../../context/AuthContext";
-import { tokenStorage } from "../../utils/tokenStorage";
-import { jwtUtils } from "../../utils/jwtUtils";
 
-// Update the PriceAnimation component to be more compact
+// Price animation component
 const PriceAnimation = ({
   start = 0,
   end = 299.99,
@@ -123,10 +114,8 @@ const PriceAnimation = ({
 
 interface ConfirmDeliveryProps {
   formData: any;
-  estimateData?: DeliveryEstimateResponse;
   onBack: () => void;
   onNext: () => void;
-  onOrderConfirmed?: (orderId: string, amount?: number) => void; // Add callback for order confirmation
 }
 
 type ConfirmStep =
@@ -137,170 +126,82 @@ type ConfirmStep =
   | "confirmed"
   | "error";
 
+// Update the ConfirmDelivery component to maintain state when returning from payment
 export default function ConfirmDelivery({
   formData,
-  estimateData: initialEstimateData,
   onBack,
   onNext,
-  onOrderConfirmed,
 }: ConfirmDeliveryProps) {
-  const { routeInfo, setRouteInfo } = useLocation();
-  const { user } = useAuth();
-  const [step, setStep] = useState<ConfirmStep>("initial");
-  const [estimateData] = useState<DeliveryEstimateResponse | undefined>(
-    initialEstimateData
-  );
-  const [orderData, setOrderData] = useState<OrderEstimateResponse | null>(
-    null
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const { routeInfo } = useLocation();
+  const {
+    orderId,
+    orderData,
+    status,
+    isLoading,
+    error,
+    estimatedPrice,
+    calculateEstimate,
+    confirmOrder,
+  } = useOrder();
+
+  // Initialize step based on existing order status
+  const [step, setStep] = useState<ConfirmStep>(() => {
+    // If we already have an order ID and status is CONFIRMED or higher,
+    // set the step to confirmed
+    if (orderId && (status === "CONFIRMED" || status === "PAID")) {
+      return "confirmed";
+    } else if (orderId && status === "CREATED") {
+      return "estimated";
+    } else {
+      return "initial";
+    }
+  });
+
   const estimatedDistance =
-    routeInfo?.distance || estimateData?.distance?.text || "Calculating...";
-  const estimatedTime = routeInfo?.duration || "Calculating...";
-  const estimatedPrice =
-    orderData?.pricing_details?.total_cost?.toFixed(2) ||
-    orderData?.estimatedPrice?.total.toFixed(2) ||
-    estimateData?.estimatedPrice?.total.toFixed(2) ||
-    "Calculating...";
-  const parseDistance = useCallback(() => {
-    if (!estimatedDistance || estimatedDistance === "Calculating...")
-      return { value: 0, unit: "km" };
-    const match = estimatedDistance.match(/^([\d.]+)\s*(\w+)$/);
-    if (match) {
-      return {
-        value: Number.parseFloat(match[1]),
-        unit: match[2],
-      };
-    }
+    routeInfo?.distance || formData.estimatedDistance || "Calculating...";
+  const estimatedTime =
+    routeInfo?.duration || formData.estimatedTime || "Calculating...";
 
-    return { value: 0, unit: "km" };
-  }, [estimatedDistance]);
+  // Format price for display
+  const displayPrice =
+    typeof estimatedPrice === "number"
+      ? estimatedPrice.toFixed(2)
+      : typeof formData.estimatedPrice === "string"
+      ? formData.estimatedPrice
+      : "Calculating...";
 
-  const parseTime = useCallback(() => {
-    if (!estimatedTime || estimatedTime === "Calculating...")
-      return { value: 0, unit: "mins" };
-    const match = estimatedTime.match(/^([\d.]+)\s*(\w+)$/);
-    if (match) {
-      return {
-        value: Number.parseFloat(match[1]),
-        unit: match[2],
-      };
-    }
-
-    return { value: 0, unit: "mins" };
-  }, [estimatedTime]);
-
-  const calculateEstimate = useCallback(async () => {
+  // Handle calculate estimate
+  const handleCalculateEstimate = useCallback(async () => {
     setStep("estimating");
-    setError(null);
-    try {
-      const token = tokenStorage.getToken();
-      let userId = "";
-      if (token) {
-        const tokenUserId = jwtUtils.getUserId(token);
-        if (tokenUserId) {
-          userId = tokenUserId;
-        } else {
-          userId = user?.email || "";
-        }
-      }
-      const requestData: CreateOrderRequest = {
-        from_address: formData.pickup,
-        to_address: formData.dropoff,
-        user_id: userId, // Use the user ID from token
-        package_weight: Number.parseFloat(formData.weight) || 0,
-        delivery_instructions: "",
-        vehicle_type: formData.carrier.toUpperCase(),
-        distance: parseDistance().value,
-        time: parseTime().value,
-      };
-      console.log("Sending order request:", requestData);
-      const response = await orderService.createOrder(requestData);
-      if (response.success && response.data) {
-        setOrderData(response.data);
-        setOrderId(response.data.orderId);
-        if (!routeInfo) {
-          setRouteInfo({
-            distance: estimatedDistance,
-            duration: estimatedTime,
-          });
-        }
-        setStep("estimated");
-      } else {
-        throw new Error(response.message || "Failed to create order");
-      }
-    } catch (error) {
-      console.error("Error calculating estimate:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to calculate price estimate. Please try again."
-      );
+    const success = await calculateEstimate();
+    if (success) {
+      setStep("estimated");
+    } else {
       setStep("error");
     }
-  }, [
-    formData,
-    routeInfo,
-    setRouteInfo,
-    parseDistance,
-    parseTime,
-    estimatedDistance,
-    estimatedTime,
-    user?.email,
-  ]);
+  }, [calculateEstimate]);
 
-  const confirmOrder = useCallback(async () => {
-    if (!orderId) {
-      setError("No order ID found. Please try again.");
-      return;
-    }
+  // Handle confirm order
+  const handleConfirmOrder = useCallback(async () => {
     setStep("confirming");
-    setError(null);
-    try {
-      const updateResponse = await orderService.updateOrderStatus(
-        orderId,
-        "ORDER CONFIRMED"
-      );
-      if (!updateResponse.success) {
-        throw new Error(
-          updateResponse.message || "Failed to update order status"
-        );
-      }
-      const response = await orderService.confirmOrder(orderId);
-      if (response.success) {
-        setOrderData(response.data);
-        setStep("confirmed");
-
-        // Call the onOrderConfirmed callback with the orderId and amount
-        if (onOrderConfirmed) {
-          const totalAmount =
-            response.data?.pricing_details?.total_cost ||
-            response.data?.estimatedPrice?.total ||
-            Number.parseFloat(estimatedPrice) ||
-            15.99;
-          // Convert to cents for payment processing
-          const amountInCents = Math.round(totalAmount * 100);
-          onOrderConfirmed(orderId, amountInCents);
-        }
-      }
-    } catch (error) {
-      console.error("Error confirming order:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to confirm your order. Please try again."
-      );
+    const success = await confirmOrder();
+    if (success) {
+      setStep("confirmed");
+      // Wait a moment to show success message before proceeding
+      setTimeout(() => {
+        onNext();
+      }, 2000);
+    } else {
       setStep("error");
     }
-  }, [orderId, onOrderConfirmed, estimatedPrice]);
+  }, [confirmOrder, onNext]);
 
+  // Handle retry
   const handleRetry = useCallback(() => {
     setStep("initial");
-    setError(null);
   }, []);
 
-  // Update the DeliveryDetailCard component to ensure no unwanted text appears
+  // DeliveryDetailCard component
   const DeliveryDetailCard = ({
     icon,
     title,
@@ -323,6 +224,7 @@ export default function ConfirmDelivery({
     </div>
   );
 
+  // Get carrier icon
   const getCarrierIcon = (carrierType: string) => {
     switch (carrierType.toLowerCase()) {
       case "car":
@@ -351,12 +253,13 @@ export default function ConfirmDelivery({
         <button
           onClick={onBack}
           className="p-1 hover:bg-gray-100 rounded-full mr-3"
-          disabled={step === "estimating" || step === "confirming"}
+          disabled={isLoading || step === "estimating" || step === "confirming"}
         >
           <ArrowLeft className="w-4 h-4 text-gray-600" />
         </button>
-        <h2 className="text-lg font-bold text-gray-800">Confirm Delivery</h2>
+        <h1 className="text-lg font-bold text-gray-800">Confirm Delivery</h1>
       </div>
+
       {error && (
         <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start">
           <AlertCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -366,36 +269,7 @@ export default function ConfirmDelivery({
           </div>
         </div>
       )}
-      {step === "confirmed" && orderId && (
-        <motion.div
-          className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start overflow-hidden"
-          initial={{ opacity: 1, height: "auto", marginBottom: 12, padding: 8 }}
-          animate={{
-            opacity: [1, 1, 0],
-            height: ["auto", "auto", 0],
-            marginBottom: [12, 12, 0],
-            padding: [8, 8, 0],
-          }}
-          transition={{
-            times: [0, 0.7, 1], // Stay visible for 70% of the duration
-            duration: 5, // 5 seconds total (3.5s visible, 1.5s fading)
-            ease: "easeInOut",
-          }}
-        >
-          <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-          <div className="overflow-hidden">
-            <p className="text-sm font-medium text-green-700">
-              Order Confirmed!
-            </p>
-            <p className="text-xs text-green-600">Your order ID is {orderId}</p>
-            {orderData?.tracking && (
-              <p className="text-xs text-green-600">
-                Tracking ID: {orderData.tracking.trackingId}
-              </p>
-            )}
-          </div>
-        </motion.div>
-      )}
+
       <div className="space-y-3 flex-grow">
         <DeliveryDetailCard
           icon={<MapPin className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />}
@@ -456,9 +330,9 @@ export default function ConfirmDelivery({
                         <PriceAnimation
                           start={0}
                           end={
-                            orderData?.pricing_details?.total_cost ||
-                            orderData?.estimatedPrice?.total ||
-                            15.99
+                            typeof estimatedPrice === "number"
+                              ? estimatedPrice
+                              : 65.22
                           }
                           duration={2}
                         />
@@ -466,15 +340,7 @@ export default function ConfirmDelivery({
                     </div>
                   ) : (
                     <p className="text-sm text-gray-700 font-medium">
-                      $
-                      {typeof estimatedPrice === "string" &&
-                      estimatedPrice === "Calculating..."
-                        ? (
-                            orderData?.pricing_details?.total_cost ||
-                            orderData?.estimatedPrice?.total ||
-                            0
-                          ).toFixed(2)
-                        : estimatedPrice}
+                      ${displayPrice}
                     </p>
                   )}
                 </div>
@@ -519,7 +385,7 @@ export default function ConfirmDelivery({
         {step === "initial" && (
           <button
             className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-            onClick={calculateEstimate}
+            onClick={handleCalculateEstimate}
           >
             Calculate Estimate Price
           </button>
@@ -536,7 +402,7 @@ export default function ConfirmDelivery({
         {step === "estimated" && (
           <button
             className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-            onClick={confirmOrder}
+            onClick={handleConfirmOrder}
           >
             Confirm Order
           </button>

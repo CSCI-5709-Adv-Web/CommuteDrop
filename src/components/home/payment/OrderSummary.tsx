@@ -1,31 +1,66 @@
 "use client";
 
 interface OrderSummaryProps {
-  deliveryFee: string;
-  serviceFee: string;
-  total: string;
+  deliveryFee?: string;
+  serviceFee?: string;
+  total?: string;
+  pricingDetails?: {
+    cost?: number;
+    tax?: number;
+    rider_commission?: number;
+    total_cost?: number;
+  };
 }
 
 export default function OrderSummary({
   deliveryFee,
   serviceFee,
   total,
+  pricingDetails,
 }: OrderSummaryProps) {
+  // Use pricing details from API if available
+  const cost =
+    pricingDetails?.cost !== undefined
+      ? pricingDetails.cost.toFixed(2)
+      : deliveryFee;
+  const tax =
+    pricingDetails?.tax !== undefined
+      ? pricingDetails.tax.toFixed(2)
+      : serviceFee;
+  const riderCommission =
+    pricingDetails?.rider_commission !== undefined
+      ? pricingDetails.rider_commission.toFixed(2)
+      : "0.00";
+  const totalCost =
+    pricingDetails?.total_cost !== undefined
+      ? pricingDetails.total_cost.toFixed(2)
+      : total;
+
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-      <h3 className="text-lg font-medium mb-3">Order Summary</h3>
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
+    <div className="bg-gray-50 rounded-lg p-4">
+      <h3 className="text-lg font-bold mb-4">Order Summary</h3>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
           <span className="text-gray-600">Delivery Fee</span>
-          <span>${deliveryFee}</span>
+          <span className="font-medium">${cost}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Service Fee</span>
-          <span>${serviceFee}</span>
+
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">Tax</span>
+          <span className="font-medium">${tax}</span>
         </div>
-        <div className="flex justify-between pt-2 border-t border-gray-200 mt-2">
-          <span className="font-medium">Total</span>
-          <span className="font-medium">${total}</span>
+
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">Rider Commission</span>
+          <span className="font-medium">${riderCommission}</span>
+        </div>
+
+        <div className="border-t border-gray-200 pt-3 mt-3">
+          <div className="flex justify-between items-center">
+            <span className="font-bold">Total</span>
+            <span className="text-xl font-bold">${totalCost}</span>
+          </div>
         </div>
       </div>
     </div>

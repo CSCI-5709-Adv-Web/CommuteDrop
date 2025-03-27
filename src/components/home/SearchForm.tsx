@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useCallback, useMemo } from "react";
 import type { DeliveryFormData } from "./DeliveryFlow";
 import { useLocation } from "../../context/LocationContext";
+import { useOrder } from "../../context/OrderContext";
 import LocationInput from "./location/LocationInput";
 import WeightInput from "./weight/WeightInput";
 import CarrierSelection from "./carrier/CarrierSelection";
@@ -36,6 +37,8 @@ export default function SearchForm({
     setShowRoute,
   } = useLocation();
 
+  const { setOrderDetails } = useOrder();
+
   const { isLoading } = useLoadingState([
     "pickupSuggestions",
     "dropoffSuggestions",
@@ -47,15 +50,25 @@ export default function SearchForm({
     (value: string) => {
       setPickup(value);
       setShowRoute(false);
+      setOrderDetails({ pickup: value });
+
       if (onLocationUpdate) {
         onLocationUpdate(value, dropoff);
       }
       // Clear coordinates if input is empty
       if (!value.trim()) {
         setPickupCoordinates(undefined);
+        setOrderDetails({ pickupCoordinates: undefined });
       }
     },
-    [setPickup, dropoff, onLocationUpdate, setShowRoute, setPickupCoordinates]
+    [
+      setPickup,
+      dropoff,
+      onLocationUpdate,
+      setShowRoute,
+      setPickupCoordinates,
+      setOrderDetails,
+    ]
   );
 
   // Update the handleDropoffChange function to reset showRoute
@@ -63,32 +76,44 @@ export default function SearchForm({
     (value: string) => {
       setDropoff(value);
       setShowRoute(false);
+      setOrderDetails({ dropoff: value });
+
       if (onLocationUpdate) {
         onLocationUpdate(pickup, value);
       }
       // Clear coordinates if input is empty
       if (!value.trim()) {
         setDropoffCoordinates(undefined);
+        setOrderDetails({ dropoffCoordinates: undefined });
       }
     },
-    [setDropoff, pickup, onLocationUpdate, setShowRoute, setDropoffCoordinates]
+    [
+      setDropoff,
+      pickup,
+      onLocationUpdate,
+      setShowRoute,
+      setDropoffCoordinates,
+      setOrderDetails,
+    ]
   );
 
   // Add handlers for coordinate changes to also reset showRoute
   const handlePickupCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
       setPickupCoordinates(coordinates);
+      setOrderDetails({ pickupCoordinates: coordinates });
       setShowRoute(false);
     },
-    [setPickupCoordinates, setShowRoute]
+    [setPickupCoordinates, setShowRoute, setOrderDetails]
   );
 
   const handleDropoffCoordinatesChange = useCallback(
     (coordinates: { lat: number; lng: number } | undefined) => {
       setDropoffCoordinates(coordinates);
+      setOrderDetails({ dropoffCoordinates: coordinates });
       setShowRoute(false);
     },
-    [setDropoffCoordinates, setShowRoute]
+    [setDropoffCoordinates, setShowRoute, setOrderDetails]
   );
 
   const isFormValid = useMemo(() => {

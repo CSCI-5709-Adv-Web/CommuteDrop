@@ -21,22 +21,18 @@ export default function PaymentButton({
     idle: {
       backgroundColor: "#000000",
       color: "#ffffff",
-      width: "100%",
     },
     processing: {
       backgroundColor: "#4B5563",
       color: "#ffffff",
-      width: "100%",
     },
     success: {
       backgroundColor: "#059669",
       color: "#ffffff",
-      width: "100%",
     },
     error: {
       backgroundColor: "#DC2626",
       color: "#ffffff",
-      width: "100%",
     },
   };
 
@@ -47,7 +43,7 @@ export default function PaymentButton({
 
   return (
     <motion.button
-      className="w-full py-4 rounded-xl text-lg font-semibold relative overflow-hidden z-10"
+      className="w-full py-4 rounded-lg text-lg font-semibold relative overflow-hidden"
       variants={buttonVariants}
       animate={paymentStatus}
       whileHover={paymentStatus === "idle" ? { scale: 1.02 } : undefined}

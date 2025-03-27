@@ -4,7 +4,6 @@ import type { DeliveryFormData } from "./DeliveryFlow";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Shield } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
-import type { DeliveryEstimateResponse } from "../../services/delivery-service";
 import SearchStages from "./estimate/SearchStages";
 import DriverCard from "./estimate/DriverCard";
 import FareBreakdown from "./estimate/FareBreakdown";
@@ -13,7 +12,7 @@ import RouteDetailsCard from "./estimate/RouteDetailsCard";
 
 interface DeliveryEstimateProps {
   formData: DeliveryFormData;
-  estimateData?: DeliveryEstimateResponse;
+  estimateData?: any; // Change to any or the correct type
   onBack: () => void;
 }
 
@@ -63,6 +62,13 @@ export default function DeliveryEstimate({
     }
   );
   const [, setError] = useState("");
+
+  // Add a custom back handler that preserves state
+  const handleBack = () => {
+    // Don't reset any state, just navigate back
+    onBack();
+  };
+
   const startSearch = useCallback(() => {
     setStatus("searching");
     setProgress(0);
@@ -153,7 +159,7 @@ export default function DeliveryEstimate({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={onBack}
+                onClick={handleBack}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />

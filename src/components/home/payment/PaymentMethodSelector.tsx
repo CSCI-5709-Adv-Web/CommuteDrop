@@ -36,8 +36,6 @@ interface PaymentMethodSelectorProps {
   selectedCardId: string | null;
   onSelectCard: (cardId: string) => void;
   isLoading?: boolean;
-  useNewCard?: boolean;
-  onSelectNewCard?: () => void;
 }
 
 export default function PaymentMethodSelector({
@@ -45,8 +43,6 @@ export default function PaymentMethodSelector({
   selectedCardId,
   onSelectCard,
   isLoading = false,
-  useNewCard = false,
-  onSelectNewCard = () => {},
 }: PaymentMethodSelectorProps) {
   const [savedCards, setSavedCards] = useState<Card[]>([]);
   // Fix the initial loading state to be false if we have cards
@@ -109,79 +105,72 @@ export default function PaymentMethodSelector({
       fetchCards();
     }
   }, [initialSavedCards, selectedCardId, onSelectCard, loading]);
+
   if (loading || isLoading) {
     return (
-      <div className="mb-6 flex justify-center items-center py-8">
-        <Loader className="w-8 h-8 text-primary animate-spin" />
+      <div className="flex justify-center items-center py-4">
+        <Loader className="w-5 h-5 text-primary animate-spin" />
       </div>
     );
   }
+
   if (error) {
     return (
-      <div className="mb-6 p-4 bg-red-50 rounded-lg">
-        <p className="text-red-600">{error}</p>
+      <div className="p-3 bg-red-50 rounded-lg">
+        <p className="text-sm text-red-600">{error}</p>
       </div>
     );
   }
+
   return (
-    <div className="mb-6">
-      <h3 className="text-lg font-medium mb-3">Payment Method</h3>
-      <div className="space-y-3 mb-4">
-        {savedCards.map((card) => {
-          const cardTypeKey =
-            card.type &&
-            typeof card.type === "string" &&
-            Object.keys(CARD_TYPES).includes(card.type.toLowerCase())
-              ? card.type.toLowerCase()
-              : "visa";
-          const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
-          return (
-            <div
-              key={card.id}
-              onClick={() => onSelectCard(card.id)}
-              className={`p-4 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-                selectedCardId === card.id
-                  ? `border-primary ${cardType.bg} shadow-md`
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-12 h-8 bg-gray-200 rounded flex items-center justify-center`}
-                >
-                  <span className={`font-bold text-sm ${cardType.color}`}>
-                    {cardType.icon}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-medium">
-                    {cardType.name} •••• {card.last4}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Expires {card.expiryDate}
-                  </p>
-                </div>
+    <div className="space-y-2 mb-4">
+      {savedCards.map((card) => {
+        const cardTypeKey =
+          card.type &&
+          typeof card.type === "string" &&
+          Object.keys(CARD_TYPES).includes(card.type.toLowerCase())
+            ? card.type.toLowerCase()
+            : "visa";
+        const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
+
+        // Log each card to debug
+        console.log("Rendering card:", card);
+
+        return (
+          <div
+            key={card.id}
+            onClick={() => onSelectCard(card.id)}
+            className={`p-3 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+              selectedCardId === card.id
+                ? `border-primary shadow-sm`
+                : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-7 ${cardType.bg} rounded flex items-center justify-center`}
+              >
+                <span className={`font-bold text-sm ${cardType.color}`}>
+                  {cardType.icon}
+                </span>
               </div>
-              <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                {selectedCardId === card.id && (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-green-500"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
+              <div>
+                <p className="font-medium text-sm">
+                  {cardType.name} •••• {card.last4 || "1234"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Expires {card.expiryDate}
+                </p>
               </div>
             </div>
-          );
-        })}
-      </div>
+            <div className="w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center">
+              {selectedCardId === card.id && (
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

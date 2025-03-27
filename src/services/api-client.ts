@@ -28,13 +28,25 @@ class ApiClient {
   private setupInterceptors(): void {
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        const token = tokenStorage.getToken()
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`
+        // If Authorization header is already set, don't override it
+        if (config.headers && config.headers.Authorization) {
+          console.log(`Using provided Authorization header for ${config.method?.toUpperCase()} ${config.url}`)
+        } else {
+          const token = tokenStorage.getToken()
+          if (token && config.headers) {
+            config.headers.Authorization = `Bearer ${token}`
+            console.log(`Using user token for ${config.method?.toUpperCase()} ${config.url}`)
+          }
         }
+
         if (import.meta.env.DEV) {
           console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
-            headers: config.headers,
+            headers: {
+              ...config.headers,
+              Authorization: config.headers?.Authorization
+                ? `${config.headers.Authorization.toString().substring(0, 15)}...`
+                : "none",
+            },
             data: config.data,
           })
         }

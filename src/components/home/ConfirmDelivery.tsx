@@ -27,8 +27,10 @@ import {
   type CreateOrderRequest,
 } from "../../services/order-service";
 import { useAuth } from "../../context/AuthContext";
+import { tokenStorage } from "../../utils/tokenStorage";
+import { jwtUtils } from "../../utils/jwtUtils";
 
-// Replace the CountUp component with this enhanced version
+// Update the PriceAnimation component to be more compact
 const PriceAnimation = ({
   start = 0,
   end = 299.99,
@@ -86,10 +88,10 @@ const PriceAnimation = ({
 
       {/* Dollar sign with bounce effect */}
       <motion.div
-        className="text-lg font-bold text-primary mr-1"
+        className="text-sm font-bold text-primary mr-0.5"
         animate={{
-          y: [0, -5, 0],
-          scale: [1, 1.2, 1],
+          y: [0, -3, 0],
+          scale: [1, 1.1, 1],
         }}
         transition={{
           duration: 0.5,
@@ -102,7 +104,7 @@ const PriceAnimation = ({
 
       {/* The animated number */}
       <motion.div
-        className="text-2xl font-bold text-primary"
+        className="text-base font-bold text-primary"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
@@ -180,7 +182,9 @@ export default function ConfirmDelivery({
     routeInfo?.duration ||
     estimateData?.estimatedTime?.text ||
     "Calculating...";
+  // Update the estimatedPrice calculation to use pricing_details.total_cost if available
   const estimatedPrice =
+    orderData?.pricing_details?.total_cost?.toFixed(2) ||
     orderData?.estimatedPrice?.total.toFixed(2) ||
     estimateData?.estimatedPrice?.total.toFixed(2) ||
     "Calculating...";
@@ -224,30 +228,32 @@ export default function ConfirmDelivery({
     setError(null);
 
     try {
-      // Parse distance and time
-      const distance = parseDistance();
-      const time = parseTime();
+      // Get user ID from token
+      const token = tokenStorage.getToken();
+      let userId = "";
+      if (token) {
+        const tokenUserId = jwtUtils.getUserId(token);
+        if (tokenUserId) {
+          userId = tokenUserId;
+        } else {
+          // Fall back to email if ID not available
+          userId = user?.email || "";
+        }
+      }
 
-      // Prepare request payload
+      // Prepare request payload with the new format
       const requestData: CreateOrderRequest = {
-        pickup: {
-          address: formData.pickup,
-          latitude: pickupCoordinates?.lat,
-          longitude: pickupCoordinates?.lng,
-        },
-        dropoff: {
-          address: formData.dropoff,
-          latitude: dropoffCoordinates?.lat,
-          longitude: dropoffCoordinates?.lng,
-        },
-        packageDetails: {
-          weight: Number.parseFloat(formData.weight) || 0,
-        },
-        carrierType: formData.carrier,
-        distance,
-        estimatedTime: time,
-        userId: user?.email, // Use user email as ID for demo
+        from_address: formData.pickup,
+        to_address: formData.dropoff,
+        user_id: userId, // Use the user ID from token
+        package_weight: Number.parseFloat(formData.weight) || 0,
+        delivery_instructions: "",
+        vehicle_type: formData.carrier.toUpperCase(),
+        distance: parseDistance().value,
+        time: parseTime().value,
       };
+
+      console.log("Sending order request:", requestData);
 
       // Call the order service API
       const response = await orderService.createOrder(requestData);
@@ -280,18 +286,16 @@ export default function ConfirmDelivery({
     }
   }, [
     formData,
-    pickupCoordinates,
-    dropoffCoordinates,
     routeInfo,
     setRouteInfo,
     parseDistance,
     parseTime,
-    user?.email,
     estimatedDistance,
     estimatedTime,
+    user?.email,
   ]);
 
-  // Function to confirm order
+  // Update the confirmOrder function to call the order update status API
   const confirmOrder = useCallback(async () => {
     if (!orderId) {
       setError("No order ID found. Please try again.");
@@ -302,7 +306,19 @@ export default function ConfirmDelivery({
     setError(null);
 
     try {
-      // Call the order service API to confirm the order
+      // Call the order service API to update the order status to "ORDER CONFIRMED"
+      const updateResponse = await orderService.updateOrderStatus(
+        orderId,
+        "ORDER CONFIRMED"
+      );
+
+      if (!updateResponse.success) {
+        throw new Error(
+          updateResponse.message || "Failed to update order status"
+        );
+      }
+
+      // After successful status update, get the updated order details
       const response = await orderService.confirmOrder(orderId);
 
       if (response.success) {
@@ -341,12 +357,12 @@ export default function ConfirmDelivery({
     value: string;
     bgColor?: string;
   }) => (
-    <div className={`${bgColor} p-4 rounded-lg`}>
+    <div className={`${bgColor} p-3 rounded-lg`}>
       <div className="flex items-start">
         {icon}
-        <div className="ml-3">
-          <p className="font-medium text-gray-900">{title}</p>
-          <p className="text-gray-700">{value}</p>
+        <div className="ml-2">
+          <p className="font-medium text-sm text-gray-900">{title}</p>
+          <p className="text-sm text-gray-700">{value}</p>
         </div>
       </div>
     </div>
@@ -356,15 +372,15 @@ export default function ConfirmDelivery({
   const getCarrierIcon = (carrierType: string) => {
     switch (carrierType.toLowerCase()) {
       case "car":
-        return <Car className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+        return <Car className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
       case "truck":
-        return <Truck className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+        return <Truck className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
       case "bike":
-        return <Bike className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+        return <Bike className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
       case "walk":
-        return <Package className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+        return <Package className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
       default:
-        return <Car className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />;
+        return <Car className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
     }
   };
 
@@ -375,39 +391,41 @@ export default function ConfirmDelivery({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
-      className="p-4 h-full flex flex-col"
+      className="p-3 h-full flex flex-col"
     >
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-4">
         <button
           onClick={onBack}
-          className="p-1 hover:bg-gray-100 rounded-full mr-4"
+          className="p-1 hover:bg-gray-100 rounded-full mr-3"
           disabled={step === "estimating" || step === "confirming"}
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-4 h-4 text-gray-600" />
         </button>
-        <h2 className="text-xl font-bold text-gray-800">Confirm Delivery</h2>
+        <h2 className="text-lg font-bold text-gray-800">Confirm Delivery</h2>
       </div>
 
-      {/* Error message */}
+      {/* Error message - make more compact */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
-          <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start">
+          <AlertCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-red-700 font-medium">Error</p>
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm font-medium text-red-700">Error</p>
+            <p className="text-xs text-red-600">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Success message after order confirmation */}
+      {/* Success message - make more compact */}
       {step === "confirmed" && orderId && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start">
-          <CheckCircle className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+        <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start">
+          <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-green-700 font-medium">Order Confirmed!</p>
-            <p className="text-sm text-green-600">Your order ID is {orderId}</p>
+            <p className="text-sm font-medium text-green-700">
+              Order Confirmed!
+            </p>
+            <p className="text-xs text-green-600">Your order ID is {orderId}</p>
             {orderData?.tracking && (
-              <p className="text-sm text-green-600">
+              <p className="text-xs text-green-600">
                 Tracking ID: {orderData.tracking.trackingId}
               </p>
             )}
@@ -415,10 +433,10 @@ export default function ConfirmDelivery({
         </div>
       )}
 
-      <div className="space-y-4 flex-grow">
+      <div className="space-y-3 flex-grow">
         {/* Pickup Location */}
         <DeliveryDetailCard
-          icon={<MapPin className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />}
+          icon={<MapPin className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />}
           title="Pickup Location"
           value={formData.pickup}
           bgColor="bg-blue-50"
@@ -426,18 +444,17 @@ export default function ConfirmDelivery({
 
         {/* Dropoff Location */}
         <DeliveryDetailCard
-          icon={<MapPin className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />}
+          icon={<MapPin className="w-4 h-4 text-red-500 mt-1 flex-shrink-0" />}
           title="Dropoff Location"
           value={formData.dropoff}
           bgColor="bg-red-50"
         />
 
-        {/* Package Details */}
-        {/* Replace the carrier card in the grid with this updated version that uses the dynamic icon */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Package Details - make grid more compact */}
+        <div className="grid grid-cols-2 gap-2">
           <DeliveryDetailCard
             icon={
-              <Weight className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+              <Weight className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
             }
             title="Weight"
             value={`${formData.weight || "0"} kg`}
@@ -455,44 +472,60 @@ export default function ConfirmDelivery({
         {/* Distance Information */}
         <DeliveryDetailCard
           icon={
-            <MapPin className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
           }
           title="Distance"
           value={estimatedDistance}
           bgColor="bg-green-50"
         />
 
-        {/* Delivery Estimates */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Delivery Estimates - make grid more compact */}
+        <div className="grid grid-cols-2 gap-2">
           <DeliveryDetailCard
             icon={
-              <Clock className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
+              <Clock className="w-4 h-4 text-orange-500 mt-1 flex-shrink-0" />
             }
             title="Estimated Time"
             value={estimatedTime}
             bgColor="bg-orange-50"
           />
 
-          {/* Estimated Cost - Only show when calculating or after calculation */}
+          {/* Estimated Cost */}
           {step !== "initial" && (
-            <div className="bg-yellow-50 p-4 rounded-lg">
+            <div className="bg-yellow-50 p-3 rounded-lg">
               <div className="flex items-start">
-                <DollarSign className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
-                <div className="ml-3 w-full">
-                  <p className="font-medium text-gray-900">Estimated Cost</p>
+                <DollarSign className="w-4 h-4 text-yellow-500 mt-1 flex-shrink-0" />
+                <div className="ml-2 w-full">
+                  <p className="font-medium text-sm text-gray-900">
+                    Estimated Cost
+                  </p>
                   {step === "estimating" ? (
-                    <div className="mt-2">
-                      <div className="relative h-8 w-full overflow-hidden rounded-md bg-yellow-50 flex items-center justify-center">
+                    <div className="mt-1">
+                      <div className="relative h-6 w-full overflow-hidden rounded-md bg-yellow-50 flex items-center justify-center">
+                        {/* Update the PriceAnimation end value to use pricing_details.total_cost if available */}
                         <PriceAnimation
                           start={0}
-                          end={orderData?.estimatedPrice?.total || 15.99}
+                          end={
+                            orderData?.pricing_details?.total_cost ||
+                            orderData?.estimatedPrice?.total ||
+                            15.99
+                          }
                           duration={2}
                         />
                       </div>
                     </div>
                   ) : (
-                    <p className="text-gray-700 font-medium">
-                      ${estimatedPrice}
+                    // Update the price display to use pricing_details.total_cost if available
+                    <p className="text-sm text-gray-700 font-medium">
+                      $
+                      {typeof estimatedPrice === "string" &&
+                      estimatedPrice === "Calculating..."
+                        ? (
+                            orderData?.pricing_details?.total_cost ||
+                            orderData?.estimatedPrice?.total ||
+                            0
+                          ).toFixed(2)
+                        : estimatedPrice}
                     </p>
                   )}
                 </div>
@@ -501,28 +534,30 @@ export default function ConfirmDelivery({
           )}
         </div>
 
-        {/* Order Details - Show when order is estimated or confirmed */}
+        {/* Order Details - make more compact */}
         {(step === "estimated" || step === "confirmed") && orderData && (
-          <div className="bg-green-50 p-4 rounded-lg">
+          <div className="bg-green-50 p-3 rounded-lg">
             <div className="flex items-start">
-              <CheckCircle className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
-              <div className="ml-3">
-                <p className="font-medium text-gray-900">Order Details</p>
-                <div className="mt-2 space-y-1">
-                  <p className="text-sm text-gray-700">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+              <div className="ml-2">
+                <p className="font-medium text-sm text-gray-900">
+                  Order Details
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-xs text-gray-700">
                     <span className="font-medium">Order ID:</span>{" "}
                     {orderData.orderId}
                   </p>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-xs text-gray-700">
                     <span className="font-medium">Status:</span>{" "}
                     {orderData.status}
                   </p>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-xs text-gray-700">
                     <span className="font-medium">Delivery Window:</span>{" "}
-                    {orderData.estimatedDelivery.timeWindow}
+                    {orderData.estimatedDelivery?.timeWindow || "N/A"}
                   </p>
                   {orderData.tracking && (
-                    <p className="text-sm text-gray-700">
+                    <p className="text-xs text-gray-700">
                       <span className="font-medium">Tracking ID:</span>{" "}
                       {orderData.tracking.trackingId}
                     </p>
@@ -534,11 +569,11 @@ export default function ConfirmDelivery({
         )}
       </div>
 
-      <div className="mt-6">
-        {/* Different buttons based on the current step */}
+      <div className="mt-4">
+        {/* Make buttons more compact */}
         {step === "initial" && (
           <button
-            className="w-full bg-black text-white py-4 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+            className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
             onClick={calculateEstimate}
           >
             Calculate Estimate Price
@@ -547,7 +582,7 @@ export default function ConfirmDelivery({
 
         {step === "estimating" && (
           <button
-            className="w-full bg-gray-400 text-white py-4 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
+            className="w-full bg-gray-400 text-white py-3 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
             disabled
           >
             <Loader className="w-4 h-4 mr-2 animate-spin" />
@@ -557,7 +592,7 @@ export default function ConfirmDelivery({
 
         {step === "estimated" && (
           <button
-            className="w-full bg-black text-white py-4 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+            className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
             onClick={confirmOrder}
           >
             Confirm Order
@@ -566,7 +601,7 @@ export default function ConfirmDelivery({
 
         {step === "confirming" && (
           <button
-            className="w-full bg-gray-400 text-white py-4 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
+            className="w-full bg-gray-400 text-white py-3 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
             disabled
           >
             <Loader className="w-4 h-4 mr-2 animate-spin" />
@@ -576,7 +611,7 @@ export default function ConfirmDelivery({
 
         {step === "confirmed" && (
           <button
-            className="w-full bg-primary text-white py-4 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="w-full bg-primary text-white py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             onClick={onNext}
           >
             Continue to Payment
@@ -585,7 +620,7 @@ export default function ConfirmDelivery({
 
         {step === "error" && (
           <button
-            className="w-full bg-red-600 text-white py-4 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            className="w-full bg-red-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
             onClick={handleRetry}
           >
             Retry

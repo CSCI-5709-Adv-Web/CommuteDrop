@@ -12,12 +12,18 @@ export const API_CONFIG = {
   DEFAULT_CITY: "Halifax",
   MAX_RESULTS: 5,
 
-  // Add service configurations for token service
+  // Update service configurations for token service with more specific scopes
   SERVICES: {
     location: {
       clientId: import.meta.env.VITE_LOCATION_CLIENT_ID || "location_service_client",
       clientSecret: import.meta.env.VITE_LOCATION_CLIENT_SECRET || "location_service_secret",
       scopes: ["location.read", "location.write"],
+    },
+    order: {
+      clientId: import.meta.env.VITE_ORDER_CLIENT_ID || "order_service_client",
+      clientSecret: import.meta.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
+      // Update scopes to be more specific and match what the server expects
+      scopes: ["order.read", "order.write"],
     },
   },
 }
@@ -49,9 +55,10 @@ export const ENDPOINTS = {
     HISTORY: "/delivery/history",
     TRACK: "/delivery/track",
   },
-  // Order endpoints
+  // Order endpoints - ensure these match exactly what the server expects
   ORDER: {
     CREATE: `${API_CONFIG.ORDER_SERVICE_URL}/create`,
+    UPDATE: `${API_CONFIG.ORDER_SERVICE_URL}/update-status`,
     CANCEL: `${API_CONFIG.ORDER_SERVICE_URL}/:order_id`,
     PAYMENT: `${API_CONFIG.ORDER_SERVICE_URL}/:order_id/payment`,
     USER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/:user_id`,

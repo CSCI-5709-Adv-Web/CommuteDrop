@@ -323,10 +323,7 @@ export default function Profile() {
                   mass: 0.5,
                 }}
               >
-                <DeliveryHistorySection
-                  deliveryHistory={deliveryHistory}
-                  isLoading={deliveryHistory.length === 0}
-                />
+                <DeliveryHistorySection />
               </motion.div>
             )}
             {activeTab === "payment" && (

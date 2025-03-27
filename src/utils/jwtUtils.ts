@@ -39,6 +39,13 @@ export const jwtUtils = {
     try {
       const decoded = jwtUtils.parseToken(token)
       if (!decoded) return null
+
+      // First try to get the standard sub claim
+      if (decoded.sub) {
+        return decoded.sub
+      }
+
+      // Then try the .NET specific claim for user ID
       return decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null
     } catch (error) {
       console.error("Error getting user ID from token:", error)

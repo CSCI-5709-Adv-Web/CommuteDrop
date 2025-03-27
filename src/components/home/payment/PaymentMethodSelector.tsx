@@ -4,7 +4,6 @@ import { CreditCard, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cardService, type Card } from "../../../services/card-service";
 
-// Define card types with their icons and colors
 const CARD_TYPES = {
   visa: {
     name: "Visa",
@@ -53,7 +52,6 @@ export default function PaymentMethodSelector({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch cards from API
   useEffect(() => {
     const fetchCards = async () => {
       setLoading(true);
@@ -62,8 +60,6 @@ export default function PaymentMethodSelector({
         const response = await cardService.getUserCards();
         if (response.success) {
           setSavedCards(response.data);
-
-          // If we have cards but no selection, select the default card
           if (response.data.length > 0 && !selectedCardId && !useNewCard) {
             const defaultCard = response.data.find((card) => card.isDefault);
             if (defaultCard) {
@@ -74,7 +70,6 @@ export default function PaymentMethodSelector({
           }
         } else {
           setError(response.message || "Failed to load payment methods");
-          // Fall back to initial saved cards if API fails
           if (initialSavedCards.length > 0) {
             setSavedCards(initialSavedCards);
           }
@@ -82,7 +77,6 @@ export default function PaymentMethodSelector({
       } catch (err) {
         setError("An unexpected error occurred while loading payment methods");
         console.error("Error fetching cards:", err);
-        // Fall back to initial saved cards if API fails
         if (initialSavedCards.length > 0) {
           setSavedCards(initialSavedCards);
         }
@@ -90,10 +84,8 @@ export default function PaymentMethodSelector({
         setLoading(false);
       }
     };
-
     fetchCards();
   }, [initialSavedCards, onSelectCard, selectedCardId, useNewCard]);
-
   if (loading || isLoading) {
     return (
       <div className="mb-6 flex justify-center items-center py-8">
@@ -101,7 +93,6 @@ export default function PaymentMethodSelector({
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="mb-6 p-4 bg-red-50 rounded-lg">
@@ -109,12 +100,9 @@ export default function PaymentMethodSelector({
       </div>
     );
   }
-
   return (
     <div className="mb-6">
       <h3 className="text-lg font-medium mb-3">Payment Method</h3>
-
-      {/* Saved Cards */}
       <div className="space-y-3 mb-4">
         {savedCards.map((card) => {
           const cardTypeKey = Object.keys(CARD_TYPES).includes(
@@ -122,9 +110,7 @@ export default function PaymentMethodSelector({
           )
             ? card.type.toLowerCase()
             : "visa";
-
           const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
-
           return (
             <div
               key={card.id}
@@ -161,8 +147,6 @@ export default function PaymentMethodSelector({
           );
         })}
       </div>
-
-      {/* New Card Option */}
       <div
         onClick={onSelectNewCard}
         className={`p-4 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${

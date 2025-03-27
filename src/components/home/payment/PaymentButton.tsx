@@ -64,7 +64,6 @@ export default function PaymentButton({
           Pay ${amount}
         </motion.span>
       )}
-
       {paymentStatus === "processing" && (
         <motion.span
           key="processing"
@@ -77,7 +76,6 @@ export default function PaymentButton({
           Processing...
         </motion.span>
       )}
-
       {paymentStatus === "success" && (
         <motion.span
           key="success"
@@ -90,7 +88,6 @@ export default function PaymentButton({
           Payment Successful!
         </motion.span>
       )}
-
       {paymentStatus === "error" && (
         <motion.span
           key="error"

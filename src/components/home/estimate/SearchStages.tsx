@@ -11,7 +11,6 @@ interface SearchStagesProps {
 export default function SearchStages({
   stages,
   currentStage,
-  progress,
 }: SearchStagesProps) {
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">

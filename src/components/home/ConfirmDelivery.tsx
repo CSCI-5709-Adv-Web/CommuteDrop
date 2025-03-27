@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-// Add imports for the different carrier icons
 import {
   ArrowLeft,
   MapPin,
@@ -72,7 +71,6 @@ const PriceAnimation = ({
 
   return (
     <div className="relative flex items-center justify-center">
-      {/* Animated background */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-md opacity-20"
         animate={{
@@ -85,8 +83,6 @@ const PriceAnimation = ({
           ease: "easeInOut",
         }}
       />
-
-      {/* Dollar sign with bounce effect */}
       <motion.div
         className="text-sm font-bold text-primary mr-0.5"
         animate={{
@@ -101,8 +97,6 @@ const PriceAnimation = ({
       >
         $
       </motion.div>
-
-      {/* The animated number */}
       <motion.div
         className="text-base font-bold text-primary"
         initial={{ opacity: 0, scale: 0.8 }}
@@ -111,8 +105,6 @@ const PriceAnimation = ({
       >
         {count.toFixed(2)}
       </motion.div>
-
-      {/* Shimmer effect */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
         animate={{
@@ -136,7 +128,6 @@ interface ConfirmDeliveryProps {
   onNext: () => void;
 }
 
-// Define the steps within the ConfirmDelivery component
 type ConfirmStep =
   | "initial"
   | "estimating"
@@ -151,50 +142,31 @@ export default function ConfirmDelivery({
   onBack,
   onNext,
 }: ConfirmDeliveryProps) {
-  // Get routeInfo from context
-  const { routeInfo, pickupCoordinates, dropoffCoordinates, setRouteInfo } =
-    useLocation();
+  const { routeInfo, setRouteInfo } = useLocation();
   const { user } = useAuth();
-
-  // State to track the current step within the component
   const [step, setStep] = useState<ConfirmStep>("initial");
-
-  // State to store the estimate data from API
   const [estimateData] = useState<DeliveryEstimateResponse | undefined>(
     initialEstimateData
   );
-
-  // State to store the order data from API
   const [orderData, setOrderData] = useState<OrderEstimateResponse | null>(
     null
   );
-
-  // State to store error messages
   const [error, setError] = useState<string | null>(null);
-
-  // State to store order ID after confirmation
   const [orderId, setOrderId] = useState<string | null>(null);
-
-  // Use routeInfo if available, otherwise fall back to estimateData
   const estimatedDistance =
     routeInfo?.distance || estimateData?.distance?.text || "Calculating...";
   const estimatedTime =
     routeInfo?.duration ||
     estimateData?.estimatedTime?.text ||
     "Calculating...";
-  // Update the estimatedPrice calculation to use pricing_details.total_cost if available
   const estimatedPrice =
     orderData?.pricing_details?.total_cost?.toFixed(2) ||
     orderData?.estimatedPrice?.total.toFixed(2) ||
     estimateData?.estimatedPrice?.total.toFixed(2) ||
     "Calculating...";
-
-  // Parse distance and time values for API request
   const parseDistance = useCallback(() => {
     if (!estimatedDistance || estimatedDistance === "Calculating...")
       return { value: 0, unit: "km" };
-
-    // Extract numeric value and unit from string like "1.81 km"
     const match = estimatedDistance.match(/^([\d.]+)\s*(\w+)$/);
     if (match) {
       return {
@@ -209,8 +181,6 @@ export default function ConfirmDelivery({
   const parseTime = useCallback(() => {
     if (!estimatedTime || estimatedTime === "Calculating...")
       return { value: 0, unit: "mins" };
-
-    // Extract numeric value and unit from string like "3.65 mins"
     const match = estimatedTime.match(/^([\d.]+)\s*(\w+)$/);
     if (match) {
       return {
@@ -222,13 +192,10 @@ export default function ConfirmDelivery({
     return { value: 0, unit: "mins" };
   }, [estimatedTime]);
 
-  // Update the calculateEstimate function to call the order service API
   const calculateEstimate = useCallback(async () => {
     setStep("estimating");
     setError(null);
-
     try {
-      // Get user ID from token
       const token = tokenStorage.getToken();
       let userId = "";
       if (token) {
@@ -236,12 +203,9 @@ export default function ConfirmDelivery({
         if (tokenUserId) {
           userId = tokenUserId;
         } else {
-          // Fall back to email if ID not available
           userId = user?.email || "";
         }
       }
-
-      // Prepare request payload with the new format
       const requestData: CreateOrderRequest = {
         from_address: formData.pickup,
         to_address: formData.dropoff,
@@ -252,25 +216,17 @@ export default function ConfirmDelivery({
         distance: parseDistance().value,
         time: parseTime().value,
       };
-
       console.log("Sending order request:", requestData);
-
-      // Call the order service API
       const response = await orderService.createOrder(requestData);
-
       if (response.success && response.data) {
-        // Store the order data
         setOrderData(response.data);
         setOrderId(response.data.orderId);
-
-        // Update route info if needed
         if (!routeInfo) {
           setRouteInfo({
             distance: estimatedDistance,
             duration: estimatedTime,
           });
         }
-
         setStep("estimated");
       } else {
         throw new Error(response.message || "Failed to create order");
@@ -295,32 +251,24 @@ export default function ConfirmDelivery({
     user?.email,
   ]);
 
-  // Update the confirmOrder function to call the order update status API
   const confirmOrder = useCallback(async () => {
     if (!orderId) {
       setError("No order ID found. Please try again.");
       return;
     }
-
     setStep("confirming");
     setError(null);
-
     try {
-      // Call the order service API to update the order status to "ORDER CONFIRMED"
       const updateResponse = await orderService.updateOrderStatus(
         orderId,
         "ORDER CONFIRMED"
       );
-
       if (!updateResponse.success) {
         throw new Error(
           updateResponse.message || "Failed to update order status"
         );
       }
-
-      // After successful status update, get the updated order details
       const response = await orderService.confirmOrder(orderId);
-
       if (response.success) {
         setOrderData(response.data);
         setStep("confirmed");
@@ -338,14 +286,11 @@ export default function ConfirmDelivery({
     }
   }, [orderId]);
 
-  // Function to handle retry on error
   const handleRetry = useCallback(() => {
     setStep("initial");
     setError(null);
   }, []);
 
-  // Create a reusable card component for delivery details
-  // Replace the existing DeliveryDetailCard implementation with this updated version that includes dynamic carrier icon selection
   const DeliveryDetailCard = ({
     icon,
     title,
@@ -368,7 +313,6 @@ export default function ConfirmDelivery({
     </div>
   );
 
-  // Add a function to get the appropriate carrier icon based on the carrier type
   const getCarrierIcon = (carrierType: string) => {
     switch (carrierType.toLowerCase()) {
       case "car":
@@ -403,8 +347,6 @@ export default function ConfirmDelivery({
         </button>
         <h2 className="text-lg font-bold text-gray-800">Confirm Delivery</h2>
       </div>
-
-      {/* Error message - make more compact */}
       {error && (
         <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start">
           <AlertCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -414,8 +356,6 @@ export default function ConfirmDelivery({
           </div>
         </div>
       )}
-
-      {/* Success message - make more compact */}
       {step === "confirmed" && orderId && (
         <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start">
           <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -432,25 +372,19 @@ export default function ConfirmDelivery({
           </div>
         </div>
       )}
-
       <div className="space-y-3 flex-grow">
-        {/* Pickup Location */}
         <DeliveryDetailCard
           icon={<MapPin className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />}
           title="Pickup Location"
           value={formData.pickup}
           bgColor="bg-blue-50"
         />
-
-        {/* Dropoff Location */}
         <DeliveryDetailCard
           icon={<MapPin className="w-4 h-4 text-red-500 mt-1 flex-shrink-0" />}
           title="Dropoff Location"
           value={formData.dropoff}
           bgColor="bg-red-50"
         />
-
-        {/* Package Details - make grid more compact */}
         <div className="grid grid-cols-2 gap-2">
           <DeliveryDetailCard
             icon={
@@ -460,7 +394,6 @@ export default function ConfirmDelivery({
             value={`${formData.weight || "0"} kg`}
             bgColor="bg-purple-50"
           />
-
           <DeliveryDetailCard
             icon={getCarrierIcon(formData.carrier)}
             title="Carrier"
@@ -468,8 +401,6 @@ export default function ConfirmDelivery({
             bgColor="bg-blue-50"
           />
         </div>
-
-        {/* Distance Information */}
         <DeliveryDetailCard
           icon={
             <MapPin className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
@@ -478,8 +409,6 @@ export default function ConfirmDelivery({
           value={estimatedDistance}
           bgColor="bg-green-50"
         />
-
-        {/* Delivery Estimates - make grid more compact */}
         <div className="grid grid-cols-2 gap-2">
           <DeliveryDetailCard
             icon={
@@ -489,8 +418,6 @@ export default function ConfirmDelivery({
             value={estimatedTime}
             bgColor="bg-orange-50"
           />
-
-          {/* Estimated Cost */}
           {step !== "initial" && (
             <div className="bg-yellow-50 p-3 rounded-lg">
               <div className="flex items-start">
@@ -502,7 +429,6 @@ export default function ConfirmDelivery({
                   {step === "estimating" ? (
                     <div className="mt-1">
                       <div className="relative h-6 w-full overflow-hidden rounded-md bg-yellow-50 flex items-center justify-center">
-                        {/* Update the PriceAnimation end value to use pricing_details.total_cost if available */}
                         <PriceAnimation
                           start={0}
                           end={
@@ -515,7 +441,6 @@ export default function ConfirmDelivery({
                       </div>
                     </div>
                   ) : (
-                    // Update the price display to use pricing_details.total_cost if available
                     <p className="text-sm text-gray-700 font-medium">
                       $
                       {typeof estimatedPrice === "string" &&
@@ -533,8 +458,6 @@ export default function ConfirmDelivery({
             </div>
           )}
         </div>
-
-        {/* Order Details - make more compact */}
         {(step === "estimated" || step === "confirmed") && orderData && (
           <div className="bg-green-50 p-3 rounded-lg">
             <div className="flex items-start">
@@ -568,9 +491,7 @@ export default function ConfirmDelivery({
           </div>
         )}
       </div>
-
       <div className="mt-4">
-        {/* Make buttons more compact */}
         {step === "initial" && (
           <button
             className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
@@ -579,7 +500,6 @@ export default function ConfirmDelivery({
             Calculate Estimate Price
           </button>
         )}
-
         {step === "estimating" && (
           <button
             className="w-full bg-gray-400 text-white py-3 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
@@ -589,7 +509,6 @@ export default function ConfirmDelivery({
             Calculating Estimate...
           </button>
         )}
-
         {step === "estimated" && (
           <button
             className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
@@ -598,7 +517,6 @@ export default function ConfirmDelivery({
             Confirm Order
           </button>
         )}
-
         {step === "confirming" && (
           <button
             className="w-full bg-gray-400 text-white py-3 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
@@ -608,7 +526,6 @@ export default function ConfirmDelivery({
             Confirming Order...
           </button>
         )}
-
         {step === "confirmed" && (
           <button
             className="w-full bg-primary text-white py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -617,7 +534,6 @@ export default function ConfirmDelivery({
             Continue to Payment
           </button>
         )}
-
         {step === "error" && (
           <button
             className="w-full bg-red-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"

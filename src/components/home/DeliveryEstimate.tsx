@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Shield } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import type { DeliveryEstimateResponse } from "../../services/delivery-service";
-
-// Import modularized components
 import SearchStages from "./estimate/SearchStages";
 import DriverCard from "./estimate/DriverCard";
 import FareBreakdown from "./estimate/FareBreakdown";
@@ -65,26 +63,17 @@ export default function DeliveryEstimate({
     }
   );
   const [, setError] = useState("");
-
   const startSearch = useCallback(() => {
     setStatus("searching");
     setProgress(0);
     setCurrentStage(0);
     setError("");
-
     const stageInterval = setInterval(() => {
       setCurrentStage((stage) => {
         if (stage >= SEARCH_STAGES.length - 1) {
           clearInterval(stageInterval);
-
-          // Simulate calling the delivery creation API
           const createDelivery = async () => {
             try {
-              // In a real app, we would call the API
-              // const response = await deliveryService.createDelivery(requestData);
-
-              // For demo, we'll simulate a successful response
-              // Simulate random success (70% chance)
               const outcome = Math.random();
               if (outcome < 0.7) {
                 setDriverDetails({
@@ -108,7 +97,6 @@ export default function DeliveryEstimate({
               setError("Failed to create delivery. Please try again.");
             }
           };
-
           createDelivery();
           return stage;
         }
@@ -120,8 +108,6 @@ export default function DeliveryEstimate({
       setProgress((oldProgress) => {
         if (oldProgress >= 100) {
           clearInterval(progressInterval);
-
-          // Use real data from the estimate if available
           if (estimateData) {
             setEstimatedTime(estimateData.estimatedTime.text);
             setDistance(estimateData.distance.text);
@@ -142,7 +128,6 @@ export default function DeliveryEstimate({
         return Math.min(oldProgress + 2, 100);
       });
     }, 100);
-
     return () => {
       clearInterval(stageInterval);
       clearInterval(progressInterval);
@@ -163,7 +148,6 @@ export default function DeliveryEstimate({
       transition={{ duration: 0.3 }}
       className="min-h-full bg-gray-50"
     >
-      {/* Sticky Header */}
       <div className="sticky top-0 z-50 bg-white">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
@@ -187,9 +171,7 @@ export default function DeliveryEstimate({
           </div>
         </div>
       </div>
-
       <div className="max-w-2xl mx-auto space-y-6" style={{ marginTop: 10 }}>
-        {/* Search Progress Indicator */}
         {status === "searching" && (
           <SearchStages
             stages={SEARCH_STAGES}
@@ -197,13 +179,9 @@ export default function DeliveryEstimate({
             progress={progress}
           />
         )}
-
-        {/* Driver Details Card */}
         {status === "success" && driverDetails && (
           <DriverCard driver={driverDetails} />
         )}
-
-        {/* Loading Progress Bar */}
         {status === "searching" && (
           <div className="w-full bg-gray-100 rounded-full h-2">
             <motion.div
@@ -225,8 +203,6 @@ export default function DeliveryEstimate({
             </motion.div>
           </div>
         )}
-
-        {/* Delivery Details */}
         {(status === "success" || status === "searching") && (
           <div className="space-y-4">
             <AnimatePresence>
@@ -262,8 +238,6 @@ export default function DeliveryEstimate({
             </AnimatePresence>
           </div>
         )}
-
-        {/* Safety Message */}
         {status === "success" && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -276,8 +250,6 @@ export default function DeliveryEstimate({
             </span>
           </motion.div>
         )}
-
-        {/* Confirm Delivery Button */}
         <motion.button
           className={`w-full py-4 rounded-xl text-sm font-medium transition-all duration-200 ${
             status !== "success"

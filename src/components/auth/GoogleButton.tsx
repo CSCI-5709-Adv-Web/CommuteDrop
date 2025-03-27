@@ -4,7 +4,6 @@ import { useCallback } from "react";
 
 export default function GoogleButton() {
   const handleGoogleSignIn = useCallback(() => {
-    // In a real app, this would trigger Google OAuth flow
     console.log("Google sign-in clicked");
   }, []);
 

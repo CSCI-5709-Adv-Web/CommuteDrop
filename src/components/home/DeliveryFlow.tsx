@@ -35,8 +35,6 @@ export default function DeliveryFlow({
 }: DeliveryFlowProps) {
   const [estimateData] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState<FlowStep>("search");
-
-  // Get location data from context
   const locationData = useLocation();
   const {
     pickup,
@@ -46,8 +44,6 @@ export default function DeliveryFlow({
     setShowRoute,
     setRouteInfo,
   } = locationData;
-
-  // Additional form data not related to location
   const [formData, setFormData] = useState<
     Omit<
       DeliveryFormData,
@@ -62,8 +58,6 @@ export default function DeliveryFlow({
     expiry: "",
     cvc: "",
   });
-
-  // Combine location data from context with other form data
   const completeFormData: DeliveryFormData = useMemo(
     () => ({
       pickup,
@@ -74,58 +68,40 @@ export default function DeliveryFlow({
     }),
     [pickup, dropoff, pickupCoordinates, dropoffCoordinates, formData]
   );
-
   const steps: FlowStep[] = useMemo(
     () => ["search", "confirm", "payment", "estimate"],
     []
   );
-
   const progress = useMemo(
     () => (steps.indexOf(currentStep) + 1) * 25,
     [steps, currentStep]
   );
-
   const handleFormDataChange = useCallback(
     (field: string, value: any) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
-
-      // If clearing a location field, update the map
       if ((field === "pickup" || field === "dropoff") && !value.trim()) {
         setShowRoute(false);
-        setRouteInfo(null); // Also clear route info
+        setRouteInfo(null);
       }
     },
     [setShowRoute, setRouteInfo]
   );
-
-  // Update the handleNavigate function to preserve map state
   const handleNavigate = useCallback(
     async (step: FlowStep) => {
-      // When going back to search, reset the route visibility but preserve route info
       if (step === "search") {
-        // Don't reset showRoute - this was causing markers to disappear
-        // setShowRoute(false);
-
-        // Force blur on any active input elements to hide suggestions
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
-
         setCurrentStep(step);
         return;
       }
-
-      // When moving from search to confirm, calculate the route
       if (currentStep === "search" && step === "confirm") {
         if (onCalculateRoute) {
           onCalculateRoute();
         }
-
-        // Set showRoute to true when moving to confirm step
         setShowRoute(true);
         setCurrentStep(step);
       } else {
-        // For other transitions, just update the step
         setCurrentStep(step);
       }
     },
@@ -149,7 +125,6 @@ export default function DeliveryFlow({
           />
         </div>
       </div>
-
       <div className="flex-1 overflow-y-auto scrollbar scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 scrollbar-thumb-rounded-full scrollbar-track-rounded-full transition-colors">
         <AnimatePresence mode="wait">
           {currentStep === "search" && (

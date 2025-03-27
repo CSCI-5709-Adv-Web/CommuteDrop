@@ -30,13 +30,9 @@ export default function LocationInput({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const ignoreNextDebounceRef = useRef(false);
-  // Add a new focusState to track when the input is focused
   const [isFocused, setIsFocused] = useState(false);
-
-  // Debounce the input value
   const debouncedValue = useDebounce(value, 300);
 
-  // Fetch suggestions handler
   const fetchSuggestions = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
@@ -65,14 +61,11 @@ export default function LocationInput({
     [type]
   );
 
-  // Improve the debouncing logic in the useEffect hook
   useEffect(() => {
     if (ignoreNextDebounceRef.current) {
       ignoreNextDebounceRef.current = false;
       return;
     }
-
-    // Only fetch suggestions if the input is at least 3 characters
     if (debouncedValue.trim().length > 2) {
       fetchSuggestions(debouncedValue);
       setShowSuggestions(true);
@@ -81,8 +74,6 @@ export default function LocationInput({
       setShowSuggestions(false);
     }
   }, [debouncedValue, fetchSuggestions]);
-
-  // Update the handleInputChange function to clear coordinates when input is cleared
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
@@ -91,23 +82,17 @@ export default function LocationInput({
         setSuggestions([]);
         onCoordinatesChange(undefined);
       }
-      // Don't trigger geocoding here - only update the text value
     },
     [onChange, onCoordinatesChange]
   );
 
-  // Suggestion selection handler - this is where we'll do the geocoding
   const handleSuggestionSelect = useCallback(
     (suggestion: any) => {
       const address = suggestion.description || suggestion.mainText || "";
-      // Update input value and hide suggestions
       setShowSuggestions(false);
       setSuggestions([]);
       onChange(address);
-      // Flag to ignore next debounce trigger
       ignoreNextDebounceRef.current = true;
-
-      // Only geocode when a suggestion is selected
       if (suggestion.placeId) {
         setIsLoading(true);
         mapService
@@ -132,14 +117,12 @@ export default function LocationInput({
             inputRef.current?.blur();
           });
       } else {
-        // If no placeId, just blur the input without geocoding
         inputRef.current?.blur();
       }
     },
     [onChange, onCoordinatesChange, type]
   );
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -154,7 +137,6 @@ export default function LocationInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [type]);
 
-  // Update the return statement to include onFocus and onBlur handlers
   return (
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -173,19 +155,14 @@ export default function LocationInput({
         aria-label={placeholder}
         onFocus={() => setIsFocused(true)}
         onBlur={() => {
-          // Use setTimeout to allow click events on suggestions to fire before hiding them
           setTimeout(() => setIsFocused(false), 200);
         }}
       />
-      {/* Clear input button */}
       {value && (
         <button
           onClick={() => {
-            // Clear input and coordinates
             handleInputChange("");
             onCoordinatesChange(undefined);
-
-            // Force a re-render of the map component
             setTimeout(() => {
               window.dispatchEvent(new Event("resize"));
             }, 100);
@@ -196,7 +173,6 @@ export default function LocationInput({
           <X size={16} />
         </button>
       )}
-      {/* Loading indicator */}
       <div
         className="absolute right-10 top-1/2 -translate-y-1/2"
         style={{ display: isLoading ? "block" : "none" }}
@@ -206,7 +182,6 @@ export default function LocationInput({
           aria-hidden="true"
         />
       </div>
-      {/* Suggestions list - only show when focused AND we have suggestions */}
       {isFocused && showSuggestions && suggestions.length > 0 && (
         <LocationSuggestions
           id={`${type}-suggestions-container`}

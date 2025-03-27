@@ -33,20 +33,15 @@ export default function Map({
   const [noRouteFound, setNoRouteFound] = useState(false);
   const [routeOrigin, setRouteOrigin] = useState("");
   const [routeDestination, setRouteDestination] = useState("");
-
-  // Use the location context instead of local state
   const { setRouteInfo, routeInfo } = useLocation();
-
   const { google, isLoading: isMapLoading, error } = useGoogleMaps();
 
-  // Update map when Google Maps is loaded
   useEffect(() => {
     if (!google || !mapRef.current || googleMapRef.current) return;
 
     console.log("Initializing map with Google Maps API");
 
     try {
-      // Update the map initialization to use default styling
       const mapOptions = {
         center: center,
         zoom: 13,
@@ -54,7 +49,6 @@ export default function Map({
         fullscreenControl: false,
         streetViewControl: false,
         zoomControl: true,
-        // Remove the styles property or set to empty array
         styles: [],
         mapTypeId: google.maps.MapTypeId.ROADMAP,
         gestureHandling: "cooperative",
@@ -73,40 +67,28 @@ export default function Map({
       console.error("Error initializing map:", err);
     }
   }, [google, center]);
-
-  // Update map bounds when positions change
   useEffect(() => {
     if (!google || !googleMapRef.current) return;
 
     try {
-      // If we have no positions, clear the map and return
       if (positions.length === 0) {
-        // Don't update bounds, just return
         return;
       }
-
       const bounds = new google.maps.LatLngBounds();
       positions.forEach((pos) => bounds.extend(pos));
-
-      // Add padding to the bounds
       googleMapRef.current.fitBounds(bounds, {
         top: 50,
         right: 50,
         bottom: 50,
         left: 50,
       });
-
-      // If only one position, set appropriate zoom
       if (positions.length === 1) {
         googleMapRef.current.setCenter(positions[0]);
         googleMapRef.current.setZoom(15);
       }
-
-      // If we have positions but no route info, try to calculate it
       if (positions.length > 1 && !routeInfo && drawRoute) {
-        // This will trigger the MapRoute component to calculate and update route info
         setMapInitialized((prev) => {
-          if (prev) return prev; // Don't toggle - this was causing markers to disappear
+          if (prev) return prev;
           return true;
         });
       }
@@ -114,8 +96,6 @@ export default function Map({
       console.error("Error updating map bounds:", err);
     }
   }, [google, positions, routeInfo, drawRoute]);
-
-  // Update the handleRouteInfoChange to use context
   const handleRouteInfoChange = useCallback(
     (info: { distance: string; duration: string } | null) => {
       setRouteInfo(info);
@@ -131,8 +111,6 @@ export default function Map({
     },
     []
   );
-
-  // Show loading state or placeholder if needed
   if (isMapLoading || !google) {
     return (
       <div
@@ -146,7 +124,6 @@ export default function Map({
       </div>
     );
   }
-
   if (error) {
     return (
       <div
@@ -162,11 +139,9 @@ export default function Map({
       </div>
     );
   }
-
   if (!hasEnteredLocations) {
     return <MapPlaceholder />;
   }
-
   if (isLoading) {
     return (
       <div
@@ -180,7 +155,6 @@ export default function Map({
       </div>
     );
   }
-
   return (
     <div
       className="relative w-full h-full rounded-lg overflow-hidden"
@@ -193,7 +167,6 @@ export default function Map({
         aria-label="Map showing delivery route"
         role="application"
       />
-
       {googleMapRef.current &&
         mapInitialized &&
         positions.map((position, index) => (
@@ -205,7 +178,6 @@ export default function Map({
             type={index === 0 ? "pickup" : "dropoff"}
           />
         ))}
-
       {googleMapRef.current &&
         mapInitialized &&
         positions.length > 1 &&
@@ -224,14 +196,12 @@ export default function Map({
             onRouteError={handleRouteError}
           />
         )}
-
       {routeInfo && !noRouteFound && positions.length > 1 && drawRoute && (
         <RouteInfo
           distance={routeInfo.distance}
           duration={routeInfo.duration}
         />
       )}
-
       {noRouteFound && positions.length > 1 && drawRoute && (
         <NoRouteMessage origin={routeOrigin} destination={routeDestination} />
       )}

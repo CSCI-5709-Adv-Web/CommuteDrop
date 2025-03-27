@@ -26,12 +26,10 @@ export default function SignUpForm() {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-
       if (password !== confirmPassword) {
         setPasswordError(true);
         return;
       }
-
       if (
         name.trim() &&
         email.trim() &&
@@ -93,7 +91,6 @@ export default function SignUpForm() {
       <h2 className="text-2xl font-medium text-center">
         Create Your CommuteDrop Account
       </h2>
-
       {error && (
         <div
           className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2"
@@ -110,7 +107,6 @@ export default function SignUpForm() {
           </div>
         </div>
       )}
-
       <input
         type="text"
         placeholder="Enter your name"
@@ -120,7 +116,6 @@ export default function SignUpForm() {
         required
         aria-label="Full name"
       />
-
       <input
         type="email"
         placeholder="Enter your email"
@@ -131,20 +126,17 @@ export default function SignUpForm() {
         autoComplete="email"
         aria-label="Email address"
       />
-
       <PasswordInput
         label="Create password"
         password={password}
         setPassword={(value) => handleInputChange("password", value)}
       />
-
       <PasswordInput
         label="Confirm password"
         password={confirmPassword}
         setPassword={(value) => handleInputChange("confirmPassword", value)}
         error={passwordError}
       />
-
       {passwordError && (
         <p
           className="text-red-500 text-sm text-center -mt-4"
@@ -153,7 +145,6 @@ export default function SignUpForm() {
           Passwords do not match
         </p>
       )}
-
       <button
         type="submit"
         disabled={
@@ -175,13 +166,10 @@ export default function SignUpForm() {
           "Create Account"
         )}
       </button>
-
       <div className="flex items-center before:flex-1 before:border-t after:flex-1 after:border-t">
         <span className="mx-4 text-gray-500">or sign up with</span>
       </div>
-
       <GoogleButton />
-
       <div className="text-center text-sm text-gray-600">
         Already have an account?{" "}
         <a href="/login" className="text-black hover:underline font-medium">

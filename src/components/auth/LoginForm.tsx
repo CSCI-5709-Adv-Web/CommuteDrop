@@ -13,7 +13,6 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const { login, error, isLoading, clearError, isInitializing } = useAuth();
   const navigate = useNavigate();
-
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -68,7 +67,6 @@ export default function LoginForm() {
       <h2 className="text-2xl font-medium text-center">
         What's your email and password?
       </h2>
-
       {error && (
         <div
           className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2"
@@ -85,7 +83,6 @@ export default function LoginForm() {
           </div>
         </div>
       )}
-
       <input
         type="email"
         placeholder="Enter your email"
@@ -96,13 +93,11 @@ export default function LoginForm() {
         autoComplete="email"
         aria-label="Email address"
       />
-
       <PasswordInput
         label="Enter your password"
         password={password}
         setPassword={handlePasswordChange}
       />
-
       <button
         type="submit"
         disabled={!email.trim() || !password.trim() || isLoading}
@@ -118,13 +113,10 @@ export default function LoginForm() {
           "Continue"
         )}
       </button>
-
       <div className="flex items-center before:flex-1 before:border-t after:flex-1 after:border-t">
         <span className="mx-4 text-gray-500">or</span>
       </div>
-
       <GoogleButton />
-
       <div className="text-center text-sm text-gray-600">
         New to Commute Drop?{" "}
         <a href="/signup" className="text-black hover:underline font-medium">

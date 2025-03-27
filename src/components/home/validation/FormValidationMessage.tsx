@@ -22,7 +22,6 @@ export default function FormValidationMessage({
       </p>
     );
   }
-
   if (!pickupAddress && !dropoffAddress) {
     return (
       <p className="text-xs text-gray-500 text-center mt-2">
@@ -30,7 +29,6 @@ export default function FormValidationMessage({
       </p>
     );
   }
-
   if (!pickupAddress) {
     return (
       <p className="text-xs text-gray-500 text-center mt-2">
@@ -38,7 +36,6 @@ export default function FormValidationMessage({
       </p>
     );
   }
-
   if (!hasPickupCoordinates || !hasDropoffCoordinates) {
     return (
       <p className="text-xs text-gray-500 text-center mt-2">
@@ -46,7 +43,6 @@ export default function FormValidationMessage({
       </p>
     );
   }
-
   return (
     <p className="text-xs text-gray-500 text-center mt-2">
       Click to calculate and view route

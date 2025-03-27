@@ -14,23 +14,17 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
 
   useEffect(() => {
     if (!map) return;
-
-    // Clear existing markers to prevent duplicates
     if (markerRef.current) {
       markerRef.current.setMap(null);
     }
-
-    // Create custom marker icons based on type
     const markerIcon = {
       path: window.google.maps.SymbolPath.CIRCLE,
-      fillColor: type === "pickup" ? "#10b981" : "#ef4444", // Green for pickup, red for dropoff
+      fillColor: type === "pickup" ? "#10b981" : "#ef4444",
       fillOpacity: 1,
       strokeColor: "#FFFFFF",
       strokeWeight: 2,
       scale: 8,
     };
-
-    // Create a pulse effect marker (larger circle with animation)
     const pulseCircle = new window.google.maps.Marker({
       position,
       map,
@@ -44,8 +38,6 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
       },
       zIndex: 1,
     });
-
-    // Create the main marker
     const marker = new window.google.maps.Marker({
       position,
       map,
@@ -53,10 +45,7 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
       zIndex: 2,
       animation: window.google.maps.Animation.DROP,
     });
-
     markerRef.current = marker;
-
-    // Add pulse animation
     let scale = 16;
     let increasing = false;
     const animatePulse = () => {
@@ -71,7 +60,6 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
           increasing = true;
         }
       }
-
       if (pulseCircle) {
         pulseCircle.setIcon({
           path: window.google.maps.SymbolPath.CIRCLE,
@@ -82,7 +70,6 @@ export default function MapMarker({ position, map, type }: MapMarkerProps) {
           scale: scale,
         });
       }
-
       animationFrameRef.current = window.requestAnimationFrame(animatePulse);
     };
 

@@ -44,7 +44,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
     paymentStatus,
     error: orderError,
     processPayment,
-    status,
     orderData,
   } = useOrder();
 
@@ -103,15 +102,12 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
       setError("Payment processing is not available. Please try again later.");
       return;
     }
-
     if (!selectedCardId) {
       setError("Please select a payment method.");
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
       const success = await processPayment(selectedCardId);
 

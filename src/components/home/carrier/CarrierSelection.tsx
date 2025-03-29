@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { Car, Truck, Bike, Package } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 
 interface CarrierSelectionProps {
   selectedCarrier: string;
@@ -12,31 +11,48 @@ export default function CarrierSelection({
   selectedCarrier,
   onChange,
 }: CarrierSelectionProps) {
+  // Track if animations have been loaded
+  const [animationsLoaded, setAnimationsLoaded] = useState(false);
+
+  // Load animations when component mounts
+  useEffect(() => {
+    // Set a small delay to ensure animations are loaded
+    const timer = setTimeout(() => {
+      setAnimationsLoaded(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const carriers = useMemo(
     () => [
       {
         type: "car",
-        icon: <Car className="w-5 h-5 text-blue-500" />,
+        iconSrc: "/icons/animated-car.gif",
         label: "Car",
         bgColor: "bg-blue-50",
+        textColor: "text-blue-500",
       },
       {
         type: "truck",
-        icon: <Truck className="w-5 h-5 text-green-500" />,
+        iconSrc: "/icons/animated-truck.gif",
         label: "Truck",
         bgColor: "bg-green-50",
+        textColor: "text-green-500",
       },
       {
         type: "bike",
-        icon: <Bike className="w-5 h-5 text-purple-500" />,
+        iconSrc: "/icons/animated-bike.gif",
         label: "Bike",
         bgColor: "bg-purple-50",
+        textColor: "text-purple-500",
       },
       {
         type: "walk",
-        icon: <Package className="w-5 h-5 text-orange-500" />,
+        iconSrc: "/icons/animated-box.gif",
         label: "Walk",
         bgColor: "bg-orange-50",
+        textColor: "text-orange-500",
       },
     ],
     []
@@ -55,17 +71,25 @@ export default function CarrierSelection({
               className={`p-3 rounded-lg flex items-center justify-center space-x-2 transition-all
               border-2 ${
                 isSelected
-                  ? `border-primary ${carrier.bgColor} text-primary`
+                  ? `border-primary ${carrier.bgColor} ${carrier.textColor}`
                   : "border-gray-200 hover:border-primary/30 text-gray-800"
               }`}
               aria-pressed={isSelected}
             >
               <div
-                className={`p-1 rounded-full ${
+                className={`p-2 rounded-full ${
                   isSelected ? carrier.bgColor : "bg-gray-50"
                 }`}
               >
-                {carrier.icon}
+                <img
+                  src={carrier.iconSrc || "/placeholder.svg"}
+                  alt={carrier.label}
+                  className="w-8 h-8 object-contain"
+                  style={{
+                    opacity: animationsLoaded ? 1 : 0,
+                    transition: "opacity 0.3s ease-in-out",
+                  }}
+                />
               </div>
               <span className="text-sm">{carrier.label}</span>
             </button>

@@ -14,6 +14,7 @@ import { tokenStorage } from "../utils/tokenStorage";
 import { jwtUtils } from "../utils/jwtUtils";
 import { api } from "../services/auth-service";
 import { userService } from "../services/user-service";
+import { paymentService } from "../services/payment-service";
 
 const initialState: AuthState = {
   user: null,
@@ -23,6 +24,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  customerId: null, // Initialize customerId as null
 };
 
 type AuthAction =
@@ -47,6 +49,10 @@ type AuthAction =
   | {
       type: "UPDATE_USER_PROFILE";
       payload: UserProfile;
+    }
+  | {
+      type: "SET_CUSTOMER_ID";
+      payload: string;
     };
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -79,6 +85,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         userProfile: null,
         token: null,
         refreshToken: null,
+        customerId: null,
         error: action.payload,
       };
     case "LOGOUT":
@@ -89,6 +96,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         userProfile: null,
         token: null,
         refreshToken: null,
+        customerId: null,
         error: null,
       };
     case "CLEAR_ERROR":
@@ -113,6 +121,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
           email: action.payload.email,
         },
       };
+    case "SET_CUSTOMER_ID":
+      return {
+        ...state,
+        customerId: action.payload,
+      };
     default:
       return state;
   }
@@ -126,6 +139,7 @@ interface AuthContextType extends AuthState {
   isInitializing: boolean;
   updateUserProfile: (profile: UserProfile) => void;
   refreshUserProfile: () => Promise<void>;
+  fetchCustomerId: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -135,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Function to fetch user profile
   const fetchUserProfile = async (email: string) => {
@@ -152,6 +167,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // If not cached or email doesn't match, fetch from API
       const response = await userService.getProfile();
       if (response.success && response.data) {
+        // Update the user object with the name from the profile
+        const updatedUser = {
+          ...state.user!,
+          name: response.data.name,
+          email: response.data.email,
+        };
+        tokenStorage.setUser(updatedUser);
+
         dispatch({
           type: "UPDATE_USER_PROFILE",
           payload: response.data,
@@ -180,6 +203,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (error) {
       console.error("Error refreshing user profile:", error);
+    }
+  };
+
+  // Update the fetchCustomerId function to handle the case when customer is not found
+  const fetchCustomerId = async (): Promise<string | null> => {
+    // If we already have a customer ID in state, return it
+    if (state.customerId) {
+      return state.customerId;
+    }
+    // If no user is logged in, return null
+    if (!state.user?.email) {
+      return null;
+    }
+    try {
+      console.log("Fetching customer ID for user:", state.user.email);
+      // Fetch customer ID from payment service
+      const response = await paymentService.getCustomerByEmail(
+        state.user.email
+      );
+      if (response.success && response.customerId) {
+        console.log("Found customer ID:", response.customerId);
+        // Store in state
+        dispatch({
+          type: "SET_CUSTOMER_ID",
+          payload: response.customerId,
+        });
+        return response.customerId;
+      } else {
+        console.warn(
+          "No valid Stripe customer ID found for user:",
+          state.user.email
+        );
+        // Don't create a customer here - it should only be created during registration
+        setError(
+          "Your payment profile isn't set up correctly. Please contact support."
+        );
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching customer ID:", error);
+      return null;
+    }
+  };
+
+  // Update the createCustomerDuringRegistration function to use the correct endpoint
+  const createCustomerDuringRegistration = async (
+    email: string,
+    name: string
+  ): Promise<string | null> => {
+    try {
+      console.log("Creating customer record for newly registered user:", email);
+
+      // Call the payment service to create a customer using the POST /customer endpoint
+      const response = await paymentService.createCustomer(name, email);
+
+      if (response.success && response.customerId) {
+        console.log(
+          "Successfully created customer with ID:",
+          response.customerId
+        );
+
+        // Store in state
+        dispatch({
+          type: "SET_CUSTOMER_ID",
+          payload: response.customerId,
+        });
+
+        return response.customerId;
+      } else {
+        console.warn(
+          "Failed to create customer during registration:",
+          response.message
+        );
+        return null;
+      }
+    } catch (error) {
+      console.error("Error creating customer during registration:", error);
+      return null;
     }
   };
 
@@ -220,6 +321,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 // Fetch user profile after successful token refresh
                 await fetchUserProfile(email);
 
+                // Fetch customer ID after successful authentication
+                await fetchCustomerId();
+
                 setIsInitializing(false);
                 return;
               }
@@ -248,6 +352,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
             // Fetch user profile after successful authentication
             await fetchUserProfile(email);
+
+            // Fetch customer ID after successful authentication
+            await fetchCustomerId();
           } else {
             tokenStorage.clearTokens();
             dispatch({ type: "LOGOUT" });
@@ -286,6 +393,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
           // Fetch user profile after successful login
           await fetchUserProfile(userEmail);
+
+          // Fetch customer ID after successful login
+          await fetchCustomerId();
 
           return true;
         } else {
@@ -330,6 +440,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           type: "REGISTER_SUCCESS",
           payload: { token, refreshToken, user },
         });
+
+        // Create customer record after successful registration
+        await createCustomerDuringRegistration(email, name);
 
         // Fetch user profile after successful registration
         await fetchUserProfile(email);
@@ -380,8 +493,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isInitializing,
       updateUserProfile,
       refreshUserProfile,
+      fetchCustomerId,
+      error,
     }),
-    [state, isInitializing]
+    [state, isInitializing, error]
   );
 
   return (

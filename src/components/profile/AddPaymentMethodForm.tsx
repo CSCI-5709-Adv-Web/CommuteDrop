@@ -1,9 +1,39 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader } from "lucide-react";
 import { motion } from "framer-motion";
+import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { useAuth } from "../../context/AuthContext";
+import { paymentService } from "../../services/payment-service";
+
+// Update the Stripe initialization to properly handle API key issues
+// At the top of the file, add a check for the API key
+
+// Ensure we're loading Stripe outside the component with proper error handling
+const stripePromise = (() => {
+  const apiKey = import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || "";
+
+  // Check if the key is a secret key
+  if (apiKey.startsWith("sk_")) {
+    console.error(
+      "ERROR: You are using a Stripe secret key in client-side code. This is a security risk!"
+    );
+    console.error("Please use a publishable key (starts with pk_) instead.");
+    return null;
+  }
+
+  if (!apiKey) {
+    console.error(
+      "Missing Stripe API key. Please check your environment variables."
+    );
+    return null;
+  }
+
+  return loadStripe(apiKey);
+})();
 
 interface AddPaymentMethodFormProps {
   onAddCard: (card: any) => void;
@@ -16,15 +46,46 @@ export default function AddPaymentMethodForm({
   onCancel,
   isSubmitting = false,
 }: AddPaymentMethodFormProps) {
+  // Initialize Stripe
+  const stripe = useStripe();
+  const elements = useElements();
+  const { user } = useAuth();
+
   const [newCardData, setNewCardData] = useState({
-    cardNumber: "",
     cardholderName: "",
-    expiryDate: "",
-    cvv: "",
-    cardType: "visa",
     isDefault: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+
+  // Get or create customer ID when component mounts
+  useEffect(() => {
+    const getCustomerId = async () => {
+      if (!user?.email) return;
+
+      try {
+        const response = await paymentService.getCustomerByEmail(user.email);
+
+        if (response.success) {
+          setCustomerId(response.customerId);
+        } else {
+          setCardError(response.message || "Failed to get customer ID");
+        }
+      } catch (error) {
+        setCardError(
+          error instanceof Error ? error.message : "Failed to get customer ID"
+        );
+      }
+    };
+
+    getCustomerId();
+  }, [user]);
+
+  // Reset card error when form changes
+  useEffect(() => {
+    setCardError(null);
+  }, [newCardData]);
 
   const handleCardInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -38,75 +99,17 @@ export default function AddPaymentMethodForm({
         [name]: checked,
       });
     } else {
-      // Format card number with spaces
-      if (name === "cardNumber") {
-        // Remove non-digits
-        const digitsOnly = value.replace(/\D/g, "");
-        // Add spaces every 4 digits
-        const formatted = digitsOnly.replace(/(\d{4})(?=\d)/g, "$1 ");
-        // Limit to 19 characters (16 digits + 3 spaces)
-        const limited = formatted.slice(0, 19);
+      setNewCardData({
+        ...newCardData,
+        [name]: value,
+      });
 
-        // Detect card type based on first digits
-        let cardType = "visa";
-        if (/^4/.test(digitsOnly)) cardType = "visa";
-        else if (/^5[1-5]/.test(digitsOnly)) cardType = "mastercard";
-        else if (/^3[47]/.test(digitsOnly)) cardType = "amex";
-        else if (/^6(?:011|5)/.test(digitsOnly)) cardType = "discover";
-        else if (/^35/.test(digitsOnly)) cardType = "jcb";
-        else if (/^3(?:0[0-5]|[68])/.test(digitsOnly)) cardType = "diners";
-        else if (/^62/.test(digitsOnly)) cardType = "unionpay";
-
-        setNewCardData({
-          ...newCardData,
-          cardNumber: limited,
-          cardType,
+      // Clear error when user types
+      if (errors[name]) {
+        setErrors({
+          ...errors,
+          [name]: "",
         });
-
-        // Clear error when user types
-        if (errors.cardNumber) {
-          setErrors({
-            ...errors,
-            cardNumber: "",
-          });
-        }
-      }
-      // Format expiry date
-      else if (name === "expiryDate") {
-        const digitsOnly = value.replace(/\D/g, "");
-        let formatted = digitsOnly;
-
-        if (digitsOnly.length > 2) {
-          formatted = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}`;
-        }
-
-        setNewCardData({
-          ...newCardData,
-          [name]: formatted,
-        });
-
-        // Clear error when user types
-        if (errors.expiryDate) {
-          setErrors({
-            ...errors,
-            expiryDate: "",
-          });
-        }
-      }
-      // Handle other fields normally
-      else {
-        setNewCardData({
-          ...newCardData,
-          [name]: value,
-        });
-
-        // Clear error when user types
-        if (errors[name]) {
-          setErrors({
-            ...errors,
-            [name]: "",
-          });
-        }
       }
     }
   };
@@ -114,71 +117,81 @@ export default function AddPaymentMethodForm({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Validate card number
-    const cardNumberDigits = newCardData.cardNumber.replace(/\s/g, "");
-    if (!cardNumberDigits) {
-      newErrors.cardNumber = "Card number is required";
-    } else if (cardNumberDigits.length < 15 || cardNumberDigits.length > 16) {
-      newErrors.cardNumber = "Card number must be 15-16 digits";
-    }
-
     // Validate cardholder name
     if (!newCardData.cardholderName.trim()) {
       newErrors.cardholderName = "Cardholder name is required";
-    }
-
-    // Validate expiry date
-    if (!newCardData.expiryDate) {
-      newErrors.expiryDate = "Expiry date is required";
-    } else {
-      const [month, year] = newCardData.expiryDate.split("/");
-      const currentYear = new Date().getFullYear() % 100; // Get last 2 digits
-      const currentMonth = new Date().getMonth() + 1; // 1-12
-
-      if (!month || !year || month.length !== 2 || year.length !== 2) {
-        newErrors.expiryDate = "Invalid format (MM/YY)";
-      } else if (Number.parseInt(month) < 1 || Number.parseInt(month) > 12) {
-        newErrors.expiryDate = "Month must be between 01-12";
-      } else if (
-        Number.parseInt(year) < currentYear ||
-        (Number.parseInt(year) === currentYear &&
-          Number.parseInt(month) < currentMonth)
-      ) {
-        newErrors.expiryDate = "Card has expired";
-      }
-    }
-
-    // Validate CVV
-    if (!newCardData.cvv) {
-      newErrors.cvv = "CVV is required";
-    } else if (newCardData.cvv.length < 3 || newCardData.cvv.length > 4) {
-      newErrors.cvv = "CVV must be 3-4 digits";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddCard = () => {
+  const handleAddCard = async () => {
     if (!validateForm()) {
       return;
     }
 
-    // Extract last 4 digits
-    const last4 = newCardData.cardNumber.replace(/\s/g, "").slice(-4);
+    if (!stripe || !elements || !customerId) {
+      setCardError(
+        !customerId
+          ? "Customer ID not available. Please try again later."
+          : "Stripe hasn't been properly initialized"
+      );
+      return;
+    }
 
-    // Add new card
-    const newCard = {
-      cardNumber: newCardData.cardNumber.replace(/\s/g, ""),
-      cardholderName: newCardData.cardholderName,
-      expiryDate: newCardData.expiryDate,
-      cvv: newCardData.cvv,
-      type: newCardData.cardType,
-      last4,
-      isDefault: newCardData.isDefault,
-    };
+    try {
+      // Create PaymentMethod using the CardElement
+      const cardElement = elements.getElement(CardElement);
 
-    onAddCard(newCard);
+      if (!cardElement) {
+        setCardError("Card information is missing");
+        return;
+      }
+
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: "card",
+        card: cardElement,
+        billing_details: {
+          name: newCardData.cardholderName || "Card Holder",
+        },
+      });
+
+      if (error) {
+        setCardError(error.message || "Failed to process card information");
+        return;
+      }
+
+      if (!paymentMethod) {
+        setCardError("Failed to create payment method");
+        return;
+      }
+
+      // Format the card data with the Stripe payment method
+      const newCard = {
+        id: paymentMethod.id,
+        paymentMethodId: paymentMethod.id, // Add this as a fallback
+        customerId: customerId,
+        cardholderName: newCardData.cardholderName || "Card Holder",
+        last4: paymentMethod.card?.last4 || "****",
+        expiryDate:
+          paymentMethod.card?.exp_month && paymentMethod.card?.exp_year
+            ? `${paymentMethod.card.exp_month}/${paymentMethod.card.exp_year
+                .toString()
+                .slice(-2)}`
+            : "**/**",
+        type: paymentMethod.card?.brand || "unknown",
+        isDefault: newCardData.isDefault,
+      };
+
+      console.log("Adding new card:", newCard);
+
+      // Pass the card data to the parent component
+      onAddCard(newCard);
+    } catch (err) {
+      console.error("Error creating payment method:", err);
+      setCardError("An unexpected error occurred while processing your card");
+    }
   };
 
   // Animation variants
@@ -222,22 +235,26 @@ export default function AddPaymentMethodForm({
       <div className="space-y-4">
         <motion.div variants={itemVariants}>
           <label className="block text-sm font-medium text-gray-500 mb-1">
-            Card Number
+            Card Information
           </label>
-          <input
-            type="text"
-            name="cardNumber"
-            value={newCardData.cardNumber}
-            onChange={handleCardInputChange}
-            placeholder="1234 5678 9012 3456"
-            className={`w-full p-2 border ${
-              errors.cardNumber ? "border-red-500" : "border-gray-300"
-            } rounded`}
-            maxLength={19}
-            disabled={isSubmitting}
-          />
-          {errors.cardNumber && (
-            <p className="text-red-500 text-xs mt-1">{errors.cardNumber}</p>
+          <div className="p-3 border rounded border-gray-300 bg-white">
+            <CardElement
+              options={{
+                style: {
+                  base: {
+                    fontSize: "16px",
+                    color: "#333",
+                    "::placeholder": { color: "#aab7c4" },
+                  },
+                  invalid: {
+                    color: "#e53e3e",
+                  },
+                },
+              }}
+            />
+          </div>
+          {cardError && (
+            <p className="text-red-500 text-xs mt-1">{cardError}</p>
           )}
         </motion.div>
 
@@ -259,50 +276,6 @@ export default function AddPaymentMethodForm({
           {errors.cardholderName && (
             <p className="text-red-500 text-xs mt-1">{errors.cardholderName}</p>
           )}
-        </motion.div>
-
-        <motion.div className="grid grid-cols-2 gap-4" variants={itemVariants}>
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">
-              Expiry Date
-            </label>
-            <input
-              type="text"
-              name="expiryDate"
-              value={newCardData.expiryDate}
-              onChange={handleCardInputChange}
-              placeholder="MM/YY"
-              className={`w-full p-2 border ${
-                errors.expiryDate ? "border-red-500" : "border-gray-300"
-              } rounded`}
-              maxLength={5}
-              disabled={isSubmitting}
-            />
-            {errors.expiryDate && (
-              <p className="text-red-500 text-xs mt-1">{errors.expiryDate}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">
-              CVV
-            </label>
-            <input
-              type="text"
-              name="cvv"
-              value={newCardData.cvv}
-              onChange={handleCardInputChange}
-              placeholder="123"
-              className={`w-full p-2 border ${
-                errors.cvv ? "border-red-500" : "border-gray-300"
-              } rounded`}
-              maxLength={4}
-              disabled={isSubmitting}
-            />
-            {errors.cvv && (
-              <p className="text-red-500 text-xs mt-1">{errors.cvv}</p>
-            )}
-          </div>
         </motion.div>
 
         <motion.div className="flex items-center mt-2" variants={itemVariants}>

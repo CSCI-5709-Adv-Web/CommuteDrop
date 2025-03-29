@@ -18,7 +18,6 @@ export default function OrderSummary({
   total,
   pricingDetails,
 }: OrderSummaryProps) {
-  // Use pricing details from API if available
   const cost =
     pricingDetails?.cost !== undefined
       ? pricingDetails.cost.toFixed(2)

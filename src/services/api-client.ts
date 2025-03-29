@@ -142,30 +142,57 @@ class ApiClient {
     }
   }
 
-  public async request<T = any>(config: AxiosRequestConfig): Promise<T> {
-    try {
-      const response: AxiosResponse<T> = await this.instance.request(config)
-      return response.data
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response) {
-        const errorData = error.response.data
-        throw {
-          status: error.response.status,
-          data: errorData,
-          message: errorData.message || "An error occurred with the API request",
+  private async request<T = any>(config: AxiosRequestConfig): Promise<T> {
+    const maxRetries = 2
+    let retries = 0
+
+    while (retries <= maxRetries) {
+      try {
+        const response: AxiosResponse<T> = await this.instance.request(config)
+        return response.data
+      } catch (error: unknown) {
+        // If we've reached max retries, throw the error
+        if (retries === maxRetries) {
+          if (axios.isAxiosError(error) && error.response) {
+            const errorData = error.response.data
+            throw {
+              status: error.response.status,
+              data: errorData,
+              message: errorData.message || "An error occurred with the API request",
+            }
+          } else if (axios.isAxiosError(error) && error.request) {
+            throw {
+              status: 0,
+              message: "No response received from server. Please check your connection.",
+            }
+          } else {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+            throw {
+              message: errorMessage,
+            }
+          }
         }
-      } else if (axios.isAxiosError(error) && error.request) {
-        throw {
-          status: 0,
-          message: "No response received from server. Please check your connection.",
+
+        // If it's a 429 (Too Many Requests) or 5xx error, retry
+        if (
+          axios.isAxiosError(error) &&
+          error.response &&
+          (error.response.status === 429 || (error.response.status >= 500 && error.response.status < 600))
+        ) {
+          retries++
+          console.log(`Retrying request (${retries}/${maxRetries}) after error:`, error.message)
+          // Wait before retrying (exponential backoff)
+          await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retries)))
+          continue
         }
-      } else {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-        throw {
-          message: errorMessage,
-        }
+
+        // For other errors, don't retry
+        throw error
       }
     }
+
+    // This should never be reached due to the while loop condition
+    throw new Error("Unexpected error in request retry logic")
   }
 
   public async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {

@@ -124,63 +124,81 @@ export const orderService = {
     try {
       const token = await tokenService.getServiceToken("order")
 
-      // First try to get the actual order data to preserve the pricing
-      let actualPrice = null
-      try {
-        // Get the current order data to maintain the same price
-        const orderResponse = await apiClient.get<ApiResponse<any>>(`${API_CONFIG.ORDER_SERVICE_URL}/${orderId}`, {
+      // Make the actual API call to confirm the order
+      const response = await apiClient.post<ApiResponse<OrderEstimateResponse>>(
+        `${API_CONFIG.ORDER_SERVICE_URL}/confirm/${orderId}`,
+        {},
+        {
           headers: {
             Authorization: `Bearer ${token}`,
-          },
-        })
-
-        if (orderResponse.success && orderResponse.data) {
-          if (orderResponse.data.pricing_details?.total_cost) {
-            actualPrice = orderResponse.data.pricing_details.total_cost
-          } else if (orderResponse.data.estimatedPrice?.total) {
-            actualPrice = orderResponse.data.estimatedPrice.total
-          }
-        }
-      } catch (error) {
-        console.warn("Could not fetch actual order data, using provided data", error)
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const mockResponse: ApiResponse<OrderEstimateResponse> = {
-        success: true,
-        message: "Order confirmed successfully",
-        data: {
-          orderId,
-          status: "CONFIRMED",
-          estimatedPrice: {
-            base: actualPrice ? actualPrice * 0.5 : 5.0,
-            distance: actualPrice ? actualPrice * 0.3 : 2.72,
-            time: actualPrice ? actualPrice * 0.2 : 1.83,
-            total: actualPrice || 65.22, // Use the actual price or default to 65.22
-            currency: "CAD",
-          },
-          pricing_details: {
-            cost: actualPrice ? actualPrice * 0.8 : 60.0,
-            tax: actualPrice ? actualPrice * 0.2 : 5.22,
-            total_cost: actualPrice || 65.22, // Use the actual price or default to 65.22
-            rider_commission: actualPrice ? actualPrice * 0.1 : 6.52,
-          },
-          estimatedDelivery: {
-            time: "4 mins",
-            timeWindow: "4-9 mins",
-          },
-          tracking: {
-            trackingId: `TRK-${Math.floor(Math.random() * 10000)}`,
-            trackingUrl: `/tracking/${Math.floor(Math.random() * 10000)}`,
+            "Content-Type": "application/json",
           },
         },
-      }
-      return mockResponse
+      )
+
+      return response
     } catch (error: any) {
       return {
         success: false,
         message: error.message || "Failed to confirm order",
         data: {} as OrderEstimateResponse,
+        errors: [error.message || "Unknown error occurred"],
+      }
+    }
+  },
+
+  // Update the processPayment function to handle empty data response
+  processPayment: async (orderId: string, paymentDetails: any): Promise<ApiResponse<any>> => {
+    try {
+      console.log(`Processing payment for order ${orderId} with details:`, paymentDetails)
+
+      // Get the customer ID from the auth context
+      const token = await tokenService.getServiceToken("order")
+
+      // Use the PAYMENT_INTENT endpoint directly
+      const response = await apiClient.post<ApiResponse<any>>(
+        ENDPOINTS.PAYMENT.PAYMENT_INTENT,
+        {
+          orderId: orderId,
+          amount: paymentDetails.amount,
+          paymentMethodId: paymentDetails.paymentMethodId,
+          currency: paymentDetails.currency || "usd",
+          customerId: paymentDetails.customerId || "", // Ensure customerId is never null
+          // Add configuration to prevent redirect-based payment methods
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never",
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+
+      console.log("Payment response:", response)
+
+      // Handle the case where response.data is empty but success is true
+      if (response.success && (!response.data || Object.keys(response.data).length === 0)) {
+        return {
+          success: true,
+          message: "Payment processed successfully",
+          data: {
+            paymentIntentId: `pi_${Date.now()}`, // Generate a fallback ID if none provided
+          },
+        }
+      }
+
+      return response
+    } catch (error: any) {
+      console.error("Error in process payment:", error)
+
+      return {
+        success: false,
+        message: error.message || "Failed to process payment",
+        data: null,
         errors: [error.message || "Unknown error occurred"],
       }
     }
@@ -208,73 +226,46 @@ export const orderService = {
     }
   },
 
-  processPayment: async (orderId: string, paymentDetails: any): Promise<ApiResponse<any>> => {
+  getUserOrders: async (): Promise<ApiResponse<any[]>> => {
     try {
-      console.log(`Processing payment for order ${orderId} with details:`, paymentDetails)
+      // Get user ID from token
+      const token = tokenStorage.getToken()
+      let userId = null
 
-      const token = await tokenService.getServiceToken("order")
-      const response = await apiClient.post<ApiResponse<any>>(
-        (ENDPOINTS.ORDER?.PAYMENT || "/order/:order_id/payment").replace(":order_id", orderId),
-        paymentDetails,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      )
-
-      console.log("Payment response:", response)
-      return response
-    } catch (error: any) {
-      console.error("Error in process payment:", error)
-
-      // In development mode, simulate a successful response
-      if (import.meta.env.DEV) {
-        console.warn("DEV MODE: Returning simulated successful payment response")
-        return {
-          success: true,
-          message: "Payment processed successfully (simulated)",
-          data: {
-            paymentIntentId: `pi_${Date.now()}`,
-            status: "succeeded",
-            amount: paymentDetails?.amount || 0,
-          },
+      if (token) {
+        userId = jwtUtils.getUserId(token)
+        if (!userId) {
+          const userEmail = jwtUtils.getUserEmail(token)
+          if (userEmail) {
+            userId = userEmail
+          }
         }
       }
 
-      return {
-        success: false,
-        message: error.message || "Failed to process payment",
-        data: null,
-        errors: [error.message || "Unknown error occurred"],
-      }
-    }
-  },
-
-  getUserOrders: async (userId?: string): Promise<ApiResponse<any[]>> => {
-    try {
-      if (!userId) {
-        const token = tokenStorage.getToken()
-        if (token) {
-          const tokenUserId = jwtUtils.getUserId(token)
-          userId = tokenUserId || undefined
-        }
-      }
       if (!userId) {
         throw new Error("User ID is required")
       }
-      const token = await tokenService.getServiceToken("order")
-      const url = `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/${userId}`
+
+      console.log(`Fetching orders for user ID: ${userId}`)
+
+      // Get service token for order service
+      const serviceToken = await tokenService.getServiceToken("order")
+
+      // Build the URL with the user ID
+      const url = `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/${encodeURIComponent(userId)}`
       console.log(`Fetching orders from: ${url}`)
+
+      // Make the request with the service token
       const response = await apiClient.get<ApiResponse<any[]>>(url, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${serviceToken}`,
         },
       })
+
       return response
     } catch (error: any) {
       console.error("Error fetching user orders:", error)
+
       return {
         success: false,
         message: error.message || "Failed to fetch user orders",
@@ -284,6 +275,7 @@ export const orderService = {
     }
   },
 
+  // Keep the updateOrderStatus function as is
   updateOrderStatus: async (orderId: string, status: string): Promise<ApiResponse<any>> => {
     try {
       const token = await tokenService.getServiceToken("order")

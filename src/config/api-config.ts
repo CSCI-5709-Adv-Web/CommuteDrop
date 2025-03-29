@@ -1,11 +1,11 @@
-// Add API key configuration for location service
+// Update the API_CONFIG and ENDPOINTS to include the new payment service endpoints
 
 export const API_CONFIG = {
   AUTH_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087/api",
   TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/location",
   ORDER_SERVICE_URL: import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
-  PAYMENT_SERVICE_URL: import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9003/payment",
+  PAYMENT_SERVICE_URL: import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9000",
   MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY || "",
   TIMEOUT: 15000,
   DEFAULT_COUNTRY: "Canada",
@@ -69,12 +69,23 @@ export const ENDPOINTS = {
     USER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/user/:user_id`,
     RIDER_ORDERS: `${API_CONFIG.ORDER_SERVICE_URL}/getAllOrders/rider/:rider_id`,
   },
-  // Payment endpoints
+  // Payment endpoints - updated to match the new Stripe-based API
   PAYMENT: {
-    CREATE_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/create-intent`,
-    CONFIRM_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/confirm-intent`,
-    PROCESS: `${API_CONFIG.PAYMENT_SERVICE_URL}/process`,
-    REFUND: `${API_CONFIG.PAYMENT_SERVICE_URL}/refund`,
+    // Customer management
+    CUSTOMER: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/customer`,
+
+    // Payment methods
+    PAYMENT_METHOD: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-method`,
+    PAYMENT_METHOD_DETAILS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-method-details`,
+    PAYMENT_METHODS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-methods/:customerId`,
+
+    // Payments
+    PAYMENT_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-intent`,
+    REFUND: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/refund`,
+
+    // Legacy endpoints (keeping for backward compatibility)
+    CREATE_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-intent`,
+    PROCESS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/process`,
   },
   // Maps endpoints
   MAPS: {

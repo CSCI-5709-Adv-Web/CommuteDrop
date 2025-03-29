@@ -51,6 +51,7 @@ export interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  customerId: string | null // Add this line
 }
 
 // Add the UpdateCardRequest interface to match the backend
@@ -60,5 +61,15 @@ export interface UpdateCardRequest {
   expiryDate: string
   cvv: string
   isDefault: boolean
+}
+
+// Update the PaymentRequest interface to include customerId
+export interface PaymentRequest {
+  orderId: string
+  paymentMethodId: string
+  amount: number
+  currency?: string
+  description?: string
+  customerId?: string
 }
 

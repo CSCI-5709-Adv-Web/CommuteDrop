@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, useStripe, useElements } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  useStripe,
+  useElements,
+  CardElement,
+} from "@stripe/react-stripe-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useOrder } from "../../context/OrderContext";
@@ -12,13 +17,30 @@ import PaymentButton from "./payment/PaymentButton";
 import SuccessConfetti from "./payment/SuccessConfetti";
 import { cardService, type Card } from "../../services/card-service";
 import { Loader } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
-// Load Stripe
-const stripePromise = loadStripe(
-  import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || ""
-);
+const stripePromise = (() => {
+  const apiKey = import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || "";
 
-// Update the PaymentForm interface to be more explicit about types
+  // Check if the key is a secret key
+  if (apiKey.startsWith("sk_")) {
+    console.error(
+      "ERROR: You are using a Stripe secret key in client-side code. This is a security risk!"
+    );
+    console.error("Please use a publishable key (starts with pk_) instead.");
+    return null;
+  }
+
+  if (!apiKey) {
+    console.error(
+      "Missing Stripe API key. Please check your environment variables."
+    );
+    return null;
+  }
+
+  return loadStripe(apiKey);
+})();
+
 interface PaymentFormProps {
   onBack: () => void;
   onPaymentSuccess: (paymentIntentId: string) => void;
@@ -26,7 +48,6 @@ interface PaymentFormProps {
   amount?: number | null; // in cents
 }
 
-// Update the PaymentForm component to handle back navigation properly
 export default function PaymentWithStripe(props: PaymentFormProps) {
   return (
     <Elements stripe={stripePromise}>
@@ -36,86 +57,207 @@ export default function PaymentWithStripe(props: PaymentFormProps) {
 }
 
 // Update the header and layout to match the confirm delivery page
-function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
+function StripePaymentForm({
+  onBack,
+  onPaymentSuccess,
+  orderId,
+}: PaymentFormProps) {
   const {
-    orderId,
     paymentAmount,
     estimatedPrice,
     paymentStatus,
     error: orderError,
     processPayment,
     orderData,
+    resetOrder,
   } = useOrder();
 
   const stripe = useStripe();
   const elements = useElements();
+  const { user, customerId, fetchCustomerId } = useAuth();
+
   const [savedCards, setSavedCards] = useState<Card[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
   const [cardError, setCardError] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [useNewCard, setUseNewCard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch saved cards
-  const fetchSavedCards = async () => {
-    setIsLoadingCards(true);
-    setCardError(null);
-    try {
-      const response = await cardService.getUserCards();
-      if (response.success) {
-        setSavedCards(response.data);
-
-        // Select default card if available
-        if (response.data.length > 0) {
-          const defaultCard = response.data.find((card) => card.isDefault);
-          if (defaultCard) {
-            setSelectedCardId(defaultCard.id);
-          } else {
-            setSelectedCardId(response.data[0].id);
-          }
-        } else {
-          // No cards available, show error
-          setCardError(
-            "No payment methods available. Please add a card in your profile."
-          );
-        }
-      } else {
-        setCardError(response.message || "Failed to load payment methods");
-      }
-    } catch (error) {
-      console.error("Error fetching saved cards:", error);
-      setCardError("Failed to load payment methods. Please try again.");
-    } finally {
-      setIsLoadingCards(false);
-    }
-  };
-
+  // Get customer ID and fetch saved cards
   useEffect(() => {
-    fetchSavedCards();
-    // Add this line to debug the card data
-    console.log("Saved cards data:", savedCards);
-  }, []);
+    let isMounted = true;
+    const initializePayment = async () => {
+      if (!user?.email) return;
 
-  // Handle payment submission
+      setIsLoadingCards(true);
+      setCardError(null);
+
+      try {
+        // Ensure we have a customer ID from context
+        const customerIdValue = customerId || (await fetchCustomerId());
+
+        if (!customerIdValue) {
+          if (isMounted) {
+            setCardError(
+              "No Stripe customer account found. Please contact support to set up your payment profile."
+            );
+            setUseNewCard(true); // Force using a new card
+          }
+          setIsLoadingCards(false);
+          return;
+        }
+
+        // Then fetch saved cards
+        const cardsResponse = await cardService.getUserCards(customerIdValue);
+        if (isMounted) {
+          if (cardsResponse.success) {
+            setSavedCards(cardsResponse.data);
+            if (cardsResponse.data.length > 0) {
+              const defaultCard = cardsResponse.data.find(
+                (card) => card.isDefault
+              );
+              if (defaultCard) {
+                setSelectedCardId(defaultCard.id);
+              } else {
+                setSelectedCardId(cardsResponse.data[0].id);
+              }
+              setUseNewCard(false);
+            } else {
+              setUseNewCard(true);
+              if (!cardError) {
+                setCardError(
+                  "No payment methods available. Please add a new card."
+                );
+              }
+            }
+          } else {
+            setCardError(
+              cardsResponse.message || "Failed to load payment methods"
+            );
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error initializing payment:", error);
+          setCardError("Failed to load payment methods. Please try again.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCards(false);
+        }
+      }
+    };
+
+    initializePayment();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, customerId, fetchCustomerId]);
+
   const handlePayment = async () => {
     if (!stripe || !elements || !orderId) {
       setError("Payment processing is not available. Please try again later.");
       return;
     }
-    if (!selectedCardId) {
-      setError("Please select a payment method.");
-      return;
-    }
+
     setLoading(true);
     setError(null);
-    try {
-      const success = await processPayment(selectedCardId);
 
-      if (success) {
-        // Wait a moment to show the success animation
-        setTimeout(() => {
-          onPaymentSuccess("payment_success");
-        }, 2000);
+    try {
+      if (useNewCard) {
+        // Handle new card payment with Stripe Elements
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) {
+          throw new Error("Card information is missing");
+        }
+
+        // Create a PaymentMethod with the card details
+        const { error: createError, paymentMethod } =
+          await stripe.createPaymentMethod({
+            type: "card",
+            card: cardElement,
+          });
+
+        if (createError) {
+          throw new Error(createError.message);
+        }
+
+        if (!paymentMethod) {
+          throw new Error("Failed to create payment method");
+        }
+
+        // If we have a customer ID, attach this payment method
+        const customerIdValue = customerId || (await fetchCustomerId());
+        if (customerIdValue) {
+          try {
+            // Ensure we have all the required data with fallbacks
+            const cardData = {
+              customerId: customerIdValue,
+              id: paymentMethod.id,
+              paymentMethodId: paymentMethod.id,
+              cardholderName: user?.name || "Card Holder",
+              last4: paymentMethod.card?.last4 || "****",
+              cardType: paymentMethod.card?.brand || "unknown",
+              type: paymentMethod.card?.brand || "unknown",
+              expiryDate:
+                paymentMethod.card?.exp_month && paymentMethod.card?.exp_year
+                  ? `${
+                      paymentMethod.card.exp_month
+                    }/${paymentMethod.card.exp_year.toString().slice(-2)}`
+                  : "**/**",
+              isDefault: savedCards.length === 0,
+            };
+
+            console.log("Saving card data:", cardData);
+
+            await cardService.addCard(cardData, customerIdValue);
+          } catch (err) {
+            console.warn("Failed to save card, continuing with payment", err);
+            // Don't throw here, we still want to try the payment
+          }
+        }
+
+        // Process payment with the newly created payment method ID and customer ID
+        const success = await processPayment(
+          paymentMethod.id,
+          customerIdValue || ""
+        );
+        if (success) {
+          setTimeout(() => {
+            onPaymentSuccess(paymentMethod.id);
+          }, 2000);
+        }
+      } else if (selectedCardId) {
+        // Process payment with selected saved card and customer ID
+        const customerIdValue = customerId || (await fetchCustomerId());
+        const success = await processPayment(
+          selectedCardId,
+          customerIdValue || ""
+        );
+        if (success) {
+          setTimeout(() => {
+            onPaymentSuccess(selectedCardId);
+          }, 2000);
+        }
+      } else {
+        // If no card is selected but we have saved cards, use the first one (which should be the default)
+        if (savedCards.length > 0) {
+          const customerIdValue = customerId || (await fetchCustomerId());
+          const defaultCardId = savedCards[0].id;
+          const success = await processPayment(
+            defaultCardId,
+            customerIdValue || ""
+          );
+          if (success) {
+            setTimeout(() => {
+              onPaymentSuccess(defaultCardId);
+            }, 2000);
+          }
+        } else {
+          throw new Error("Please select a payment method or add a new card.");
+        }
       }
     } catch (error) {
       console.error("Payment error:", error);
@@ -129,31 +271,24 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
     }
   };
 
-  // Handle retry after error
   const handleRetry = () => {
     setError(null);
+    // Reset the payment status in the order context
+    resetOrder();
   };
 
-  // Get pricing details from order data
   const pricingDetails = orderData?.pricing_details;
-
-  // Format the amount for display - use actual amount from context or default
   const displayAmount = paymentAmount
     ? (paymentAmount / 100).toFixed(2)
     : estimatedPrice
     ? estimatedPrice.toFixed(2)
     : pricingDetails?.total_cost?.toFixed(2) || "65.22";
-
-  // Calculate fee breakdowns based on total if pricing details aren't available
   const totalValue = Number.parseFloat(displayAmount);
   const deliveryFee =
     pricingDetails?.cost?.toFixed(2) || (totalValue * 0.8125).toFixed(2);
   const serviceFee =
     pricingDetails?.tax?.toFixed(2) || (totalValue * 0.1875).toFixed(2);
-
-  // Add a custom back handler that preserves state
   const handleBack = () => {
-    // Don't reset any state, just navigate back
     onBack();
   };
 
@@ -169,8 +304,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
       <AnimatePresence>
         {paymentStatus === "success" && <SuccessConfetti />}
       </AnimatePresence>
-
-      {/* Header */}
       <div className="flex items-center p-4">
         <button
           onClick={handleBack}
@@ -191,8 +324,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
           <ShieldCheck className="w-5 h-5 text-green-600 mr-2" />
           <p className="text-sm text-gray-700">Secure payment processing</p>
         </div>
-
-        {/* Display order ID if available */}
         {orderId && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-700">
@@ -200,8 +331,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             </p>
           </div>
         )}
-
-        {/* Error Messages */}
         {(error || cardError || orderError) && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
             <AlertTriangle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -221,40 +350,81 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             <div className="py-4 flex justify-center items-center">
               <Loader className="w-5 h-5 text-primary animate-spin" />
             </div>
-          ) : savedCards &&
-            savedCards.length > 0 &&
-            paymentStatus === "idle" ? (
-            <PaymentMethodSelector
-              savedCards={savedCards || []}
-              selectedCardId={selectedCardId}
-              onSelectCard={setSelectedCardId}
-              isLoading={false}
-            />
           ) : (
-            !cardError && (
-              <div className="p-4 bg-gray-50 rounded-lg text-center">
-                <p className="text-sm text-gray-600">
-                  No payment methods available.
-                </p>
-                <button
-                  onClick={() => fetchSavedCards()}
-                  className="mt-2 text-sm text-primary hover:underline"
-                >
-                  Retry
-                </button>
+            <>
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="radio"
+                    id="useSavedCard"
+                    checked={!useNewCard}
+                    onChange={() => setUseNewCard(false)}
+                    disabled={savedCards.length === 0 || isLoadingCards}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                  />
+                  <label
+                    htmlFor="useSavedCard"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Use saved payment method
+                  </label>
+                </div>
+
+                {!useNewCard && savedCards.length > 0 && (
+                  <PaymentMethodSelector
+                    savedCards={savedCards}
+                    selectedCardId={selectedCardId}
+                    onSelectCard={setSelectedCardId}
+                    isLoading={false}
+                  />
+                )}
               </div>
-            )
+
+              <div className="mb-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="radio"
+                    id="useNewCard"
+                    checked={useNewCard}
+                    onChange={() => setUseNewCard(true)}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                  />
+                  <label
+                    htmlFor="useNewCard"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Use a new card
+                  </label>
+                </div>
+
+                {useNewCard && (
+                  <div className="p-3 border border-gray-300 rounded-lg">
+                    <CardElement
+                      options={{
+                        style: {
+                          base: {
+                            fontSize: "16px",
+                            color: "#333",
+                            "::placeholder": { color: "#aab7c4" },
+                          },
+                          invalid: {
+                            color: "#e53e3e",
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
-
-        {/* Pass pricing details to OrderSummary */}
         <OrderSummary
           deliveryFee={deliveryFee}
           serviceFee={serviceFee}
           total={displayAmount}
           pricingDetails={orderData?.pricing_details}
         />
-
         <AnimatePresence>
           {paymentStatus === "success" && (
             <motion.div
@@ -268,8 +438,6 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Fixed payment button at bottom */}
       <div className="p-4 border-t">
         <PaymentButton
           paymentStatus={paymentStatus}
@@ -278,7 +446,7 @@ function StripePaymentForm({ onBack, onPaymentSuccess }: PaymentFormProps) {
             isLoadingCards ||
             paymentStatus === "processing" ||
             paymentStatus === "success" ||
-            !selectedCardId
+            (!selectedCardId && !useNewCard)
           }
           amount={displayAmount}
           onClick={paymentStatus === "error" ? handleRetry : handlePayment}

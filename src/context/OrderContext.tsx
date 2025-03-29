@@ -67,7 +67,10 @@ interface OrderContextType extends OrderState {
   setOrderDetails: (details: Partial<OrderState>) => void;
   calculateEstimate: () => Promise<boolean>;
   confirmOrder: () => Promise<boolean>;
-  processPayment: (paymentMethodId: string) => Promise<boolean>;
+  processPayment: (
+    paymentMethodId: string,
+    customerId?: string
+  ) => Promise<boolean>;
   resetOrder: () => void;
   setCurrentStep: (step: OrderState["currentStep"]) => void;
   resetOrderComplete: () => void;
@@ -254,7 +257,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     parseTime,
   ]);
 
-  // Confirm order
+  // Update the confirmOrder function to only use updateOrderStatus without trying to fetch the order
   const confirmOrder = useCallback(async (): Promise<boolean> => {
     if (!state.orderId) {
       setState((prev) => ({
@@ -267,45 +270,34 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // First update the order status to CONFIRMED
+      // Update the order status to CONFIRMED
       const updateResponse = await orderService.updateOrderStatus(
         state.orderId,
         "ORDER CONFIRMED"
       );
+
       if (!updateResponse.success) {
         throw new Error(
           updateResponse.message || "Failed to update order status"
         );
       }
 
-      // Then get the confirmed order details
-      const response = await orderService.confirmOrder(state.orderId);
-      if (response.success) {
-        // Extract price from response, preserving the original price if possible
-        let price = state.estimatedPrice;
+      // Calculate payment amount in cents from the existing price data
+      // No need to fetch the order again
+      const price = state.estimatedPrice;
+      const paymentAmount = Math.round(price * 100);
 
-        if (response.data?.pricing_details?.total_cost) {
-          price = response.data.pricing_details.total_cost;
-        } else if (response.data?.estimatedPrice?.total) {
-          price = response.data.estimatedPrice.total;
-        }
+      // Update the state with the new status and payment amount
+      setState((prev) => ({
+        ...prev,
+        status: "CONFIRMED",
+        // Keep the existing orderData
+        estimatedPrice: price,
+        paymentAmount,
+        isLoading: false,
+      }));
 
-        // Calculate payment amount in cents
-        const paymentAmount = Math.round(price * 100);
-
-        setState((prev) => ({
-          ...prev,
-          status: "CONFIRMED",
-          orderData: response.data,
-          estimatedPrice: price,
-          paymentAmount,
-          isLoading: false,
-        }));
-
-        return true;
-      } else {
-        throw new Error(response.message || "Failed to confirm order");
-      }
+      return true;
     } catch (error) {
       console.error("Error confirming order:", error);
       setState((prev) => ({
@@ -322,7 +314,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // Process payment
   const processPayment = useCallback(
-    async (paymentMethodId: string): Promise<boolean> => {
+    async (paymentMethodId: string, customerId?: string): Promise<boolean> => {
       if (!state.orderId) {
         setState((prev) => ({
           ...prev,
@@ -354,6 +346,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           amount,
           currency: "usd",
           description: `Payment for order ${state.orderId}`,
+          customerId: customerId || "", // Ensure customerId is never null
         };
 
         const paymentResponse = await orderService.processPayment(

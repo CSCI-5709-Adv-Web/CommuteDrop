@@ -2,7 +2,11 @@
 
 import { Loader } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cardService, type Card } from "../../../services/card-service";
+import type { Card } from "../../../services/card-service";
+import { useAuth } from "../../../context/AuthContext";
+// Add the necessary imports at the top of the file
+import { ENDPOINTS } from "../../../config/api-config";
+import { tokenStorage } from "../../../utils/tokenStorage";
 
 const CARD_TYPES = {
   visa: {
@@ -38,6 +42,7 @@ interface PaymentMethodSelectorProps {
   isLoading?: boolean;
 }
 
+// Update the component to only show the default card
 export default function PaymentMethodSelector({
   savedCards: initialSavedCards,
   selectedCardId,
@@ -50,48 +55,97 @@ export default function PaymentMethodSelector({
     initialSavedCards.length > 0 ? false : true
   );
   const [error, setError] = useState<string | null>(null);
+  const { user, customerId, fetchCustomerId } = useAuth();
 
-  // Update the useEffect hook to properly handle undefined savedCards
+  // Update the useEffect hook to directly call the PAYMENT.PAYMENT_METHODS endpoint
   useEffect(() => {
     // Make sure initialSavedCards is an array before checking its length
     const cards = Array.isArray(initialSavedCards) ? initialSavedCards : [];
 
     // If we already have cards from props, use them and stop loading
     if (cards.length > 0) {
-      setSavedCards(cards);
+      // Filter to only show the default card
+      const defaultCard = cards.find((card) => card.isDefault);
+      setSavedCards(defaultCard ? [defaultCard] : [cards[0]]);
       setLoading(false);
 
-      // Select a default card if none is selected
-      if (!selectedCardId) {
-        const defaultCard = cards.find((card) => card.isDefault);
-        if (defaultCard) {
-          onSelectCard(defaultCard.id);
-        } else {
-          onSelectCard(cards[0].id);
-        }
+      // Select the default card if none is selected
+      if (!selectedCardId && cards.length > 0) {
+        const cardToSelect = defaultCard || cards[0];
+        onSelectCard(cardToSelect.id);
       }
       return;
     }
 
     // Only fetch cards if we don't have any and we're not already loading
-    if (cards.length === 0 && !loading) {
+    if (cards.length === 0 && !loading && user?.email) {
       const fetchCards = async () => {
         setLoading(true);
         setError(null);
         try {
-          const response = await cardService.getUserCards();
-          if (response.success) {
-            setSavedCards(response.data || []);
-            if (response.data && response.data.length > 0 && !selectedCardId) {
-              const defaultCard = response.data.find((card) => card.isDefault);
-              if (defaultCard) {
-                onSelectCard(defaultCard.id);
-              } else {
-                onSelectCard(response.data[0].id);
-              }
+          const customerIdValue = await fetchCustomerId();
+
+          if (!customerIdValue) {
+            setError(
+              "No customer ID available. Please complete registration first."
+            );
+            setLoading(false);
+            return;
+          }
+
+          // Directly call the PAYMENT.PAYMENT_METHODS endpoint
+          const url = `${ENDPOINTS.PAYMENT.PAYMENT_METHODS}`.replace(
+            ":customerId",
+            customerIdValue
+          );
+
+          const response = await fetch(url, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${tokenStorage.getToken()}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch payment methods: ${response.status}`
+            );
+          }
+
+          const responseData = await response.json();
+
+          // Check if the response has the expected format with a data array
+          if (responseData && Array.isArray(responseData.data)) {
+            // Transform the response to match our Card interface based on the actual response format
+            const fetchedCards: Card[] = responseData.data.map(
+              (method: any) => ({
+                id: method.payment_method_id,
+                type: method.card_brand || "unknown",
+                last4: method.card_last4 || "****",
+                cardholderName: method.cardholder_name || "Card Holder",
+                expiryDate: method.expiry_date || "**/**",
+                isDefault: method.is_default || false,
+              })
+            );
+
+            // Filter to only show the default card
+            const defaultCard = fetchedCards.find((card) => card.isDefault);
+            setSavedCards(
+              defaultCard
+                ? [defaultCard]
+                : fetchedCards.length > 0
+                ? [fetchedCards[0]]
+                : []
+            );
+
+            // Select a default card if none is selected
+            if (fetchedCards.length > 0 && !selectedCardId) {
+              const cardToSelect = defaultCard || fetchedCards[0];
+              onSelectCard(cardToSelect.id);
             }
           } else {
-            setError(response.message || "Failed to load payment methods");
+            console.error("Unexpected response format:", responseData);
+            setError("Invalid response format from payment service");
           }
         } catch (err) {
           setError(
@@ -104,7 +158,14 @@ export default function PaymentMethodSelector({
       };
       fetchCards();
     }
-  }, [initialSavedCards, selectedCardId, onSelectCard, loading]);
+  }, [
+    initialSavedCards,
+    selectedCardId,
+    onSelectCard,
+    loading,
+    user?.email,
+    fetchCustomerId,
+  ]);
 
   if (loading || isLoading) {
     return (
@@ -133,18 +194,16 @@ export default function PaymentMethodSelector({
             : "visa";
         const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
 
-        // Log each card to debug
-        console.log("Rendering card:", card);
-
         return (
           <div
             key={card.id}
             onClick={() => onSelectCard(card.id)}
-            className={`p-3 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+            className={`p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
               selectedCardId === card.id
                 ? `border-primary shadow-sm`
                 : "border-gray-200 hover:border-gray-300"
-            }`}
+            } border-2`}
+            aria-pressed={selectedCardId === card.id}
           >
             <div className="flex items-center gap-3">
               <div

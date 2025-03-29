@@ -7,6 +7,14 @@ import PaymentMethodCard from "./PaymentMethodCard";
 import AddPaymentMethodForm from "./AddPaymentMethodForm";
 import { cardService, type Card } from "../../services/card-service";
 import PaymentMethodSkeleton from "./PaymentMethodSkeleton";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { useAuth } from "../../context/AuthContext";
+
+// Load Stripe outside of component
+const stripePromise = loadStripe(
+  import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || ""
+);
 
 interface PaymentMethodsSectionProps {
   isInitialLoading?: boolean;
@@ -21,44 +29,91 @@ export default function PaymentMethodsSection({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const { user, customerId, fetchCustomerId } = useAuth();
 
   // Fetch cards from API
   useEffect(() => {
+    let isMounted = true;
     const fetchCards = async () => {
+      if (!user?.email) {
+        setError("User information not available");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       try {
-        const response = await cardService.getUserCards();
-        if (response.success) {
-          setPaymentMethods(response.data);
+        // First ensure we have a customer ID
+        const customerIdValue = customerId || (await fetchCustomerId());
 
-          // If we have cards, select the default or first one
-          if (response.data.length > 0) {
-            const defaultCard = response.data.find((card) => card.isDefault);
-            setSelectedCardId(
-              defaultCard ? defaultCard.id : response.data[0].id
-            );
-          }
-        } else {
-          setError(response.message || "Failed to load payment methods");
+        console.log("Customer ID for cards:", customerIdValue);
+
+        if (!customerIdValue) {
+          setError("Please complete your profile setup to add payment methods");
           setPaymentMethods([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Now fetch the cards using the customer ID
+        const response = await cardService.getUserCards(customerIdValue);
+        console.log("Card service response:", response);
+
+        if (isMounted) {
+          if (response.success && Array.isArray(response.data)) {
+            console.log("Setting payment methods:", response.data);
+            setPaymentMethods(response.data);
+
+            // If we have cards, select the default or first one
+            if (response.data.length > 0) {
+              const defaultCard = response.data.find((card) => card.isDefault);
+              setSelectedCardId(
+                defaultCard ? defaultCard.id : response.data[0].id
+              );
+            }
+          } else {
+            console.error("Failed to load payment methods:", response.message);
+            setError(response.message || "Failed to load payment methods");
+            setPaymentMethods([]);
+          }
         }
       } catch (err) {
-        setError("An unexpected error occurred while loading payment methods");
-        console.error("Error fetching cards:", err);
+        if (isMounted) {
+          console.error("Error fetching cards:", err);
+          setError(
+            "An unexpected error occurred while loading payment methods"
+          );
+          setPaymentMethods([]);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchCards();
-  }, []); // Empty dependency array to ensure it runs once on mount
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.email, customerId, fetchCustomerId]); // Depend on user email to refetch when user changes
 
   const handleSetDefaultCard = async (id: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await cardService.setDefaultCard(id);
+      // Get the customer ID
+      const customerIdValue = customerId || (await fetchCustomerId());
+
+      if (!customerIdValue) {
+        setError("Customer ID not found. Please complete registration first.");
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await cardService.setDefaultCard(id, customerIdValue);
       if (response.success) {
         // Update local state to reflect the change
         const updatedPaymentMethods = paymentMethods.map((method) => ({
@@ -66,6 +121,10 @@ export default function PaymentMethodsSection({
           isDefault: method.id === id,
         }));
         setPaymentMethods(updatedPaymentMethods);
+
+        // Show success message
+        setSuccessMessage("Default payment method updated");
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         setError(response.message || "Failed to set default payment method");
       }
@@ -81,7 +140,16 @@ export default function PaymentMethodsSection({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await cardService.deleteCard(id);
+      // Get the customer ID
+      const customerIdValue = customerId || (await fetchCustomerId());
+
+      if (!customerIdValue) {
+        setError("Customer ID not found. Please complete registration first.");
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await cardService.deleteCard(id, customerIdValue);
 
       // Check if the response indicates success
       if (response.success) {
@@ -99,7 +167,8 @@ export default function PaymentMethodsSection({
           try {
             const firstCardId = updatedPaymentMethods[0].id;
             const defaultResponse = await cardService.setDefaultCard(
-              firstCardId
+              firstCardId,
+              customerIdValue
             );
 
             if (defaultResponse.success) {
@@ -133,38 +202,73 @@ export default function PaymentMethodsSection({
     }
   };
 
+  // Update the handleAddCard function to properly merge new cards with existing ones
   const handleAddCard = async (cardData: any) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Format card data for API
-      const cardRequest = {
-        cardNumber: cardData.cardNumber.replace(/\s/g, ""),
-        cardholderName: cardData.cardholderName,
-        expiryDate: cardData.expiryDate,
-        cvv: cardData.cvv,
-        isDefault: cardData.isDefault,
+      // Get the customer ID
+      const customerIdValue = customerId || (await fetchCustomerId());
+
+      if (!customerIdValue) {
+        setError("Customer ID not found. Please complete registration first.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Ensure cardData has all required properties
+      const validatedCardData = {
+        ...cardData,
+        // Add fallbacks for any missing properties
+        id: cardData.id || cardData.paymentMethodId || "",
+        cardholderName: cardData.cardholderName || "Card Holder",
+        last4: cardData.last4 || "****",
+        expiryDate: cardData.expiryDate || "**/**",
+        type: cardData.type || "unknown",
+        isDefault: cardData.isDefault || false,
       };
 
-      const response = await cardService.addCard(cardRequest);
+      console.log("Adding card with data:", validatedCardData);
+
+      const response = await cardService.addCard(
+        validatedCardData,
+        customerIdValue
+      );
       if (response.success) {
-        // If this is set as default, update other cards
-        if (cardData.isDefault) {
-          const updatedPaymentMethods = paymentMethods.map((method) => ({
+        // Create a copy of the current payment methods
+        const currentPaymentMethods = [...paymentMethods];
+
+        // If this is set as default, update other cards to not be default
+        if (validatedCardData.isDefault) {
+          const updatedPaymentMethods = currentPaymentMethods.map((method) => ({
             ...method,
             isDefault: false,
           }));
           setPaymentMethods([...updatedPaymentMethods, response.data]);
         } else {
-          setPaymentMethods([...paymentMethods, response.data]);
+          // Otherwise just add the new card to the existing ones
+          setPaymentMethods([...currentPaymentMethods, response.data]);
         }
+
         setIsAddingCard(false);
+
+        // Show success message
+        setSuccessMessage("Card added successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+
+        // Refresh the cards list to ensure we have the latest data
+        const refreshResponse = await cardService.getUserCards(customerIdValue);
+        if (refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          setPaymentMethods(refreshResponse.data);
+        }
       } else {
         setError(response.message || "Failed to add payment method");
       }
     } catch (err) {
-      setError("An unexpected error occurred");
       console.error("Error adding card:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -318,11 +422,13 @@ export default function PaymentMethodsSection({
               mass: 0.8,
             }}
           >
-            <AddPaymentMethodForm
-              onAddCard={handleAddCard}
-              onCancel={() => setIsAddingCard(false)}
-              isSubmitting={isLoading}
-            />
+            <Elements stripe={stripePromise}>
+              <AddPaymentMethodForm
+                onAddCard={handleAddCard}
+                onCancel={() => setIsAddingCard(false)}
+                isSubmitting={isLoading}
+              />
+            </Elements>
           </motion.div>
         )}
       </AnimatePresence>

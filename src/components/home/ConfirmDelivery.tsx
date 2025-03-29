@@ -181,7 +181,7 @@ export default function ConfirmDelivery({
     }
   }, [calculateEstimate]);
 
-  // Handle confirm order
+  // Update the handleConfirmOrder function to use the updated confirmOrder function
   const handleConfirmOrder = useCallback(async () => {
     setStep("confirming");
     const success = await confirmOrder();

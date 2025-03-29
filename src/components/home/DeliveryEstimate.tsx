@@ -115,9 +115,19 @@ export default function DeliveryEstimate({
         if (oldProgress >= 100) {
           clearInterval(progressInterval);
           if (estimateData) {
-            setEstimatedTime(estimateData.estimatedTime.text);
-            setDistance(estimateData.distance.text);
-            setFare(estimateData.estimatedPrice);
+            setEstimatedTime(
+              estimateData.estimatedTime?.text || "25-30 minutes"
+            );
+            setDistance(estimateData.distance?.text || "3.2 km");
+            setFare(
+              estimateData.estimatedPrice || {
+                base: 5.0,
+                distance: 8.99,
+                time: 2.0,
+                total: 15.99,
+                currency: "USD",
+              }
+            );
           } else {
             setEstimatedTime("25-30 minutes");
             setDistance("3.2 km");

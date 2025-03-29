@@ -204,19 +204,25 @@ export const orderService = {
     }
   },
 
+  // Update the cancelOrder function to properly handle order cancellation
   cancelOrder: async (orderId: string): Promise<ApiResponse<null>> => {
     try {
       const token = await tokenService.getServiceToken("order")
-      const response = await apiClient.delete<ApiResponse<null>>(
-        (ENDPOINTS.ORDER?.CANCEL || "/order/:order_id").replace(":order_id", orderId),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+
+      // Use the correct endpoint with the orderId
+      const url = ENDPOINTS.ORDER.CANCEL.replace(":order_id", orderId)
+
+      console.log(`Cancelling order ${orderId} using URL: ${url}`)
+
+      const response = await apiClient.delete<ApiResponse<null>>(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      )
+      })
+
       return response
     } catch (error: any) {
+      console.error("Error cancelling order:", error)
       return {
         success: false,
         message: error.message || "Failed to cancel order",

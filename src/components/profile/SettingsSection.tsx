@@ -6,24 +6,25 @@ import {
   Bell,
   Shield,
   HelpCircle,
-  Trash2,
   LogOut,
   ChevronRight,
   Moon,
   Sun,
   Globe,
-  AlertTriangle,
 } from "lucide-react";
-import { userService } from "../../services/user-service";
+
+// Remove the userService import since it's only used for the delete account functionality
+// import { userService } from "../../services/user-service";
 
 interface SettingsSectionProps {
   onLogout: () => void;
 }
 
 export default function SettingsSection({ onLogout }: SettingsSectionProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Remove the state variables related to account deletion
+  // const [isDeleting, setIsDeleting] = useState(false);
+  // const [deleteError, setDeleteError] = useState<string | null>(null);
+  // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const settingsCategories = [
     {
@@ -89,25 +90,26 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
     },
   ];
 
-  const handleDeleteAccount = async () => {
-    setIsDeleting(true);
-    setDeleteError(null);
+  // Remove the handleDeleteAccount function
+  // const handleDeleteAccount = async () => {
+  //   setIsDeleting(true);
+  //   setDeleteError(null);
 
-    try {
-      const response = await userService.deleteAccount();
+  //   try {
+  //     const response = await userService.deleteAccount();
 
-      if (response.success) {
-        onLogout();
-      } else {
-        setDeleteError(response.message || "Failed to delete account");
-      }
-    } catch (error) {
-      setDeleteError("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  };
+  //     if (response.success) {
+  //       onLogout();
+  //     } else {
+  //       setDeleteError(response.message || "Failed to delete account");
+  //     }
+  //   } catch (error) {
+  //     setDeleteError("An unexpected error occurred. Please try again.");
+  //   } finally {
+  //     setIsDeleting(false);
+  //     setShowDeleteConfirm(false);
+  //   }
+  // };
   const Toggle = ({
     isOn,
     onToggle,
@@ -212,89 +214,6 @@ export default function SettingsSection({ onLogout }: SettingsSectionProps) {
             <span className="font-medium text-gray-900">Log Out</span>
           </motion.button>
         </div>
-        <motion.div
-          className="p-5 rounded-xl border border-red-200 bg-red-50"
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 25,
-            delay: 0.5,
-            mass: 0.8,
-          }}
-          whileHover={{
-            boxShadow:
-              "0 10px 15px -3px rgba(239, 68, 68, 0.1), 0 4px 6px -2px rgba(239, 68, 68, 0.05)",
-            y: -2,
-          }}
-        >
-          <div className="flex items-start">
-            <div className="p-2 rounded-full bg-red-100 mr-3 flex-shrink-0">
-              <Trash2 className="w-5 h-5 text-red-500" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-red-700 text-lg">
-                Delete Account
-              </h4>
-              <p className="text-sm text-red-600 mb-4">
-                This will permanently delete your account and all associated
-                data. This action cannot be undone.
-              </p>
-
-              {deleteError && (
-                <div className="mb-4 p-3 bg-red-100 rounded-lg flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-red-500" />
-                  <p className="text-sm text-red-800">{deleteError}</p>
-                </div>
-              )}
-
-              {!showDeleteConfirm ? (
-                <motion.button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Delete My Account
-                </motion.button>
-              ) : (
-                <div className="p-4 bg-white rounded-lg border border-red-200">
-                  <p className="text-sm text-gray-700 mb-4">
-                    Are you sure you want to delete your account? This action
-                    cannot be undone.
-                  </p>
-                  <div className="flex gap-3">
-                    <motion.button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      onClick={handleDeleteAccount}
-                      disabled={isDeleting}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isDeleting ? (
-                        <>
-                          <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>Confirm Delete</>
-                      )}
-                    </motion.button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useOrder } from "../../context/OrderContext";
 import { useLocation } from "../../context/LocationContext";
+import { orderService } from "../../services/order-service";
 
 // Price animation component
 const PriceAnimation = ({
@@ -124,6 +125,7 @@ type ConfirmStep =
   | "estimated"
   | "confirming"
   | "confirmed"
+  | "cancelling"
   | "error";
 
 // Update the ConfirmDelivery component to maintain state when returning from payment
@@ -132,7 +134,7 @@ export default function ConfirmDelivery({
   onBack,
   onNext,
 }: ConfirmDeliveryProps) {
-  const { routeInfo } = useLocation();
+  const { routeInfo, resetLocations } = useLocation();
   const {
     orderId,
     orderData,
@@ -142,6 +144,8 @@ export default function ConfirmDelivery({
     estimatedPrice,
     calculateEstimate,
     confirmOrder,
+    setOrderDetails,
+    resetOrderComplete, // Add this
   } = useOrder();
 
   // Initialize step based on existing order status
@@ -181,7 +185,7 @@ export default function ConfirmDelivery({
     }
   }, [calculateEstimate]);
 
-  // Update the handleConfirmOrder function to use the updated confirmOrder function
+  // Update the handleConfirmOrder function to include a cancelOrder function
   const handleConfirmOrder = useCallback(async () => {
     setStep("confirming");
     const success = await confirmOrder();
@@ -195,6 +199,46 @@ export default function ConfirmDelivery({
       setStep("error");
     }
   }, [confirmOrder, onNext]);
+
+  // Add a new cancelOrder function
+  const handleCancelOrder = useCallback(async () => {
+    if (!orderId) {
+      return;
+    }
+
+    setStep("cancelling");
+    try {
+      // Use updateOrderStatus to mark the order as CANCELLED
+      const response = await orderService.updateOrderStatus(
+        orderId,
+        "CANCELLED"
+      );
+      if (response.success) {
+        // Reset the order state completely
+        resetOrderComplete();
+
+        // Reset the location state
+        resetLocations();
+
+        // Go back to search step
+        onBack();
+      } else {
+        setOrderDetails({
+          error: response.message || "Failed to cancel order",
+        });
+        setStep("error");
+      }
+    } catch (err) {
+      console.error("Error cancelling order:", err);
+      setOrderDetails({
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to cancel order. Please try again.",
+      });
+      setStep("error");
+    }
+  }, [orderId, onBack, setOrderDetails, resetOrderComplete, resetLocations]);
 
   // Handle retry
   const handleRetry = useCallback(() => {
@@ -400,12 +444,22 @@ export default function ConfirmDelivery({
           </button>
         )}
         {step === "estimated" && (
-          <button
-            className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-            onClick={handleConfirmOrder}
-          >
-            Confirm Order
-          </button>
+          <div className="flex flex-col space-y-3">
+            <button
+              className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+              onClick={handleConfirmOrder}
+            >
+              Confirm Order
+            </button>
+            {orderId && (
+              <button
+                className="w-full bg-white text-red-600 border border-red-600 py-3 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                onClick={handleCancelOrder}
+              >
+                Cancel Order
+              </button>
+            )}
+          </div>
         )}
         {step === "confirming" && (
           <button
@@ -414,6 +468,15 @@ export default function ConfirmDelivery({
           >
             <Loader className="w-4 h-4 mr-2 animate-spin" />
             Confirming Order...
+          </button>
+        )}
+        {step === "cancelling" && (
+          <button
+            className="w-full bg-gray-400 text-white py-3 rounded-lg text-sm font-medium flex items-center justify-center cursor-wait"
+            disabled
+          >
+            <Loader className="w-4 h-4 mr-2 animate-spin" />
+            Cancelling Order...
           </button>
         )}
         {step === "confirmed" && (
@@ -425,12 +488,22 @@ export default function ConfirmDelivery({
           </button>
         )}
         {step === "error" && (
-          <button
-            className="w-full bg-red-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-            onClick={handleRetry}
-          >
-            Retry
-          </button>
+          <div className="flex flex-col space-y-3">
+            <button
+              className="w-full bg-red-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+              onClick={handleRetry}
+            >
+              Retry
+            </button>
+            {orderId && (
+              <button
+                className="w-full bg-white text-red-600 border border-red-600 py-3 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                onClick={handleCancelOrder}
+              >
+                Cancel Order
+              </button>
+            )}
+          </div>
         )}
       </div>
     </motion.div>

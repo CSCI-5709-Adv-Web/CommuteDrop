@@ -3,6 +3,7 @@ import LoginPage from "../pages/auth/Login";
 import SplashScreen from "../pages/SplashScreen";
 import SignUpPage from "../pages/auth/Signup";
 import Profile from "../pages/user/Profile";
+import AuthCallback from "../pages/auth/Callback";
 import type { ReactNode } from "react";
 
 // Define a custom interface with all needed properties
@@ -32,6 +33,11 @@ const routes: AppRouteObject[] = [
     element: <SignUpPage />,
     protected: false,
     redirectIfAuthenticated: true,
+  },
+  {
+    path: "/auth/callback",
+    element: <AuthCallback />,
+    protected: false,
   },
   {
     path: "/home",

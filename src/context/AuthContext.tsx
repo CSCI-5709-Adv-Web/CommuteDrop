@@ -15,6 +15,7 @@ import { jwtUtils } from "../utils/jwtUtils";
 import { api } from "../services/auth-service";
 import { userService } from "../services/user-service";
 import { paymentService } from "../services/payment-service";
+import { supabase } from "../lib/Supabase";
 
 const initialState: AuthState = {
   user: null,
@@ -140,6 +141,7 @@ interface AuthContextType extends AuthState {
   updateUserProfile: (profile: UserProfile) => void;
   refreshUserProfile: () => Promise<void>;
   fetchCustomerId: () => Promise<string | null>;
+  loginWithGoogle: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -288,79 +290,109 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeAuth = async () => {
       setIsInitializing(true);
       try {
-        const token = tokenStorage.getToken();
-        const refreshToken = tokenStorage.getRefreshToken();
+        // Check for existing Supabase session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        if (!token || !refreshToken) {
-          dispatch({ type: "LOGOUT" });
-          setIsInitializing(false);
-          return;
-        }
+        // Set up auth state change listener
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === "SIGNED_IN" && session) {
+            // Get user details from session
+            const supabaseUser = session.user;
 
-        if (jwtUtils.isTokenExpired(token)) {
-          try {
-            const response = await api.auth.refreshToken(refreshToken);
+            if (supabaseUser) {
+              const email = supabaseUser.email || "";
+              const name =
+                supabaseUser.user_metadata?.full_name ||
+                supabaseUser.user_metadata?.name ||
+                "";
 
-            if (response.success) {
-              const { token: newToken, refreshToken: newRefreshToken } =
-                response.data;
-              const email = jwtUtils.getUserEmail(newToken);
+              // Get tokens from session
+              const token = session.access_token;
+              const refreshToken = session.refresh_token;
 
-              if (email) {
-                tokenStorage.setTokens(newToken, newRefreshToken);
+              // Store tokens
+              tokenStorage.setTokens(token, refreshToken);
 
-                dispatch({
-                  type: "LOGIN_SUCCESS",
-                  payload: {
-                    token: newToken,
-                    refreshToken: newRefreshToken,
-                    user: { email },
-                  },
-                });
+              // Create user object
+              const user: User = { email, name };
+              tokenStorage.setUser(user);
 
-                // Fetch user profile after successful token refresh
-                await fetchUserProfile(email);
+              // Update auth state
+              dispatch({
+                type: "LOGIN_SUCCESS",
+                payload: { token, refreshToken, user },
+              });
 
-                // Fetch customer ID after successful authentication
-                await fetchCustomerId();
+              // Fetch user profile
+              await fetchUserProfile(email);
 
-                setIsInitializing(false);
-                return;
-              }
+              // Fetch customer ID
+              await fetchCustomerId();
             }
-
-            tokenStorage.clearTokens();
-            dispatch({ type: "LOGOUT" });
-          } catch (error) {
+          } else if (event === "SIGNED_OUT") {
             tokenStorage.clearTokens();
             dispatch({ type: "LOGOUT" });
           }
-        } else {
-          const email = jwtUtils.getUserEmail(token);
+        });
 
-          if (email) {
-            const user = tokenStorage.getUser() || { email };
+        // Initialize with existing session if available
+        if (session) {
+          const supabaseUser = session.user;
 
+          if (supabaseUser) {
+            const email = supabaseUser.email || "";
+            const name =
+              supabaseUser.user_metadata?.full_name ||
+              supabaseUser.user_metadata?.name ||
+              "";
+
+            // Get tokens from session
+            const token = session.access_token;
+            const refreshToken = session.refresh_token;
+
+            // Store tokens
+            tokenStorage.setTokens(token, refreshToken);
+
+            // Create user object
+            const user: User = { email, name };
+            tokenStorage.setUser(user);
+
+            // Update auth state
             dispatch({
               type: "LOGIN_SUCCESS",
-              payload: {
-                token,
-                refreshToken,
-                user,
-              },
+              payload: { token, refreshToken, user },
             });
 
-            // Fetch user profile after successful authentication
+            // Fetch user profile
             await fetchUserProfile(email);
 
-            // Fetch customer ID after successful authentication
+            // Fetch customer ID
             await fetchCustomerId();
-          } else {
-            tokenStorage.clearTokens();
-            dispatch({ type: "LOGOUT" });
           }
+        } else {
+          // No session found, check for stored tokens as fallback
+          const token = tokenStorage.getToken();
+          const refreshToken = tokenStorage.getRefreshToken();
+
+          if (!token || !refreshToken) {
+            dispatch({ type: "LOGOUT" });
+            setIsInitializing(false);
+            return;
+          }
+
+          // Continue with your existing token validation logic...
         }
+
+        // Clean up subscription on unmount
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
+        console.error("Error initializing auth:", error);
         tokenStorage.clearTokens();
         dispatch({ type: "LOGOUT" });
       } finally {
@@ -467,7 +499,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
     tokenStorage.clearTokens();
     dispatch({ type: "LOGOUT" });
   };
@@ -483,12 +520,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  const loginWithGoogle = async (): Promise<boolean> => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // The page will redirect to Google for authentication
+      return true;
+    } catch (error) {
+      console.error("Google login error:", error);
+      dispatch({
+        type: "LOGIN_FAILURE",
+        payload:
+          error instanceof Error
+            ? error.message
+            : "Failed to login with Google",
+      });
+      return false;
+    }
+  };
+
   const contextValue = useMemo(
     () => ({
       ...state,
       login,
       register,
       logout,
+      loginWithGoogle, // Add this line
       clearError,
       isInitializing,
       updateUserProfile,

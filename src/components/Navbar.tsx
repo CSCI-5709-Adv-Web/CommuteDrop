@@ -6,9 +6,10 @@ import { Bell, Menu, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { DEFAULT_AVATAR_IMAGE } from "../utils/tokenStorage";
+import { supabase } from "../lib/Supabase";
 
 export default function Navbar() {
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, logout, refreshUserProfile } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -70,6 +71,24 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Inside the Navbar component, add this effect to listen for auth changes
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        // Refresh user profile when auth state changes
+        if (session?.user) {
+          refreshUserProfile();
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refreshUserProfile]);
 
   return (
     <nav className="sticky top-0 z-50 flex justify-between items-center px-6 py-4 bg-black text-white shadow-md h-[72px]">

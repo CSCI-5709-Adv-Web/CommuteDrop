@@ -11,7 +11,14 @@ import { AlertCircle, Loader } from "lucide-react";
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, error, isLoading, clearError, isInitializing } = useAuth();
+  const {
+    login,
+    error,
+    isLoading,
+    clearError,
+    isInitializing,
+    loginWithGoogle,
+  } = useAuth();
   const navigate = useNavigate();
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -45,6 +52,14 @@ export default function LoginForm() {
     },
     [error, clearError]
   );
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      console.error("Google login error:", err);
+    }
+  };
 
   if (isInitializing) {
     return (
@@ -116,7 +131,7 @@ export default function LoginForm() {
       <div className="flex items-center before:flex-1 before:border-t after:flex-1 after:border-t">
         <span className="mx-4 text-gray-500">or</span>
       </div>
-      <GoogleButton />
+      <GoogleButton onClick={handleGoogleLogin} />
       <div className="text-center text-sm text-gray-600">
         New to Commune Drop?{" "}
         <a href="/signup" className="text-black hover:underline font-medium">

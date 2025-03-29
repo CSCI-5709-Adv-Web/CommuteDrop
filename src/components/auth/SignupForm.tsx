@@ -89,7 +89,7 @@ export default function SignUpForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <h2 className="text-2xl font-medium text-center">
-        Create Your CommuteDrop Account
+        Create Your CommuneDrop Account
       </h2>
       {error && (
         <div

@@ -17,4 +17,4 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Start AWS CodeBuild
         run: |
-          aws codebuild start-build --project-name CommuteDrop
+          aws codebuild start-build --project-name CommuneDrop

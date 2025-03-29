@@ -2,7 +2,7 @@
 
 // Update the DeliveryHistorySection component to fetch and display real order data
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   MapPin,
   ChevronRight,
@@ -11,6 +11,9 @@ import {
   Package,
   DollarSign,
   AlertTriangle,
+  Filter,
+  Clock,
+  ArrowUpDown,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { orderService } from "../../services/order-service";
@@ -39,6 +42,10 @@ export default function DeliveryHistorySection() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Add state for filtering and sorting
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc"); // newest first by default
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -98,10 +105,80 @@ export default function DeliveryHistorySection() {
     }
   };
 
+  // Get unique statuses for filter dropdown
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    orders.forEach((order) => {
+      if (order.status) {
+        statuses.add(order.status);
+      }
+    });
+    return Array.from(statuses);
+  }, [orders]);
+
+  // Apply filters and sorting
+  const filteredAndSortedOrders = useMemo(() => {
+    // First apply status filter
+    const result = statusFilter
+      ? orders.filter((order) => order.status === statusFilter)
+      : orders;
+
+    // Then apply sorting
+    return [...result].sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+
+      return sortDirection === "asc"
+        ? dateA - dateB // oldest first
+        : dateB - dateA; // newest first
+    });
+  }, [orders, statusFilter, sortDirection]);
+
+  // Toggle sort direction
+  const toggleSortDirection = () => {
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Delivery History</h2>
       <div className="border-t border-gray-200 mb-6"></div>
+
+      {/* Filter and Sort Controls */}
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <div className="flex items-center">
+          <Filter className="w-4 h-4 mr-2 text-gray-500" />
+          <select
+            className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            value={statusFilter || ""}
+            onChange={(e) => setStatusFilter(e.target.value || null)}
+            aria-label="Filter by status"
+          >
+            <option value="">All Statuses</option>
+            {uniqueStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={toggleSortDirection}
+          className="flex items-center bg-white border border-gray-300 rounded-md px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+          aria-label={`Sort by time ${
+            sortDirection === "asc" ? "newest first" : "oldest first"
+          }`}
+        >
+          <Clock className="w-4 h-4 mr-2 text-gray-500" />
+          <span>Sort by Time</span>
+          <ArrowUpDown
+            className={`w-4 h-4 ml-2 text-gray-500 transition-transform ${
+              sortDirection === "asc" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </div>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -142,17 +219,34 @@ export default function DeliveryHistorySection() {
             <p className="text-sm text-red-600">{error}</p>
           </div>
         </div>
-      ) : orders.length === 0 ? (
+      ) : filteredAndSortedOrders.length === 0 ? (
         <div className="text-center py-12">
-          <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 mb-2">No delivery history found</p>
-          <p className="text-sm text-gray-400">
-            Your deliveries will appear here once you place an order
-          </p>
+          {statusFilter ? (
+            <>
+              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">
+                No deliveries found with status: {statusFilter}
+              </p>
+              <button
+                onClick={() => setStatusFilter(null)}
+                className="text-primary text-sm hover:underline"
+              >
+                View all deliveries
+              </button>
+            </>
+          ) : (
+            <>
+              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No delivery history found</p>
+              <p className="text-sm text-gray-400">
+                Your deliveries will appear here once you place an order
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order, index) => (
+          {filteredAndSortedOrders.map((order, index) => (
             <motion.div
               key={order._id}
               className="p-4 border rounded-lg hover:border-gray-300 hover:shadow-sm transition-all"

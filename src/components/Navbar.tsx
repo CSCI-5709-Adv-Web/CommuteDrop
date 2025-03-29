@@ -77,7 +77,7 @@ export default function Navbar() {
         onClick={handleLogoClick}
         className="text-2xl font-bold cursor-pointer"
       >
-        Commute Drop
+        Commune Drop
       </button>
       <div className="flex items-center space-x-6">
         <button

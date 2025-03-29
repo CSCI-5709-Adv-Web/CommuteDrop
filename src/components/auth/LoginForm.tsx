@@ -118,7 +118,7 @@ export default function LoginForm() {
       </div>
       <GoogleButton />
       <div className="text-center text-sm text-gray-600">
-        New to Commute Drop?{" "}
+        New to Commune Drop?{" "}
         <a href="/signup" className="text-black hover:underline font-medium">
           Sign up instead
         </a>

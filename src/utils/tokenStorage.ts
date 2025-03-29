@@ -6,10 +6,10 @@ export const DEFAULT_PROFILE_IMAGE =
 export const DEFAULT_AVATAR_IMAGE =
   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIGZpbGw9IiNEMUQxRDEiLz48cGF0aCBkPSJNMTYgMTRDMTguMjA5MSAxNCAxOS45OTk5IDEyLjIwOTEgMTkuOTk5OSAxMEMxOS45OTk5IDcuNzkwODYgMTguMjA5MSA2IDE2IDZDMTMuNzkwOCA2IDEyIDcuNzkwODYgMTIgMTBDMTIgMTIuMjA5MSAxMy43OTA4IDE0IDE2IDE0WiIgZmlsbD0iIzlDQTNBRiIvPjxwYXRoIGQ9Ik0xNiAyNkMyMC40MTgzIDI2IDI0IDIyLjQxODMgMjQgMTghMThDMTYgMTggMTQgMTYgMTQgMTRIOEMxMiAxOCAxMiAyNiAxNiAyNloiIGZpbGw9IiM5Q0EzQUYiLz48L3N2Zz4="
 
-const TOKEN_KEY = "commutedrop_token"
-const REFRESH_TOKEN_KEY = "commutedrop_refresh_token"
-const USER_KEY = "commutedrop_user"
-const USER_PROFILE_KEY = "commutedrop_user_profile"
+const TOKEN_KEY = "communedrop_token"
+const REFRESH_TOKEN_KEY = "communedrop_refresh_token"
+const USER_KEY = "communedrop_user"
+const USER_PROFILE_KEY = "communedrop_user_profile"
 
 export const tokenStorage = {
   setTokens: (token: string, refreshToken: string): void => {

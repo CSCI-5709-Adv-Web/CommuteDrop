@@ -7,8 +7,9 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
           <LoginForm />
           <p className="text-center text-xs text-gray-500">
-            Zip through your city with CommuteDrop – lightning-fast, reliable rides at your fingertips. 
-            Ready to roll? Get started now! By continuing, you agree to our Terms and Privacy Policy.
+            Zip through your city with CommuneDrop – lightning-fast, reliable
+            rides at your fingertips. Ready to roll? Get started now! By
+            continuing, you agree to our Terms and Privacy Policy.
           </p>
         </div>
       </div>

@@ -186,16 +186,79 @@ export default function ConfirmDelivery({
   }, [calculateEstimate]);
 
   // Update the handleConfirmOrder function to include a cancelOrder function
+  const [state, setState] = useState({
+    orderId: orderId,
+    orderData: orderData,
+    status: status,
+    isLoading: isLoading,
+    error: error,
+    estimatedPrice: estimatedPrice,
+    paymentAmount: 0,
+    redirectCountdown: 0,
+    countdownInterval: null as NodeJS.Timeout | null,
+  });
+
+  useEffect(() => {
+    setState((prev) => ({
+      ...prev,
+      orderId: orderId,
+      orderData: orderData,
+      status: status,
+      isLoading: isLoading,
+      error: error,
+      estimatedPrice: estimatedPrice,
+    }));
+  }, [orderId, orderData, status, isLoading, error, estimatedPrice]);
+
+  // Update the handleConfirmOrder function to include a countdown timer
   const handleConfirmOrder = useCallback(async () => {
     setStep("confirming");
-    const success = await confirmOrder();
-    if (success) {
-      setStep("confirmed");
-      // Wait a moment to show success message before proceeding
-      setTimeout(() => {
-        onNext();
-      }, 2000);
-    } else {
+
+    try {
+      // Use the confirmOrder function from the OrderContext
+      const success = await confirmOrder();
+
+      if (success) {
+        // If successful, update the step to confirmed
+        setStep("confirmed");
+
+        // Set up countdown for automatic navigation
+        const redirectDelay = 5; // 5 seconds countdown
+        let timeLeft = redirectDelay;
+
+        // Create a countdown interval
+        const countdownInterval = setInterval(() => {
+          timeLeft -= 1;
+
+          // Update the countdown in state
+          setState((prev) => ({
+            ...prev,
+            redirectCountdown: timeLeft,
+          }));
+
+          // When countdown reaches 0, clear interval and navigate
+          if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+            onNext();
+          }
+        }, 1000);
+
+        // Initialize the countdown in state
+        setState((prev) => ({
+          ...prev,
+          redirectCountdown: redirectDelay,
+          countdownInterval,
+        }));
+
+        // Clean up interval if component unmounts
+        return () => {
+          if (countdownInterval) clearInterval(countdownInterval);
+        };
+      } else {
+        setStep("error");
+      }
+    } catch (error) {
+      console.error("Error confirming order:", error);
       setStep("error");
     }
   }, [confirmOrder, onNext]);
@@ -283,6 +346,15 @@ export default function ConfirmDelivery({
         return <Car className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />;
     }
   };
+
+  // Add cleanup for the interval when component unmounts
+  useEffect(() => {
+    return () => {
+      if (state.countdownInterval) {
+        clearInterval(state.countdownInterval);
+      }
+    };
+  }, [state.countdownInterval]);
 
   return (
     <motion.div
@@ -407,7 +479,9 @@ export default function ConfirmDelivery({
                   </p>
                   <p className="text-xs text-gray-700">
                     <span className="font-medium">Status:</span>{" "}
-                    {orderData.status}
+                    {status === "CONFIRMED"
+                      ? "ORDER CONFIRMED"
+                      : orderData.status}
                   </p>
                   <p className="text-xs text-gray-700">
                     <span className="font-medium">Delivery Window:</span>{" "}
@@ -484,7 +558,8 @@ export default function ConfirmDelivery({
             className="w-full bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             onClick={onNext}
           >
-            Continue to Payment
+            Continue to Payment{" "}
+            {state.redirectCountdown > 0 && `(${state.redirectCountdown}s)`}
           </button>
         )}
         {step === "error" && (

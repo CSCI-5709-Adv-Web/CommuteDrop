@@ -15,7 +15,9 @@ import { jwtUtils } from "../utils/jwtUtils";
 import { api } from "../services/auth-service";
 import { userService } from "../services/user-service";
 import { paymentService } from "../services/payment-service";
-import { supabase } from "../lib/Supabase";
+import { supabase } from "../lib/supabase";
+
+const DEFAULT_PROFILE_IMAGE = "/images/default-profile.png";
 
 const initialState: AuthState = {
   user: null,
@@ -310,6 +312,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 supabaseUser.user_metadata?.name ||
                 "";
 
+              // Extract profile image URL from user metadata
+              const profileImage =
+                supabaseUser.user_metadata?.avatar_url ||
+                supabaseUser.user_metadata?.picture ||
+                DEFAULT_PROFILE_IMAGE;
+
               // Get tokens from session
               const token = session.access_token;
               const refreshToken = session.refresh_token;
@@ -317,7 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               // Store tokens
               tokenStorage.setTokens(token, refreshToken);
 
-              // Create user object
+              // Create user object with profile image
               const user: User = { email, name };
               tokenStorage.setUser(user);
 
@@ -325,6 +333,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               dispatch({
                 type: "LOGIN_SUCCESS",
                 payload: { token, refreshToken, user },
+              });
+
+              // Create a basic profile with the Google profile image
+              const basicProfile: UserProfile = {
+                email,
+                name,
+                profileImage,
+              };
+
+              // Store the basic profile
+              tokenStorage.setUserProfile(basicProfile);
+
+              // Update the user profile in state
+              dispatch({
+                type: "UPDATE_USER_PROFILE",
+                payload: basicProfile,
               });
 
               // Fetch user profile
@@ -350,6 +374,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               supabaseUser.user_metadata?.name ||
               "";
 
+            // Extract profile image URL from user metadata
+            const profileImage =
+              supabaseUser.user_metadata?.avatar_url ||
+              supabaseUser.user_metadata?.picture ||
+              DEFAULT_PROFILE_IMAGE;
+
             // Get tokens from session
             const token = session.access_token;
             const refreshToken = session.refresh_token;
@@ -361,10 +391,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             const user: User = { email, name };
             tokenStorage.setUser(user);
 
+            // Create a basic profile with the Google profile image
+            const basicProfile: UserProfile = {
+              email,
+              name,
+              profileImage,
+            };
+
+            // Store the basic profile
+            tokenStorage.setUserProfile(basicProfile);
+
             // Update auth state
             dispatch({
               type: "LOGIN_SUCCESS",
               payload: { token, refreshToken, user },
+            });
+
+            // Also update the profile with the image
+            dispatch({
+              type: "UPDATE_USER_PROFILE",
+              payload: basicProfile,
             });
 
             // Fetch user profile

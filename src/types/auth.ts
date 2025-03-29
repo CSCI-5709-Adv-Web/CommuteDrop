@@ -27,9 +27,11 @@ export interface AuthResponse {
   errors: string[]
 }
 
+// Update the User interface to include profileImage
 export interface User {
   email: string
   name?: string
+  profileImage?: string
 }
 
 export interface UserProfile {

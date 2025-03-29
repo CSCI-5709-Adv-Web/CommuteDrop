@@ -6,7 +6,7 @@ import { Bell, Menu, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { DEFAULT_AVATAR_IMAGE } from "../utils/tokenStorage";
-import { supabase } from "../lib/Supabase";
+import { supabase } from "../lib/supabase";
 
 export default function Navbar() {
   const { user, userProfile, logout, refreshUserProfile } = useAuth();
@@ -16,9 +16,10 @@ export default function Navbar() {
 
   // Memoize the profile image to prevent unnecessary re-renders
   const profileImage = useMemo(() => {
-    // Only use the actual profile image if it exists and is not the default placeholder
+    // First check if we have a profile image from Google or other OAuth provider
     if (
       userProfile?.profileImage &&
+      userProfile.profileImage !== DEFAULT_AVATAR_IMAGE &&
       !userProfile.profileImage.includes("placeholder.svg")
     ) {
       return userProfile.profileImage;
@@ -52,6 +53,7 @@ export default function Navbar() {
 
   // Add this function to handle image loading errors
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log("Image failed to load:", e.currentTarget.src);
     // Prevent infinite loop by checking if the src is already the default
     if (e.currentTarget.src !== DEFAULT_AVATAR_IMAGE) {
       e.currentTarget.src = DEFAULT_AVATAR_IMAGE;

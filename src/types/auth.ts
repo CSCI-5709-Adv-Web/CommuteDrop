@@ -27,8 +27,10 @@ export interface AuthResponse {
   errors: string[]
 }
 
-// Update the User interface to include profileImage
+// Update the User interface to ensure it includes an id field
+
 export interface User {
+  id?: string // Add this line to make sure id is part of the User interface
   email: string
   name?: string
   profileImage?: string

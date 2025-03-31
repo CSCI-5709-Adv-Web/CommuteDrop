@@ -11,6 +11,14 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    allowedHosts: ["*.amazonaws.com"],
+    proxy: {
+      // If you have API calls, you might want to proxy them
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
+    // Disable host checking completely
+    allowedHosts: "all",
   },
 });

@@ -5,20 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Shield,
-  MapPin,
   Clock,
   RefreshCw,
   CheckCircle,
   X,
+  Truck,
+  Package,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNotifications } from "../notifications/NotificationProvider";
+import { useTracking } from "../../context/TrackingContext";
 
 interface DeliveryEstimateProps {
   formData: DeliveryFormData;
   estimateData?: any;
   onBack: () => void;
-  onTrack: () => void;
+  onTrack?: () => void; // Made optional since we won't use this button anymore
 }
 
 interface DriverDetails {
@@ -32,6 +34,7 @@ interface DriverDetails {
   eta: string;
 }
 
+// Update the OrderState type definition
 type OrderState =
   | "WAITING_FOR_DRIVER"
   | "AWAITING_PICKUP"
@@ -42,15 +45,141 @@ export default function DeliveryEstimate({
   formData,
   estimateData,
   onBack,
-  onTrack,
 }: DeliveryEstimateProps) {
-  const [orderState, setOrderState] =
-    useState<OrderState>("WAITING_FOR_DRIVER");
-  const [waitingTime, setWaitingTime] = useState(0);
+  // Add at the top of the component, after the useState declarations:
+  const [orderState, setOrderState] = useState<OrderState>(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(
+      `order_state_${estimateData?.orderId}`
+    );
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        // If the saved state is "WAITING_FOR_DRIVER", use it
+        if (parsedState.state === "WAITING_FOR_DRIVER") {
+          return parsedState.state;
+        }
+      } catch (e) {
+        console.error("Error parsing saved order state:", e);
+      }
+    }
+    return "WAITING_FOR_DRIVER"; // Default state
+  });
+
+  const [waitingTime, setWaitingTime] = useState(() => {
+    // Try to load saved waiting time from localStorage
+    const savedTime = localStorage.getItem(
+      `waiting_time_${estimateData?.orderId}`
+    );
+    if (savedTime) {
+      try {
+        const parsedTime = Number.parseInt(savedTime, 10);
+        if (!isNaN(parsedTime)) {
+          return parsedTime;
+        }
+      } catch (e) {
+        console.error("Error parsing saved waiting time:", e);
+      }
+    }
+    return 0; // Default waiting time
+  });
+  const { notifications, sendStructuredNotification } = useNotifications();
   const [driverDetails, setDriverDetails] = useState<DriverDetails | null>(
     null
   );
-  const { notifications } = useNotifications();
+
+  // Add tracking functionality
+  const {
+    isTracking,
+    driverLocation,
+    orderStatus,
+    startTracking,
+    stopTracking,
+  } = useTracking();
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Define the delivery steps
+  const deliverySteps = [
+    {
+      id: "CONFIRMED",
+      label: "Order Confirmed",
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+    {
+      id: "DRIVER_ASSIGNED",
+      label: "Driver Assigned",
+      icon: <Truck className="w-5 h-5" />,
+    },
+    {
+      id: "DRIVER_PICKUP",
+      label: "Driver at Pickup",
+      icon: <Package className="w-5 h-5" />,
+    },
+    {
+      id: "IN_TRANSIT",
+      label: "In Transit",
+      icon: <Truck className="w-5 h-5" />,
+    },
+    {
+      id: "ARRIVING",
+      label: "Arriving Soon",
+      icon: <Clock className="w-5 h-5" />,
+    },
+    {
+      id: "DELIVERED",
+      label: "Delivered",
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+  ];
+
+  // Start tracking when component mounts if we have an orderId
+  useEffect(() => {
+    if (estimateData?.orderId) {
+      startTracking(estimateData.orderId);
+
+      // Return cleanup function to stop tracking when component unmounts
+      return () => {
+        stopTracking();
+      };
+    }
+  }, [estimateData?.orderId, startTracking, stopTracking]);
+
+  // Update current step based on order status
+  useEffect(() => {
+    if (orderStatus) {
+      const stepIndex = deliverySteps.findIndex(
+        (step) => step.id === orderStatus.status
+      );
+      if (stepIndex !== -1) {
+        setCurrentStep(stepIndex);
+      }
+    }
+  }, [orderStatus]);
+
+  // Add this effect to save state changes to localStorage
+  useEffect(() => {
+    if (estimateData?.orderId) {
+      localStorage.setItem(
+        `order_state_${estimateData.orderId}`,
+        JSON.stringify({ state: orderState })
+      );
+      localStorage.setItem(
+        `waiting_time_${estimateData.orderId}`,
+        waitingTime.toString()
+      );
+    }
+  }, [orderState, waitingTime, estimateData?.orderId]);
+
+  // Update the logEvent function to be more versatile
+  const logEvent = (eventType: string, data: any, fullNotification?: any) => {
+    console.group(`📣 Event Received: ${eventType}`);
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Data:", data);
+    if (fullNotification) {
+      console.log("Full Notification:", fullNotification);
+    }
+    console.groupEnd();
+  };
 
   // Simulate waiting time counter
   useEffect(() => {
@@ -63,87 +192,135 @@ export default function DeliveryEstimate({
     }
   }, [orderState]);
 
-  // Listen for notifications from the driver service
+  // Update the useEffect that processes notifications to use the standardized format
   useEffect(() => {
     // Get the most recent notification that might be relevant to our order
+    const currentOrderId = estimateData?.orderId || "order_123";
+    console.log("Order ID - Expected:", currentOrderId);
+
+    // Log all notifications for debugging
+    console.log("All notifications:", notifications);
+
     const orderStatusNotifications = notifications
-      .filter((notification) => notification.title === "OrderStatusUpdated")
+      .filter((notification) => {
+        // Check if this notification is for our order using the standardized format
+        if (notification.data && notification.data.orderId === currentOrderId) {
+          return [
+            "OrderStatusUpdated",
+            "Order Accepted",
+            "DriverAssigned",
+          ].includes(notification.eventType);
+        }
+
+        // Fallback to message content check for backward compatibility
+        if (typeof notification.message === "string") {
+          return notification.message.includes(currentOrderId);
+        }
+
+        return false;
+      })
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
+    console.log(
+      "Filtered order status notifications:",
+      orderStatusNotifications
+    );
+
     if (orderStatusNotifications.length > 0) {
       const latestNotification = orderStatusNotifications[0];
 
+      // Log the complete notification object
+      logEvent(
+        "Order Status Notification",
+        {
+          eventType: latestNotification.eventType,
+          orderId: latestNotification.data?.orderId,
+          timestamp: latestNotification.timestamp,
+        },
+        latestNotification
+      );
+
       try {
-        // Parse the notification message to get the order status
-        const notificationData =
-          typeof latestNotification.message === "string"
-            ? JSON.parse(latestNotification.message)
-            : latestNotification.data;
+        // Process the standardized event data
+        const eventData = latestNotification.data;
 
-        console.log("Processing notification data:", notificationData);
+        if (eventData) {
+          logEvent(
+            "Processing Standardized Event Data",
+            eventData,
+            latestNotification
+          );
 
-        // Check if this notification is for our order
-        const orderId = estimateData?.orderId || "order_123";
-        if (notificationData.orderId === orderId) {
-          // Update state based on the notification status
-          const status = notificationData.status || notificationData.status;
+          // Handle different event types
+          switch (latestNotification.eventType) {
+            case "Order Accepted":
+            case "DriverAssigned":
+              if (eventData.data && eventData.data.driver) {
+                const driverDetails = {
+                  id: eventData.data.driver.id || "driver_id",
+                  name: eventData.data.driver.name || "Driver Name",
+                  rating: eventData.data.driver.rating || 4.8,
+                  trips: eventData.data.driver.trips || 1243,
+                  vehicleType:
+                    eventData.data.driver.vehicleType || "Toyota Prius",
+                  vehicleNumber:
+                    eventData.data.driver.vehicleNumber || "ABC 123",
+                  image:
+                    eventData.data.driver.image ||
+                    "/placeholder.svg?height=100&width=100",
+                  eta: eventData.data.estimatedArrival || "5 minutes",
+                };
 
-          // Handle case-insensitive status matching
-          const normalizedStatus = status?.toUpperCase();
+                setDriverDetails(driverDetails);
+                logEvent("Driver Details Set", driverDetails);
 
-          if (
-            normalizedStatus === "AWAITING_PICKUP" ||
-            normalizedStatus === "AWAITING_PICKUP"
-          ) {
-            // Extract driver details if available
-            if (notificationData.driver) {
-              const driverDetails = {
-                id: notificationData.driver.id || "driver_id",
-                name: notificationData.driver.name || "Driver Name",
-                rating: notificationData.driver.rating || 4.8,
-                trips: notificationData.driver.trips || 1243,
-                vehicleType:
-                  notificationData.driver.vehicleType ||
-                  notificationData.driver.vehicleType ||
-                  "Toyota Prius",
-                vehicleNumber:
-                  notificationData.driver.vehicleNumber ||
-                  notificationData.driver.vehicleNumber ||
-                  "ABC 123",
-                image:
-                  notificationData.driver.image ||
-                  "/placeholder.svg?height=100&width=100",
-                eta: notificationData.estimatedArrival || "5 minutes",
-              };
+                // First show the driver found animation
+                setOrderState("DRIVER_FOUND");
+                logEvent("Order State Changed", "DRIVER_FOUND");
 
-              setDriverDetails(driverDetails);
-              console.log("Driver details set:", driverDetails);
+                // Then after a short delay, show the driver details
+                setTimeout(() => {
+                  setOrderState("AWAITING_PICKUP");
+                  setWaitingTime(0); // Reset waiting time counter
+                  logEvent("Order State Changed", "AWAITING_PICKUP");
+                }, 2000);
+              }
+              break;
 
-              // First show the driver found animation
-              setOrderState("DRIVER_FOUND");
-
-              // Then after a short delay, show the driver details
-              setTimeout(() => {
-                setOrderState("AWAITING_PICKUP");
-                setWaitingTime(0); // Reset waiting time counter
-              }, 2000);
-            } else {
-              // If no driver details, just update the state
-              setOrderState("AWAITING_PICKUP");
-              setWaitingTime(0); // Reset waiting time counter
-            }
-          } else if (normalizedStatus === "CANCELLED") {
-            setOrderState("CANCELLED");
-          } else if (normalizedStatus) {
-            // For any other status, update accordingly
-            setOrderState(normalizedStatus as OrderState);
+            case "OrderStatusUpdated":
+              // Handle status updates
+              const status = eventData.data?.status?.toUpperCase();
+              if (status) {
+                if (status === "CANCELLED") {
+                  setOrderState("CANCELLED");
+                  logEvent("Order State Changed", "CANCELLED");
+                } else if (status === "AWAITING_PICKUP") {
+                  setOrderState("AWAITING_PICKUP");
+                  setWaitingTime(0);
+                  logEvent("Order State Changed", "AWAITING_PICKUP");
+                } else {
+                  // For any other status, update accordingly if it's a valid OrderState
+                  if (
+                    [
+                      "WAITING_FOR_DRIVER",
+                      "DRIVER_FOUND",
+                      "CANCELLED",
+                    ].includes(status)
+                  ) {
+                    setOrderState(status as OrderState);
+                    logEvent("Order State Changed", status);
+                  }
+                }
+              }
+              break;
           }
         }
       } catch (error) {
-        console.error("Error parsing notification:", error);
+        console.error("Error processing notification:", error);
+        logEvent("Error Processing Notification", error);
       }
     }
   }, [notifications, estimateData]);
@@ -234,9 +411,7 @@ export default function DeliveryEstimate({
           </div>
         </div>
 
-        {/* Route details */}
-
-        {/* Different states */}
+        {/* Different states for finding driver/driver found */}
         <AnimatePresence mode="wait">
           {/* Waiting for driver state */}
           {orderState === "WAITING_FOR_DRIVER" && (
@@ -313,7 +488,8 @@ export default function DeliveryEstimate({
                   Driver Found!
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  A driver has accepted your delivery request
+                  {driverDetails?.name || "A driver"} has accepted your delivery
+                  request
                 </p>
               </div>
             </motion.div>
@@ -333,10 +509,15 @@ export default function DeliveryEstimate({
                   <img
                     src={
                       driverDetails.image ||
-                      "/placeholder.svg?height=100&width=100"
+                      "/placeholder.svg?height=100&width=100" ||
+                      "/placeholder.svg"
                     }
                     alt={driverDetails.name}
                     className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "/placeholder.svg?height=100&width=100";
+                    }}
                   />
                   <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white" />
                 </div>
@@ -433,6 +614,51 @@ export default function DeliveryEstimate({
           )}
         </AnimatePresence>
 
+        {/* Delivery progress tracking section - only shown when driver has accepted the order */}
+        {(orderState === "AWAITING_PICKUP" || driverDetails || orderStatus) && (
+          <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+            <h2 className="font-medium text-gray-900 mb-3">
+              Delivery Progress
+            </h2>
+            <div className="relative">
+              {/* Vertical line connecting steps */}
+              <div className="absolute left-3 top-1 bottom-1 w-0.5 bg-gray-200 z-0"></div>
+
+              {/* Steps */}
+              {deliverySteps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className="flex items-start mb-4 relative z-10"
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      index <= currentStep
+                        ? "bg-primary text-white"
+                        : "bg-gray-200 text-gray-400"
+                    }`}
+                  >
+                    {step.icon}
+                  </div>
+                  <div className="ml-3">
+                    <p
+                      className={`font-medium ${
+                        index <= currentStep ? "text-gray-900" : "text-gray-500"
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+                    {index === currentStep && orderStatus?.message && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {orderStatus.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Insurance info */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -444,28 +670,6 @@ export default function DeliveryEstimate({
             Your delivery is insured and tracked in real-time
           </span>
         </motion.div>
-
-        {/* Track button - only enabled when driver is found */}
-        <motion.button
-          className={`w-full py-4 rounded-xl text-sm font-medium transition-all duration-200 ${
-            orderState === "AWAITING_PICKUP"
-              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-              : "bg-gray-200 text-gray-600 cursor-not-allowed"
-          }`}
-          disabled={orderState !== "AWAITING_PICKUP"}
-          whileHover={
-            orderState === "AWAITING_PICKUP" ? { scale: 1.01 } : undefined
-          }
-          whileTap={
-            orderState === "AWAITING_PICKUP" ? { scale: 0.99 } : undefined
-          }
-          onClick={onTrack}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Track Delivery
-          </div>
-        </motion.button>
       </div>
     </motion.div>
   );

@@ -28,6 +28,7 @@ export interface OrderStatusUpdate {
   timestamp: number;
   estimatedArrival?: string;
   message?: string;
+  driver?: any; // Add driver property
 }
 
 // Define the tracking context type
@@ -76,69 +77,120 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
     console.log("Stopped tracking order");
   };
 
-  // Listen for notifications and update tracking state
+  // Helper function to extract order ID from message
+  const extractOrderIdFromMessage = (message: string): string | null => {
+    // Try to match the pattern #followed-by-alphanumeric-chars
+    const orderIdMatch = message.match(/#([a-zA-Z0-9]+)/);
+    if (orderIdMatch && orderIdMatch[1]) {
+      return orderIdMatch[1];
+    }
+    return null;
+  };
+
+  // Helper function to check if two order IDs match or are substrings of each other
+  const orderIdsMatch = (id1: string, id2: string): boolean => {
+    return id1 === id2 || id1.includes(id2) || id2.includes(id1);
+  };
+
+  // Update the notification filtering logic in the TrackingContext to handle the standardized format
   useEffect(() => {
     // Only process notifications if we're tracking an order
     if (!isTracking || !trackingOrderId) return;
 
-    // Find the most recent notifications that match our tracking criteria
+    console.log("Checking notifications for order:", trackingOrderId);
+    console.log("Available notifications:", notifications);
+
+    // Find the most recent notifications that match our tracking criteria using the standardized format
     const recentNotifications = [...notifications]
       .filter((notification) => {
-        // Try to parse the notification message as JSON
-        try {
-          const data = JSON.parse(notification.message);
-          return (
-            // Check if this notification is for the order we're tracking
-            data.orderId === trackingOrderId &&
-            // Check if it's one of our tracking notification types
-            (notification.title === "OrderStatusUpdated" ||
-              notification.title === "DriverLiveLocation")
-          );
-        } catch (e) {
-          // If we can't parse the message as JSON, it's not a tracking notification
-          return false;
+        // Check if this notification is for our order using the standardized format
+        if (
+          notification.data &&
+          notification.data.orderId === trackingOrderId
+        ) {
+          return [
+            "OrderStatusUpdated",
+            "Order Accepted",
+            "DriverAssigned",
+            "DriverLiveLocation",
+          ].includes(notification.eventType);
         }
+
+        // Fallback to message content check for backward compatibility
+        if (typeof notification.message === "string") {
+          return notification.message.includes(trackingOrderId);
+        }
+
+        return false;
       })
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
+    console.log("Filtered notifications:", recentNotifications);
+
     // Process driver location updates
     const locationUpdate = recentNotifications.find(
-      (n) => n.title === "DriverLiveLocation"
+      (n) => n.eventType === "DriverLiveLocation"
     );
-    if (locationUpdate) {
+
+    if (locationUpdate && locationUpdate.data) {
+      console.log("Found location update:", locationUpdate);
+
       try {
-        const locationData = JSON.parse(locationUpdate.message);
-        setDriverLocation({
-          lat: locationData.lat,
-          lng: locationData.lng,
-          heading: locationData.heading,
-          speed: locationData.speed,
-          timestamp: new Date(locationUpdate.timestamp).getTime(),
-        });
+        // Get location data from the standardized format
+        const locationData = locationUpdate.data.data?.location;
+
+        if (locationData && locationData.lat && locationData.lng) {
+          setDriverLocation({
+            lat: locationData.lat,
+            lng: locationData.lng,
+            heading: locationData.heading,
+            speed: locationData.speed,
+            timestamp: new Date(locationUpdate.timestamp).getTime(),
+          });
+          console.log("Updated driver location from standardized data");
+        }
       } catch (e) {
-        console.error("Error parsing driver location data:", e);
+        console.error("Error processing driver location data:", e);
       }
     }
 
     // Process order status updates
-    const statusUpdate = recentNotifications.find(
-      (n) => n.title === "OrderStatusUpdated"
+    const statusUpdate = recentNotifications.find((n) =>
+      ["OrderStatusUpdated", "Order Accepted", "DriverAssigned"].includes(
+        n.eventType
+      )
     );
-    if (statusUpdate) {
+
+    if (statusUpdate && statusUpdate.data) {
+      console.log("Found status update:", statusUpdate);
+
       try {
-        const statusData = JSON.parse(statusUpdate.message);
-        setOrderStatus({
-          orderId: statusData.orderId,
-          status: statusData.status,
-          timestamp: new Date(statusUpdate.timestamp).getTime(),
-          estimatedArrival: statusData.estimatedArrival,
-          message: statusData.message,
-        });
+        const eventData = statusUpdate.data;
+
+        if (eventData.orderId) {
+          // Map status if needed
+          let status = eventData.data?.status || "unknown";
+
+          // Normalize status names
+          if (status === "AWAITING_PICKUP") status = "DRIVER_PICKUP";
+          else if (status === "IN_PROGRESS") status = "IN_TRANSIT";
+
+          setOrderStatus({
+            orderId: eventData.orderId,
+            status: status,
+            timestamp: new Date(statusUpdate.timestamp).getTime(),
+            estimatedArrival: eventData.data?.estimatedArrival,
+            message: eventData.data?.message || statusUpdate.message,
+            driver: eventData.data?.driver,
+          });
+
+          console.log("Updated order status from standardized data:", status);
+        }
       } catch (e) {
-        console.error("Error parsing order status data:", e);
+        console.error("Error processing order status data:", e);
       }
     }
   }, [notifications, isTracking, trackingOrderId]);

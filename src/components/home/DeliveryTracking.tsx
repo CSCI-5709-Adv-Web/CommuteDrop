@@ -80,23 +80,30 @@ export default function DeliveryTracking({
     }
   }, [orderStatus]);
 
-  // For demo purposes - send test notifications
+  // For demo purposes - send test notifications with standardized format
   const sendTestDriverLocation = () => {
     sendStructuredNotification("info", "DriverLiveLocation", {
       orderId: orderId,
-      lat: 44.6488 + (Math.random() * 0.01 - 0.005),
-      lng: -63.5752 + (Math.random() * 0.01 - 0.005),
-      heading: Math.random() * 360,
-      speed: Math.random() * 50,
+      data: {
+        message: "Driver location updated",
+        location: {
+          lat: 44.6488 + (Math.random() * 0.01 - 0.005),
+          lng: -63.5752 + (Math.random() * 0.01 - 0.005),
+          heading: Math.random() * 360,
+          speed: Math.random() * 50,
+        },
+      },
     });
   };
 
   const sendTestStatusUpdate = (status: string) => {
     sendStructuredNotification("success", "OrderStatusUpdated", {
       orderId: orderId,
-      status: status,
-      estimatedArrival: "10 minutes",
-      message: `Your order is now ${status}`,
+      data: {
+        status: status,
+        estimatedArrival: "10 minutes",
+        message: `Your order is now ${status}`,
+      },
     });
   };
 

@@ -7,15 +7,24 @@ import { AnimatePresence, motion } from "framer-motion";
 import NotificationToast from "./NotificationToast";
 import io from "socket.io-client";
 
-// Define the notification type
+// Define the standard event structure with consistent outer layer
+export interface StandardEvent {
+  eventType: string; // Type of event (e.g., "OrderStatusUpdated", "DriverAssigned")
+  orderId: string; // ID of the order this event relates to
+  timestamp: number; // When the event occurred (milliseconds since epoch)
+  data: any; // Event-specific data varies based on eventType
+}
+
+// Update the Notification interface to use the standardized event structure
 export interface Notification {
   id: string;
   title: string;
+  eventType: string;
   message: string;
   type: "info" | "success" | "warning" | "error";
   timestamp: Date;
   read: boolean;
-  data?: any; // Add a data field for structured notification data
+  data?: any; // Raw data associated with the notification
 }
 
 // Define the context type
@@ -27,14 +36,14 @@ interface NotificationContextType {
   clearNotifications: () => void;
   sendTestNotification: (
     type: "info" | "success" | "warning" | "error",
-    title?: string,
+    eventType?: string,
     message?: string,
     data?: any
   ) => void;
   // Add a method to send a structured notification
   sendStructuredNotification: (
     type: "info" | "success" | "warning" | "error",
-    title: string,
+    eventType: string,
     data: any
   ) => void;
 }
@@ -110,30 +119,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         });
 
-        socketInstance.on("notification", (notification: Notification) => {
+        // Update the notification processing to handle structured data better
+        socketInstance.on("notification", (notification: any) => {
           console.log("Received notification:", notification);
 
-          // Parse data field if it's a string
-          let parsedData = notification.data;
-          if (
-            typeof notification.message === "string" &&
-            (notification.title === "OrderStatusUpdated" ||
-              notification.title === "DriverLiveLocation")
-          ) {
-            try {
-              parsedData = JSON.parse(notification.message);
-            } catch (e) {
-              console.warn("Could not parse notification message as JSON");
-            }
-          }
+          // Ensure we have a valid notification object
+          if (!notification) return;
 
-          // Create a notification object with the parsed data
+          // Create a notification object with the parsed data, ensuring both eventType and title fields are set
           const newNotification = {
-            ...notification,
-            data: parsedData,
-            timestamp: new Date(notification.timestamp),
+            id: notification.id || Date.now().toString(),
+            eventType: notification.eventType || notification.title, // Use eventType if available, fall back to title
+            title:
+              notification.title || notification.eventType || "Notification", // Ensure title is always a string
+            message: notification.message || "",
+            type: notification.type || "info",
+            timestamp: new Date(notification.timestamp || Date.now()),
             read: false,
+            data: notification.data || null, // Keep the data as is, don't try to parse it
           };
+
+          console.log("Processed notification:", newNotification);
 
           // Add the notification to the state
           setNotifications((prev) => [newNotification, ...prev]);
@@ -196,20 +202,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     setNotifications([]);
   };
 
-  // Update the sendTestNotification function to work even when socket is not available
+  // Update the sendTestNotification to properly set both eventType and title
   const sendTestNotification = (
     type: "info" | "success" | "warning" | "error",
-    title?: string,
+    eventType?: string,
     message?: string,
     data?: any
   ) => {
+    const title = eventType || `Test ${type} Notification`;
+
     if (socket) {
-      socket.emit("send-test-notification", { type, title, message, data });
+      socket.emit("send-test-notification", {
+        type,
+        eventType,
+        title,
+        message,
+        data,
+      });
     } else {
       // Create a local notification when socket is not available
       const notification = {
         id: Date.now().toString(),
-        title: title || `Test ${type} Notification`,
+        title: title, // This is already guaranteed to be a string
+        eventType: eventType || title,
         message:
           message ||
           `This is a test ${type} notification sent at ${new Date().toLocaleString()}`,
@@ -235,17 +250,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Add a method to send structured notifications
+  // Update the sendStructuredNotification method to enforce the standard outer structure
   const sendStructuredNotification = (
     type: "info" | "success" | "warning" | "error",
-    title: string,
-    data: any
+    eventType: string,
+    eventData: any
   ) => {
-    // Convert data to a string message for display
-    const message = JSON.stringify(data);
+    // Create the standard event structure
+    const standardEvent: StandardEvent = {
+      eventType: eventType,
+      orderId: eventData.orderId || "unknown",
+      timestamp: Date.now(),
+      data: eventData.data || {}, // Event-specific data goes here
+    };
 
-    // Send the notification with both the string message and structured data
-    sendTestNotification(type, title, message, data);
+    // Create a human-readable message
+    const message =
+      eventData.message ||
+      `New ${eventType} notification for order #${standardEvent.orderId}`;
+
+    // Send the notification with the standardized structure
+    sendTestNotification(type, eventType, message, standardEvent);
   };
 
   // Create the context value

@@ -100,7 +100,7 @@ const NotificationList: React.FC<NotificationListProps> = ({ onClose }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {notification.title}
+                        {notification.eventType || notification.title}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         {notification.message}

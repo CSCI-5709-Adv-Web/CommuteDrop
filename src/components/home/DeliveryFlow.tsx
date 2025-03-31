@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
-import DeliveryTracking from "./DeliveryTracking";
 import { useOrder } from "../../context/OrderContext";
 import { useLocation } from "../../context/LocationContext";
 
@@ -69,9 +68,9 @@ export default function DeliveryFlow({
     cvc: "",
   };
 
-  // Calculate progress based on current step
-  const steps = ["search", "confirm", "payment", "estimate", "tracking"];
-  const progress = (steps.indexOf(currentStep) + 1) * 20;
+  // Calculate progress based on current step - remove tracking from steps
+  const steps = ["search", "confirm", "payment", "estimate"];
+  const progress = (steps.indexOf(currentStep) + 1) * (100 / steps.length);
 
   // Handle form data changes
   const handleFormDataChange = useCallback(
@@ -125,15 +124,41 @@ export default function DeliveryFlow({
     handleNavigate("estimate");
   }, [handleNavigate]);
 
-  // Handle tracking start
-  const handleStartTracking = useCallback(() => {
-    handleNavigate("tracking");
-  }, [handleNavigate]);
-
   const transitionConfig = {
     duration: 0.3,
     ease: [0.4, 0, 0.2, 1],
   };
+
+  useEffect(() => {
+    // Check if we have a saved order state
+    try {
+      const savedOrderState = localStorage.getItem("orderState");
+      if (savedOrderState) {
+        const parsedState = JSON.parse(savedOrderState);
+
+        // If we have an orderId and the status is still active, restore the state
+        if (
+          parsedState.orderId &&
+          ["DRAFT", "CREATED", "CONFIRMED", "PAID"].includes(parsedState.status)
+        ) {
+          setOrderDetails(parsedState);
+
+          // Set the current step based on the saved state
+          if (parsedState.currentStep) {
+            setCurrentStep(parsedState.currentStep);
+          } else if (parsedState.status === "PAID") {
+            setCurrentStep("estimate");
+          } else if (parsedState.status === "CONFIRMED") {
+            setCurrentStep("payment");
+          } else if (parsedState.status === "CREATED") {
+            setCurrentStep("confirm");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error restoring saved order state:", error);
+    }
+  }, [setOrderDetails, setCurrentStep]);
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-sm">
@@ -208,21 +233,6 @@ export default function DeliveryFlow({
                 formData={completeFormData}
                 estimateData={orderData}
                 onBack={() => handleNavigate("payment")}
-                onTrack={handleStartTracking}
-              />
-            </motion.div>
-          )}
-          {currentStep === "tracking" && orderId && (
-            <motion.div
-              key="tracking"
-              initial={{ opacity: 0, filter: "blur(10px)" }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: "blur(10px)" }}
-              transition={transitionConfig}
-            >
-              <DeliveryTracking
-                orderId={orderId}
-                onBack={() => handleNavigate("estimate")}
               />
             </motion.div>
           )}

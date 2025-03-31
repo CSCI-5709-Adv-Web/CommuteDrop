@@ -49,6 +49,8 @@ jobs:
 
       - name: Apply Kubernetes Resources
         run: |
+          kubectl apply -f k8s/zookeeper-deployment.yaml
+          kubectl apply -f k8s/kafka-deployment.yaml
           kubectl apply -f k8s/CommuneDrop-ConfigMap.yaml
           kubectl apply -f k8s/CommuneDrop-secret.yaml
           kubectl apply -f k8s/CommuneDrop-deployment.yaml

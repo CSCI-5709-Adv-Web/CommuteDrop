@@ -83,49 +83,63 @@ export default function DeliveryEstimate({
             ? JSON.parse(latestNotification.message)
             : latestNotification.data;
 
+        console.log("Processing notification data:", notificationData);
+
         // Check if this notification is for our order
         const orderId = estimateData?.orderId || "order_123";
         if (notificationData.orderId === orderId) {
           // Update state based on the notification status
-          switch (notificationData.status) {
-            case "AWAITING_PICKUP":
-              // If we have driver details in the notification
-              if (notificationData.driver) {
-                setDriverDetails({
-                  id: notificationData.driver.id || "driver_id",
-                  name: notificationData.driver.name || "Driver Name",
-                  rating: notificationData.driver.rating || 4.8,
-                  trips: notificationData.driver.trips || 1243,
-                  vehicleType:
-                    notificationData.driver.vehicleType || "Toyota Prius",
-                  vehicleNumber:
-                    notificationData.driver.vehicleNumber || "ABC 123",
-                  image:
-                    notificationData.driver.image ||
-                    "/placeholder.svg?height=100&width=100",
-                  eta: notificationData.estimatedArrival || "5 minutes",
-                });
+          const status = notificationData.status || notificationData.status;
 
-                // First show the driver found animation
-                setOrderState("DRIVER_FOUND");
+          // Handle case-insensitive status matching
+          const normalizedStatus = status?.toUpperCase();
 
-                // Then after a short delay, show the driver details
-                setTimeout(() => {
-                  setOrderState("AWAITING_PICKUP");
-                }, 2000);
-              } else {
-                // If no driver details, just update the state
+          if (
+            normalizedStatus === "AWAITING_PICKUP" ||
+            normalizedStatus === "AWAITING_PICKUP"
+          ) {
+            // Extract driver details if available
+            if (notificationData.driver) {
+              const driverDetails = {
+                id: notificationData.driver.id || "driver_id",
+                name: notificationData.driver.name || "Driver Name",
+                rating: notificationData.driver.rating || 4.8,
+                trips: notificationData.driver.trips || 1243,
+                vehicleType:
+                  notificationData.driver.vehicleType ||
+                  notificationData.driver.vehicleType ||
+                  "Toyota Prius",
+                vehicleNumber:
+                  notificationData.driver.vehicleNumber ||
+                  notificationData.driver.vehicleNumber ||
+                  "ABC 123",
+                image:
+                  notificationData.driver.image ||
+                  "/placeholder.svg?height=100&width=100",
+                eta: notificationData.estimatedArrival || "5 minutes",
+              };
+
+              setDriverDetails(driverDetails);
+              console.log("Driver details set:", driverDetails);
+
+              // First show the driver found animation
+              setOrderState("DRIVER_FOUND");
+
+              // Then after a short delay, show the driver details
+              setTimeout(() => {
                 setOrderState("AWAITING_PICKUP");
-              }
-              break;
-
-            case "CANCELLED":
-              setOrderState("CANCELLED");
-              break;
-
-            default:
-              // For any other status, keep waiting
-              break;
+                setWaitingTime(0); // Reset waiting time counter
+              }, 2000);
+            } else {
+              // If no driver details, just update the state
+              setOrderState("AWAITING_PICKUP");
+              setWaitingTime(0); // Reset waiting time counter
+            }
+          } else if (normalizedStatus === "CANCELLED") {
+            setOrderState("CANCELLED");
+          } else if (normalizedStatus) {
+            // For any other status, update accordingly
+            setOrderState(normalizedStatus as OrderState);
           }
         }
       } catch (error) {
@@ -191,6 +205,8 @@ export default function DeliveryEstimate({
                   ? "bg-green-100 text-green-800"
                   : orderState === "CANCELLED"
                   ? "bg-red-100 text-red-800"
+                  : orderState === "DRIVER_FOUND"
+                  ? "bg-blue-100 text-blue-800"
                   : "bg-amber-100 text-amber-800"
               }`}
             >
@@ -310,12 +326,15 @@ export default function DeliveryEstimate({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm"
+              className="bg-white p-6 rounded-lg border border-green-200 shadow-sm"
             >
               <div className="flex items-start gap-4">
                 <div className="relative">
                   <img
-                    src={driverDetails.image || "/placeholder.svg"}
+                    src={
+                      driverDetails.image ||
+                      "/placeholder.svg?height=100&width=100"
+                    }
                     alt={driverDetails.name}
                     className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                   />

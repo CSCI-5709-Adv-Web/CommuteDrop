@@ -11,14 +11,10 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    proxy: {
-      // If you have API calls, you might want to proxy them
-      "/api": {
-        target: "http://localhost:3001",
-        changeOrigin: true,
-      },
-    },
-    // Disable host checking completely
-    allowedHosts: "all",
+    allowedHosts: [
+      "adae20237c7f0499ab8f25b18093eff2-02eabdebe2d7b8c1.elb.us-east-1.amazonaws.com",
+      "*.elb.us-east-1.amazonaws.com",
+      "all",
+    ],
   },
 });

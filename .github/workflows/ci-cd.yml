@@ -2,8 +2,7 @@ name: Location Service CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - master # Runs pipeline when pushing to master
+    branches: [main, master] # Runs pipeline when pushing to master
 
 jobs:
   build-and-push:

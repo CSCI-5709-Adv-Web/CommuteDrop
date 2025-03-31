@@ -86,18 +86,18 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
-        - name: commune-drop-service
-          image: jashpatel1511/web-commune-drop-service:latest
-          ports:
-            - containerPort: 3001
-              name: service
-          resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "500m"
+        # - name: commune-drop-service
+        #   image: jashpatel1511/web-commune-drop-service:latest
+        #   ports:
+        #     - containerPort: 3001
+        #       name: service
+        #   resources:
+        #     requests:
+        #       memory: "128Mi"
+        #       cpu: "100m"
+        #     limits:
+        #       memory: "256Mi"
+        #       cpu: "500m"
 ---
 apiVersion: v1
 kind: Service

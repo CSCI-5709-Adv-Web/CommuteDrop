@@ -1,39 +1,72 @@
+# # Development image
+# FROM node:18-alpine
+# WORKDIR /app
+
+# # Copy package.json files first (for better caching)
+# COPY package.json package-lock.json* ./
+# COPY server/package.json server/package-lock.json* ./server/
+
+# # Install dependencies for both frontend and server
+# RUN npm install
+# WORKDIR /app/server
+# RUN npm install
+# WORKDIR /app
+
+# # Copy all project files
+# COPY . .
+
+# # Expose both ports
+# EXPOSE 5173 3001
+
+# # Start the development server
+# # This will run both the frontend on 5173 and websocket server on 3001
+# CMD ["npm", "run", "dev:docker"]
 # Build stage
+# Build Stage
 FROM node:18-alpine AS build
+
+# Set working directory
 WORKDIR /app
 
-# Copy package.json files first (for better caching)
-COPY package.json package-lock.json* ./
-COPY server/package.json server/package-lock.json* ./server/
+# Copy package.json and package-lock.json
+COPY package*.json ./
+COPY server/package.json server/package-lock.json ./server/
 
-# Install dependencies for both frontend and server
-RUN npm install
+# Install dependencies
+RUN npm ci
 WORKDIR /app/server
-RUN npm install
+RUN npm ci --omit=dev
 WORKDIR /app
 
-# Copy all project files
+# Copy all files
 COPY . .
 
-# Build the Vite application without TypeScript checking
+# Build frontend
 RUN npm run build
 
-# Production stage
+# Production Stage
 FROM node:18-alpine
+
 WORKDIR /app
 
-# Copy built assets and server files
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/server ./server
-COPY --from=build /app/server.js ./server.js
-COPY --from=build /app/package.json ./package.json
+# Install dependencies for the server
+COPY --from=build /app/package.json /app/package.json
+COPY --from=build /app/server/package.json /app/server/package.json
+RUN npm install --omit=dev
 
-# Install production dependencies only
-RUN npm install --production
+# Install serve for serving frontend
+RUN npm install -g serve
 
-# Expose ports
-EXPOSE 80 3001
+# Copy built frontend assets
+COPY --from=build /app/dist /app/dist
+COPY --from=build /app/server /app/server
 
+# Create health check endpoint
+RUN mkdir -p /app/dist/health && \
+    echo "OK" > /app/dist/health/index.html
 
-# Start the server
-CMD ["node", "server.js"]
+# Expose ports for both frontend and WebSocket server
+EXPOSE 5173 3001
+
+# Start both frontend and WebSocket server
+CMD ["sh", "-c", "serve -s dist -l 5173 & node server/websocket-server.js"]

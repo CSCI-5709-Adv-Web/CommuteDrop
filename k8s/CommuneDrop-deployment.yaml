@@ -73,7 +73,7 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 80
+      targetPort: 5173
       name: frontend
     - protocol: TCP
       port: 3001

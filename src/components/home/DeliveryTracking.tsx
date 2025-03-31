@@ -80,14 +80,37 @@ export default function DeliveryTracking({
     }
   }, [orderStatus]);
 
-  // For demo purposes - send test notifications
+  // Update the sendTestDriverLocation function to use the driver's location from the notification
   const sendTestDriverLocation = () => {
-    sendStructuredNotification("info", "DriverLiveLocation", {
+    // Use the driver location from the notification if available
+    const driverLocation = {
       orderId: orderId,
-      lat: 44.6488 + (Math.random() * 0.01 - 0.005),
-      lng: -63.5752 + (Math.random() * 0.01 - 0.005),
+      lat: 44.647088085808676,
+      lng: -63.59445103314776,
       heading: Math.random() * 360,
       speed: Math.random() * 50,
+    };
+
+    sendStructuredNotification("info", "DriverLiveLocation", driverLocation);
+  };
+
+  // Add a function to simulate an order accepted notification
+  const sendTestOrderAccepted = () => {
+    sendStructuredNotification("success", "Order Accepted", {
+      orderId: orderId,
+      status: "AWAITING_PICKUP",
+      estimatedArrival: "5 minutes",
+      message: "Driver has accepted your order",
+      driver: {
+        id: "driver_123",
+        name: "Michael Chen",
+        rating: 4.8,
+        trips: 1243,
+        vehicleType: "Toyota Prius",
+        vehicleNumber: "ABC 123",
+        image: "/placeholder.svg?height=100&width=100",
+      },
+      currentLocation: { lat: 44.647088085808676, lng: -63.59445103314776 },
     });
   };
 
@@ -185,6 +208,12 @@ export default function DeliveryTracking({
             className="bg-blue-100 text-blue-700 p-2 rounded text-xs"
           >
             Update Driver Location
+          </button>
+          <button
+            onClick={sendTestOrderAccepted}
+            className="bg-green-100 text-green-700 p-2 rounded text-xs"
+          >
+            Simulate Order Accepted
           </button>
           {deliverySteps.map((step) => (
             <button

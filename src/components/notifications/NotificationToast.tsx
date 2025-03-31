@@ -57,7 +57,9 @@ const NotificationToast: React.FC<NotificationToastProps> = ({
       <div className="flex items-start">
         <div className="flex-shrink-0 mr-3">{getIcon()}</div>
         <div className="flex-1">
-          <h4 className="font-medium text-gray-900">{notification.title}</h4>
+          <h4 className="font-medium text-gray-900">
+            {notification.eventType || notification.title}
+          </h4>
           <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
           <div className="mt-2 flex justify-between items-center">
             <button

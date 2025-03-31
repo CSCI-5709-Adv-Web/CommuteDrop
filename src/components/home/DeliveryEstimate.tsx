@@ -32,6 +32,7 @@ interface DriverDetails {
   eta: string;
 }
 
+// Update the OrderState type definition
 type OrderState =
   | "WAITING_FOR_DRIVER"
   | "AWAITING_PICKUP"
@@ -50,7 +51,22 @@ export default function DeliveryEstimate({
   const [driverDetails, setDriverDetails] = useState<DriverDetails | null>(
     null
   );
-  const { notifications } = useNotifications();
+  const { notifications, sendStructuredNotification } = useNotifications();
+
+  // Helper function to extract order ID from message
+  const extractOrderIdFromMessage = (message: string): string | null => {
+    // Try to match the pattern #followed-by-alphanumeric-chars
+    const orderIdMatch = message.match(/#([a-zA-Z0-9]+)/);
+    if (orderIdMatch && orderIdMatch[1]) {
+      return orderIdMatch[1];
+    }
+    return null;
+  };
+
+  // Helper function to check if two order IDs match or are substrings of each other
+  const orderIdsMatch = (id1: string, id2: string): boolean => {
+    return id1 === id2 || id1.includes(id2) || id2.includes(id1);
+  };
 
   // Simulate waiting time counter
   useEffect(() => {
@@ -66,56 +82,93 @@ export default function DeliveryEstimate({
   // Listen for notifications from the driver service
   useEffect(() => {
     // Get the most recent notification that might be relevant to our order
+    const currentOrderId = estimateData?.orderId || "order_123";
+    console.log("Order ID - Expected:", currentOrderId);
+
     const orderStatusNotifications = notifications
-      .filter((notification) => notification.title === "OrderStatusUpdated")
+      .filter((notification) => {
+        const eventType = notification.eventType || notification.title;
+
+        // Check if this notification is for our order
+        // First check if we have data with orderId
+        if (notification.data && notification.data.orderId) {
+          return (
+            orderIdsMatch(notification.data.orderId, currentOrderId) &&
+            (eventType === "OrderStatusUpdated" ||
+              eventType === "Order Accepted")
+          );
+        }
+
+        // If no data.orderId, check the message for the order ID
+        if (typeof notification.message === "string") {
+          const extractedOrderId = extractOrderIdFromMessage(
+            notification.message
+          );
+          if (extractedOrderId) {
+            return (
+              orderIdsMatch(extractedOrderId, currentOrderId) &&
+              (eventType === "OrderStatusUpdated" ||
+                eventType === "Order Accepted")
+            );
+          }
+
+          // If no specific order ID found, check if the message contains our order ID
+          return (
+            notification.message.includes(currentOrderId) &&
+            (eventType === "OrderStatusUpdated" ||
+              eventType === "Order Accepted")
+          );
+        }
+
+        return false;
+      })
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
+    console.log(
+      "Filtered order status notifications:",
+      orderStatusNotifications
+    );
+
     if (orderStatusNotifications.length > 0) {
       const latestNotification = orderStatusNotifications[0];
+      console.log("Processing notification:", latestNotification);
 
       try {
-        // Parse the notification message to get the order status
-        const notificationData =
-          typeof latestNotification.message === "string"
-            ? JSON.parse(latestNotification.message)
-            : latestNotification.data;
+        // First check if we have structured data
+        if (latestNotification.data) {
+          const notificationData = latestNotification.data;
+          console.log("Using structured data:", notificationData);
 
-        console.log("Processing notification data:", notificationData);
-
-        // Check if this notification is for our order
-        const orderId = estimateData?.orderId || "order_123";
-        if (notificationData.orderId === orderId) {
-          // Update state based on the notification status
-          const status = notificationData.status || notificationData.status;
+          // Check if this notification is for our order
+          const notificationOrderId = notificationData.orderId;
+          const eventType =
+            latestNotification.eventType || latestNotification.title;
 
           // Handle case-insensitive status matching
-          const normalizedStatus = status?.toUpperCase();
+          const normalizedStatus = notificationData.status?.toUpperCase();
 
+          // Check event type as well as status
           if (
             normalizedStatus === "AWAITING_PICKUP" ||
-            normalizedStatus === "AWAITING_PICKUP"
+            eventType === "Order Accepted"
           ) {
             // Extract driver details if available
-            if (notificationData.driver) {
+            const driver = notificationData.driver;
+
+            if (driver) {
               const driverDetails = {
-                id: notificationData.driver.id || "driver_id",
-                name: notificationData.driver.name || "Driver Name",
-                rating: notificationData.driver.rating || 4.8,
-                trips: notificationData.driver.trips || 1243,
+                id: driver.id || "driver_id",
+                name: driver.name || "Driver Name",
+                rating: driver.rating || 4.8,
+                trips: driver.trips || 1243,
                 vehicleType:
-                  notificationData.driver.vehicleType ||
-                  notificationData.driver.vehicleType ||
-                  "Toyota Prius",
+                  driver.vehicleType || driver.vehicle_type || "Toyota Prius",
                 vehicleNumber:
-                  notificationData.driver.vehicleNumber ||
-                  notificationData.driver.vehicleNumber ||
-                  "ABC 123",
-                image:
-                  notificationData.driver.image ||
-                  "/placeholder.svg?height=100&width=100",
+                  driver.vehicleNumber || driver.vehicle_number || "ABC 123",
+                image: driver.image || "/placeholder.svg?height=100&width=100",
                 eta: notificationData.estimatedArrival || "5 minutes",
               };
 
@@ -142,8 +195,58 @@ export default function DeliveryEstimate({
             setOrderState(normalizedStatus as OrderState);
           }
         }
+        // If no structured data, try to extract information from the message
+        else if (typeof latestNotification.message === "string") {
+          console.log(
+            "Extracting data from message:",
+            latestNotification.message
+          );
+
+          // Extract driver name if present
+          const driverMatch = latestNotification.message.match(
+            /Driver\s+([^\s]+\s+[^\s]+)/
+          );
+          const driverName = driverMatch ? driverMatch[1] : null;
+
+          // Determine status from message content
+          if (latestNotification.message.includes("accepted")) {
+            if (driverName) {
+              const driverDetails = {
+                id: "driver_id",
+                name: driverName,
+                rating: 4.8,
+                trips: 1243,
+                vehicleType: "Toyota Prius",
+                vehicleNumber: "ABC 123",
+                image: "/placeholder.svg?height=100&width=100",
+                eta: "5 minutes",
+              };
+
+              setDriverDetails(driverDetails);
+              console.log(
+                "Driver details extracted from message:",
+                driverDetails
+              );
+
+              // First show the driver found animation
+              setOrderState("DRIVER_FOUND");
+
+              // Then after a short delay, show the driver details
+              setTimeout(() => {
+                setOrderState("AWAITING_PICKUP");
+                setWaitingTime(0); // Reset waiting time counter
+              }, 2000);
+            } else {
+              // If no driver details, just update the state
+              setOrderState("AWAITING_PICKUP");
+              setWaitingTime(0); // Reset waiting time counter
+            }
+          } else if (latestNotification.message.includes("cancelled")) {
+            setOrderState("CANCELLED");
+          }
+        }
       } catch (error) {
-        console.error("Error parsing notification:", error);
+        console.error("Error processing notification:", error);
       }
     }
   }, [notifications, estimateData]);
@@ -162,6 +265,57 @@ export default function DeliveryEstimate({
     setWaitingTime(0);
     setOrderState("WAITING_FOR_DRIVER");
   };
+
+  // Add a function to send a test notification for driver acceptance
+  const sendTestDriverAcceptance = () => {
+    const orderId = estimateData?.orderId || "order_123";
+
+    sendStructuredNotification("success", "Order Accepted", {
+      orderId: orderId,
+      status: "AWAITING_PICKUP",
+      estimatedArrival: "5 minutes",
+      message: "Driver has accepted your order",
+      driver: {
+        id: "driver_123",
+        name: "Michael Chen",
+        rating: 4.8,
+        trips: 1243,
+        vehicleType: "Toyota Prius",
+        vehicleNumber: "ABC 123",
+        image: "/placeholder.svg?height=100&width=100",
+      },
+      currentLocation: {
+        lat: 44.6470226,
+        lng: -63.5942508,
+      },
+    });
+  };
+
+  const sendTestStatusUpdate = (status: string) => {
+    const orderId = estimateData?.orderId || "order_123";
+    sendStructuredNotification("info", "OrderStatusUpdated", {
+      orderId: orderId,
+      status: status,
+    });
+  };
+
+  const sendTestDriverLocation = () => {
+    const orderId = estimateData?.orderId || "order_123";
+    sendStructuredNotification("info", "DriverLiveLocation", {
+      orderId: orderId,
+      location: {
+        lat: 44.6470226,
+        lng: -63.5942508,
+      },
+    });
+  };
+
+  const deliverySteps = [
+    { id: "AWAITING_PICKUP", label: "Awaiting Pickup" },
+    { id: "IN_TRANSIT", label: "In Transit" },
+    { id: "ARRIVED", label: "Arrived" },
+    { id: "DELIVERED", label: "Delivered" },
+  ];
 
   return (
     <motion.div
@@ -313,7 +467,8 @@ export default function DeliveryEstimate({
                   Driver Found!
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  A driver has accepted your delivery request
+                  {driverDetails?.name || "A driver"} has accepted your delivery
+                  request
                 </p>
               </div>
             </motion.div>
@@ -333,10 +488,15 @@ export default function DeliveryEstimate({
                   <img
                     src={
                       driverDetails.image ||
-                      "/placeholder.svg?height=100&width=100"
+                      "/placeholder.svg?height=100&width=100" ||
+                      "/placeholder.svg"
                     }
                     alt={driverDetails.name}
                     className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "/placeholder.svg?height=100&width=100";
+                    }}
                   />
                   <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white" />
                 </div>
@@ -466,6 +626,35 @@ export default function DeliveryEstimate({
             Track Delivery
           </div>
         </motion.button>
+      </div>
+      {/* Demo controls - only for testing */}
+      <div className="mt-auto bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">
+          Demo Controls
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={sendTestDriverLocation}
+            className="bg-blue-100 text-blue-700 p-2 rounded text-xs"
+          >
+            Update Driver Location
+          </button>
+          <button
+            onClick={sendTestDriverAcceptance}
+            className="bg-green-100 text-green-700 p-2 rounded text-xs font-medium"
+          >
+            Driver Accepts Order
+          </button>
+          {deliverySteps.map((step) => (
+            <button
+              key={step.id}
+              onClick={() => sendTestStatusUpdate(step.id)}
+              className="bg-gray-100 text-gray-700 p-2 rounded text-xs"
+            >
+              Set {step.label}
+            </button>
+          ))}
+        </div>
       </div>
     </motion.div>
   );

@@ -27,8 +27,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-// Update OrderContext to remove tracking step and references to it
-
+// Update the OrderState interface to include "tracking" in the currentStep type
 export interface OrderState {
   // Order details
   orderId: string | null;
@@ -60,7 +59,7 @@ export interface OrderState {
   // UI state
   isLoading: boolean;
   error: string | null;
-  currentStep: "search" | "confirm" | "payment" | "estimate"; // Removed "tracking" step
+  currentStep: "search" | "confirm" | "payment" | "estimate" | "tracking";
 }
 
 interface OrderContextType extends OrderState {
@@ -101,21 +100,7 @@ const initialState: OrderState = {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  // Add persistence for order state in the OrderContext
-
-  // In the OrderProvider component, update the initialState to check localStorage:
-  const [state, setState] = useState<OrderState>(() => {
-    try {
-      const savedOrderState = localStorage.getItem("orderState");
-      if (savedOrderState) {
-        const parsedState = JSON.parse(savedOrderState);
-        return { ...initialState, ...parsedState };
-      }
-    } catch (error) {
-      console.error("Error loading saved order state:", error);
-    }
-    return initialState;
-  });
+  const [state, setState] = useState<OrderState>(initialState);
   const {
     routeInfo,
     setRouteInfo,
@@ -398,26 +383,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     },
     [state.orderId, state.paymentAmount, state.estimatedPrice]
   );
-
-  // Add an effect to save state changes to localStorage
-  useEffect(() => {
-    // Only save specific fields that we want to persist
-    const stateToSave = {
-      orderId: state.orderId,
-      status: state.status,
-      currentStep: state.currentStep,
-      estimatedPrice: state.estimatedPrice,
-      orderData: state.orderData,
-    };
-
-    localStorage.setItem("orderState", JSON.stringify(stateToSave));
-  }, [
-    state.orderId,
-    state.status,
-    state.currentStep,
-    state.estimatedPrice,
-    state.orderData,
-  ]);
 
   // Sync location data from LocationContext
   useEffect(() => {

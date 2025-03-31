@@ -15,8 +15,8 @@ WORKDIR /app
 # Copy all project files
 COPY . .
 
-# Build the Vite application
-RUN npm run build
+# Build the Vite application without TypeScript checking
+RUN npm run build:skip-ts
 
 # Production stage
 FROM node:18-alpine

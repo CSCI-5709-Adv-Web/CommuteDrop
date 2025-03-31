@@ -5,20 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Shield,
-  MapPin,
   Clock,
   RefreshCw,
   CheckCircle,
   X,
+  Truck,
+  Package,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNotifications } from "../notifications/NotificationProvider";
+import { useTracking } from "../../context/TrackingContext";
 
 interface DeliveryEstimateProps {
   formData: DeliveryFormData;
   estimateData?: any;
   onBack: () => void;
-  onTrack: () => void;
+  onTrack?: () => void; // Made optional since we won't use this button anymore
 }
 
 interface DriverDetails {
@@ -43,15 +45,130 @@ export default function DeliveryEstimate({
   formData,
   estimateData,
   onBack,
-  onTrack,
 }: DeliveryEstimateProps) {
-  const [orderState, setOrderState] =
-    useState<OrderState>("WAITING_FOR_DRIVER");
-  const [waitingTime, setWaitingTime] = useState(0);
+  // Add at the top of the component, after the useState declarations:
+  const [orderState, setOrderState] = useState<OrderState>(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(
+      `order_state_${estimateData?.orderId}`
+    );
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        // If the saved state is "WAITING_FOR_DRIVER", use it
+        if (parsedState.state === "WAITING_FOR_DRIVER") {
+          return parsedState.state;
+        }
+      } catch (e) {
+        console.error("Error parsing saved order state:", e);
+      }
+    }
+    return "WAITING_FOR_DRIVER"; // Default state
+  });
+
+  const [waitingTime, setWaitingTime] = useState(() => {
+    // Try to load saved waiting time from localStorage
+    const savedTime = localStorage.getItem(
+      `waiting_time_${estimateData?.orderId}`
+    );
+    if (savedTime) {
+      try {
+        const parsedTime = Number.parseInt(savedTime, 10);
+        if (!isNaN(parsedTime)) {
+          return parsedTime;
+        }
+      } catch (e) {
+        console.error("Error parsing saved waiting time:", e);
+      }
+    }
+    return 0; // Default waiting time
+  });
+  const { notifications, sendStructuredNotification } = useNotifications();
   const [driverDetails, setDriverDetails] = useState<DriverDetails | null>(
     null
   );
-  const { notifications, sendStructuredNotification } = useNotifications();
+
+  // Add tracking functionality
+  const {
+    isTracking,
+    driverLocation,
+    orderStatus,
+    startTracking,
+    stopTracking,
+  } = useTracking();
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Define the delivery steps
+  const deliverySteps = [
+    {
+      id: "CONFIRMED",
+      label: "Order Confirmed",
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+    {
+      id: "DRIVER_ASSIGNED",
+      label: "Driver Assigned",
+      icon: <Truck className="w-5 h-5" />,
+    },
+    {
+      id: "DRIVER_PICKUP",
+      label: "Driver at Pickup",
+      icon: <Package className="w-5 h-5" />,
+    },
+    {
+      id: "IN_TRANSIT",
+      label: "In Transit",
+      icon: <Truck className="w-5 h-5" />,
+    },
+    {
+      id: "ARRIVING",
+      label: "Arriving Soon",
+      icon: <Clock className="w-5 h-5" />,
+    },
+    {
+      id: "DELIVERED",
+      label: "Delivered",
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+  ];
+
+  // Start tracking when component mounts if we have an orderId
+  useEffect(() => {
+    if (estimateData?.orderId) {
+      startTracking(estimateData.orderId);
+
+      // Return cleanup function to stop tracking when component unmounts
+      return () => {
+        stopTracking();
+      };
+    }
+  }, [estimateData?.orderId, startTracking, stopTracking]);
+
+  // Update current step based on order status
+  useEffect(() => {
+    if (orderStatus) {
+      const stepIndex = deliverySteps.findIndex(
+        (step) => step.id === orderStatus.status
+      );
+      if (stepIndex !== -1) {
+        setCurrentStep(stepIndex);
+      }
+    }
+  }, [orderStatus]);
+
+  // Add this effect to save state changes to localStorage
+  useEffect(() => {
+    if (estimateData?.orderId) {
+      localStorage.setItem(
+        `order_state_${estimateData.orderId}`,
+        JSON.stringify({ state: orderState })
+      );
+      localStorage.setItem(
+        `waiting_time_${estimateData.orderId}`,
+        waitingTime.toString()
+      );
+    }
+  }, [orderState, waitingTime, estimateData?.orderId]);
 
   // Update the logEvent function to be more versatile
   const logEvent = (eventType: string, data: any, fullNotification?: any) => {
@@ -313,13 +430,6 @@ export default function DeliveryEstimate({
     });
   };
 
-  const deliverySteps = [
-    { id: "AWAITING_PICKUP", label: "Awaiting Pickup" },
-    { id: "IN_TRANSIT", label: "In Transit" },
-    { id: "ARRIVED", label: "Arrived" },
-    { id: "DELIVERED", label: "Delivered" },
-  ];
-
   return (
     <motion.div
       key="estimate"
@@ -391,9 +501,7 @@ export default function DeliveryEstimate({
           </div>
         </div>
 
-        {/* Route details */}
-
-        {/* Different states */}
+        {/* Different states for finding driver/driver found */}
         <AnimatePresence mode="wait">
           {/* Waiting for driver state */}
           {orderState === "WAITING_FOR_DRIVER" && (
@@ -596,6 +704,51 @@ export default function DeliveryEstimate({
           )}
         </AnimatePresence>
 
+        {/* Delivery progress tracking section - only shown when driver has accepted the order */}
+        {(orderState === "AWAITING_PICKUP" || driverDetails || orderStatus) && (
+          <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+            <h2 className="font-medium text-gray-900 mb-3">
+              Delivery Progress
+            </h2>
+            <div className="relative">
+              {/* Vertical line connecting steps */}
+              <div className="absolute left-3 top-1 bottom-1 w-0.5 bg-gray-200 z-0"></div>
+
+              {/* Steps */}
+              {deliverySteps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className="flex items-start mb-4 relative z-10"
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      index <= currentStep
+                        ? "bg-primary text-white"
+                        : "bg-gray-200 text-gray-400"
+                    }`}
+                  >
+                    {step.icon}
+                  </div>
+                  <div className="ml-3">
+                    <p
+                      className={`font-medium ${
+                        index <= currentStep ? "text-gray-900" : "text-gray-500"
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+                    {index === currentStep && orderStatus?.message && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {orderStatus.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Insurance info */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -607,28 +760,6 @@ export default function DeliveryEstimate({
             Your delivery is insured and tracked in real-time
           </span>
         </motion.div>
-
-        {/* Track button - only enabled when driver is found */}
-        <motion.button
-          className={`w-full py-4 rounded-xl text-sm font-medium transition-all duration-200 ${
-            orderState === "AWAITING_PICKUP"
-              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-              : "bg-gray-200 text-gray-600 cursor-not-allowed"
-          }`}
-          disabled={orderState !== "AWAITING_PICKUP"}
-          whileHover={
-            orderState === "AWAITING_PICKUP" ? { scale: 1.01 } : undefined
-          }
-          whileTap={
-            orderState === "AWAITING_PICKUP" ? { scale: 0.99 } : undefined
-          }
-          onClick={onTrack}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Track Delivery
-          </div>
-        </motion.button>
       </div>
     </motion.div>
   );

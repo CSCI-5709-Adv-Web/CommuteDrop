@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useGoogleMaps } from "../../context/GoogleMapsContext";
 import { useLocation } from "../../context/LocationContext";
+import { useTracking } from "../../context/TrackingContext";
 import { Loader } from "lucide-react";
 import type { Position } from "../../hooks/useLocationState";
-
 import MapMarker from "./map/MapMarker";
 import MapRoute from "./map/MapRoute";
 import RouteInfo from "./map/RouteInfo";
 import NoRouteMessage from "./map/NoRouteMessage";
 import MapPlaceholder from "./map/MapPlaceholder";
+import DriverLocationMarker from "./map/DriverLocationMarker";
+import OrderStatusBanner from "./map/OrderStatusBanner";
 
 interface MapProps {
   positions: Position[];
@@ -35,6 +37,7 @@ export default function Map({
   const [routeDestination, setRouteDestination] = useState("");
   const { setRouteInfo, routeInfo } = useLocation();
   const { google, isLoading: isMapLoading, error } = useGoogleMaps();
+  const { isTracking, driverLocation, orderStatus } = useTracking();
 
   useEffect(() => {
     if (!google || !mapRef.current || googleMapRef.current) return;
@@ -67,6 +70,7 @@ export default function Map({
       console.error("Error initializing map:", err);
     }
   }, [google, center]);
+
   useEffect(() => {
     if (!google || !googleMapRef.current) return;
 
@@ -76,13 +80,19 @@ export default function Map({
       }
       const bounds = new google.maps.LatLngBounds();
       positions.forEach((pos) => bounds.extend(pos));
+
+      // If we have a driver location, include it in the bounds
+      if (isTracking && driverLocation) {
+        bounds.extend(driverLocation);
+      }
+
       googleMapRef.current.fitBounds(bounds, {
         top: 50,
         right: 50,
         bottom: 50,
         left: 50,
       });
-      if (positions.length === 1) {
+      if (positions.length === 1 && !driverLocation) {
         googleMapRef.current.setCenter(positions[0]);
         googleMapRef.current.setZoom(15);
       }
@@ -95,7 +105,8 @@ export default function Map({
     } catch (err) {
       console.error("Error updating map bounds:", err);
     }
-  }, [google, positions, routeInfo, drawRoute]);
+  }, [google, positions, routeInfo, drawRoute, isTracking, driverLocation]);
+
   const handleRouteInfoChange = useCallback(
     (info: { distance: string; duration: string } | null) => {
       setRouteInfo(info);
@@ -111,6 +122,7 @@ export default function Map({
     },
     []
   );
+
   if (isMapLoading || !google) {
     return (
       <div
@@ -124,6 +136,7 @@ export default function Map({
       </div>
     );
   }
+
   if (error) {
     return (
       <div
@@ -139,9 +152,11 @@ export default function Map({
       </div>
     );
   }
+
   if (!hasEnteredLocations) {
     return <MapPlaceholder />;
   }
+
   if (isLoading) {
     return (
       <div
@@ -155,6 +170,7 @@ export default function Map({
       </div>
     );
   }
+
   return (
     <div
       className="relative w-full h-full rounded-lg overflow-hidden"
@@ -167,6 +183,10 @@ export default function Map({
         aria-label="Map showing delivery route"
         role="application"
       />
+
+      {/* Display order status banner if tracking */}
+      {isTracking && orderStatus && <OrderStatusBanner status={orderStatus} />}
+
       {googleMapRef.current &&
         mapInitialized &&
         positions.map((position, index) => (
@@ -178,6 +198,7 @@ export default function Map({
             type={index === 0 ? "pickup" : "dropoff"}
           />
         ))}
+
       {googleMapRef.current &&
         mapInitialized &&
         positions.length > 1 &&
@@ -196,12 +217,26 @@ export default function Map({
             onRouteError={handleRouteError}
           />
         )}
+
+      {/* Display driver location marker if tracking */}
+      {googleMapRef.current &&
+        mapInitialized &&
+        isTracking &&
+        driverLocation && (
+          <DriverLocationMarker
+            position={driverLocation}
+            heading={driverLocation.heading}
+            map={googleMapRef.current}
+          />
+        )}
+
       {routeInfo && !noRouteFound && positions.length > 1 && drawRoute && (
         <RouteInfo
           distance={routeInfo.distance}
           duration={routeInfo.duration}
         />
       )}
+
       {noRouteFound && positions.length > 1 && drawRoute && (
         <NoRouteMessage origin={routeOrigin} destination={routeDestination} />
       )}

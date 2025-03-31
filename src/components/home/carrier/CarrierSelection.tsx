@@ -76,15 +76,11 @@ export default function CarrierSelection({
               }`}
               aria-pressed={isSelected}
             >
-              <div
-                className={`p-2 rounded-full ${
-                  isSelected ? carrier.bgColor : "bg-gray-50"
-                }`}
-              >
+              <div className="p-2">
                 <img
                   src={carrier.iconSrc || "/placeholder.svg"}
                   alt={carrier.label}
-                  className="w-8 h-8 object-contain"
+                  className="w-10 h-10 object-contain"
                   style={{
                     opacity: animationsLoaded ? 1 : 0,
                     transition: "opacity 0.3s ease-in-out",

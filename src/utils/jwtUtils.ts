@@ -39,10 +39,24 @@ export const jwtUtils = {
     try {
       const decoded = jwtUtils.parseToken(token)
       if (!decoded) return null
+
+      // Try multiple possible locations for the user ID
       if (decoded.sub) {
         return decoded.sub
       }
-      return decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null
+
+      // Check for ID in standard JWT claims
+      if (decoded.id) {
+        return decoded.id
+      }
+
+      // Check for ID in .NET Identity claims
+      if (decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]) {
+        return decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]
+      }
+
+      // If no ID found, return null
+      return null
     } catch (error) {
       console.error("Error getting user ID from token:", error)
       return null

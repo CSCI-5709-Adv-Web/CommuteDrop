@@ -6,6 +6,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { GoogleMapsProvider } from "./context/GoogleMapsContext";
 import { LocationProvider } from "./context/LocationContext";
 import { OrderProvider } from "./context/OrderContext";
+import { NotificationProvider } from "./components/notifications/NotificationProvider";
+import { TrackingProvider } from "./context/TrackingContext";
 import "./styles/Globals.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -14,9 +16,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <GoogleMapsProvider>
         <LocationProvider>
           <OrderProvider>
-            <Router>
-              <App />
-            </Router>
+            <NotificationProvider>
+              <TrackingProvider>
+                <Router>
+                  <App />
+                </Router>
+              </TrackingProvider>
+            </NotificationProvider>
           </OrderProvider>
         </LocationProvider>
       </GoogleMapsProvider>

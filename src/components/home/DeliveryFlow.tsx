@@ -6,6 +6,7 @@ import SearchForm from "./SearchForm";
 import PaymentForm from "./PaymentForm";
 import DeliveryEstimate from "./DeliveryEstimate";
 import ConfirmDelivery from "./ConfirmDelivery";
+import DeliveryTracking from "./DeliveryTracking";
 import { useOrder } from "../../context/OrderContext";
 import { useLocation } from "../../context/LocationContext";
 
@@ -69,8 +70,8 @@ export default function DeliveryFlow({
   };
 
   // Calculate progress based on current step
-  const steps = ["search", "confirm", "payment", "estimate"];
-  const progress = (steps.indexOf(currentStep) + 1) * 25;
+  const steps = ["search", "confirm", "payment", "estimate", "tracking"];
+  const progress = (steps.indexOf(currentStep) + 1) * 20;
 
   // Handle form data changes
   const handleFormDataChange = useCallback(
@@ -122,6 +123,11 @@ export default function DeliveryFlow({
   // Handle payment success
   const handlePaymentSuccess = useCallback(() => {
     handleNavigate("estimate");
+  }, [handleNavigate]);
+
+  // Handle tracking start
+  const handleStartTracking = useCallback(() => {
+    handleNavigate("tracking");
   }, [handleNavigate]);
 
   const transitionConfig = {
@@ -202,6 +208,21 @@ export default function DeliveryFlow({
                 formData={completeFormData}
                 estimateData={orderData}
                 onBack={() => handleNavigate("payment")}
+                onTrack={handleStartTracking}
+              />
+            </motion.div>
+          )}
+          {currentStep === "tracking" && orderId && (
+            <motion.div
+              key="tracking"
+              initial={{ opacity: 0, filter: "blur(10px)" }}
+              animate={{ opacity: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, filter: "blur(10px)" }}
+              transition={transitionConfig}
+            >
+              <DeliveryTracking
+                orderId={orderId}
+                onBack={() => handleNavigate("estimate")}
               />
             </motion.div>
           )}

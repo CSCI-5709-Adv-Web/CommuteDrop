@@ -288,6 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Update the useEffect that initializes auth to ensure user.id is properly set
   useEffect(() => {
     const initializeAuth = async () => {
       setIsInitializing(true);
@@ -325,8 +326,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               // Store tokens
               tokenStorage.setTokens(token, refreshToken);
 
-              // Create user object with profile image
-              const user: User = { email, name };
+              // Create user object with profile image and ENSURE ID IS SET
+              const user: User = {
+                id: supabaseUser.id, // Make sure ID is set from Supabase
+                email,
+                name,
+              };
+
+              console.log("Setting user with ID:", user.id); // Add this debug line
               tokenStorage.setUser(user);
 
               // Update auth state
@@ -387,8 +394,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // Store tokens
             tokenStorage.setTokens(token, refreshToken);
 
-            // Create user object
-            const user: User = { email, name };
+            // Create user object WITH ID
+            const user: User = {
+              id: supabaseUser.id, // Make sure ID is set from Supabase
+              email,
+              name,
+            };
+
+            console.log("Setting user with ID on init:", user.id); // Add this debug line
             tokenStorage.setUser(user);
 
             // Create a basic profile with the Google profile image
@@ -449,6 +462,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     initializeAuth();
   }, []);
 
+  // Make sure the user object always has an ID property
+  // Update the login function to include the user ID
+
   const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: "LOGIN_START" });
 
@@ -459,9 +475,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const { token, refreshToken } = response.data;
         tokenStorage.setTokens(token, refreshToken);
         const userEmail = jwtUtils.getUserEmail(token);
+        const userId = jwtUtils.getUserId(token); // Get user ID from token
 
         if (userEmail) {
-          const user: User = { email: userEmail };
+          // Include the user ID in the user object
+          const user: User = {
+            email: userEmail,
+            id: userId || userEmail, // Use ID from token or fall back to email
+          };
           tokenStorage.setUser(user);
 
           dispatch({

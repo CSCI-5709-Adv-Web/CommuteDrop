@@ -2,11 +2,12 @@
 
 import type React from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Menu, LogOut } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { DEFAULT_AVATAR_IMAGE } from "../utils/tokenStorage";
 import { supabase } from "../lib/supabase";
+import NotificationBell from "./notifications/NotificationBell";
 
 export default function Navbar() {
   const { user, userProfile, logout, refreshUserProfile } = useAuth();
@@ -101,12 +102,7 @@ export default function Navbar() {
         Commune Drop
       </button>
       <div className="flex items-center space-x-6">
-        <button
-          className="text-white hover:text-gray-300 transition"
-          aria-label="Notifications"
-        >
-          <Bell size={20} aria-hidden="true" />
-        </button>
+        <NotificationBell />
         <button
           onClick={handleProfileClick}
           className="flex items-center gap-3 cursor-pointer"

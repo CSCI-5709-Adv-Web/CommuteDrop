@@ -27,7 +27,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-// Update the OrderState interface to include the pricing_details structure
+// Update the OrderState interface to include "tracking" in the currentStep type
 export interface OrderState {
   // Order details
   orderId: string | null;
@@ -59,7 +59,7 @@ export interface OrderState {
   // UI state
   isLoading: boolean;
   error: string | null;
-  currentStep: "search" | "confirm" | "payment" | "estimate";
+  currentStep: "search" | "confirm" | "payment" | "estimate" | "tracking";
 }
 
 interface OrderContextType extends OrderState {

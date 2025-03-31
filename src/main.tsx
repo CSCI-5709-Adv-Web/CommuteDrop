@@ -10,6 +10,7 @@ import { NotificationProvider } from "./components/notifications/NotificationPro
 import { TrackingProvider } from "./context/TrackingContext";
 import "./styles/Globals.css";
 
+//
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>

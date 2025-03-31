@@ -82,7 +82,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("Connecting with user ID:", userId, "Type:", typeof userId);
 
         socketInstance = io(
-          import.meta.env.VITE_WEBSOCKET_URL || "http://localhost:3001",
+          process.env.VITE_WEBSOCKET_URL || "http://localhost:3001",
           {
             query: {
               userId: userId, // Use the user's ID instead of email

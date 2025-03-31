@@ -37,7 +37,7 @@ class ApiClient {
             console.log(`Using user token for ${config.method?.toUpperCase()} ${config.url}`)
           }
         }
-        if (import.meta.env.DEV) {
+        if (process.env.DEV) {
           console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
             headers: {
               ...config.headers,
@@ -54,7 +54,7 @@ class ApiClient {
     )
     this.instance.interceptors.response.use(
       (response) => {
-        if (import.meta.env.DEV) {
+        if (process.env.DEV) {
           console.log(
             `API Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`,
             {
@@ -65,7 +65,7 @@ class ApiClient {
         return response
       },
       async (error: AxiosError) => {
-        if (import.meta.env.DEV) {
+        if (process.env.DEV) {
           console.error(
             `API Error: ${error.response?.status || "Network Error"} ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
             {

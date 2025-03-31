@@ -20,7 +20,7 @@ import { Loader } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 const stripePromise = (() => {
-  const apiKey = import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || "";
+  const apiKey = process.env.VITE_PUBLIC_STRIPE_API_KEY || "";
 
   // Check if the key is a secret key
   if (apiKey.startsWith("sk_")) {

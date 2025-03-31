@@ -12,9 +12,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useAuth } from "../../context/AuthContext";
 
 // Load Stripe outside of component
-const stripePromise = loadStripe(
-  import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || ""
-);
+const stripePromise = loadStripe(process.env.VITE_PUBLIC_STRIPE_API_KEY || "");
 
 interface PaymentMethodsSectionProps {
   isInitialLoading?: boolean;

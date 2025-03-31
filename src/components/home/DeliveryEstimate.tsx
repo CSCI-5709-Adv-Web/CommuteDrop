@@ -40,7 +40,6 @@ type OrderState =
   | "DRIVER_FOUND";
 
 export default function DeliveryEstimate({
-  formData,
   estimateData,
   onBack,
   onTrack,
@@ -52,6 +51,17 @@ export default function DeliveryEstimate({
     null
   );
   const { notifications, sendStructuredNotification } = useNotifications();
+
+  // Update the logEvent function to be more versatile
+  const logEvent = (eventType: string, data: any, fullNotification?: any) => {
+    console.group(`📣 Event Received: ${eventType}`);
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Data:", data);
+    if (fullNotification) {
+      console.log("Full Notification:", fullNotification);
+    }
+    console.groupEnd();
+  };
 
   // Helper function to extract order ID from message
   const extractOrderIdFromMessage = (message: string): string | null => {
@@ -79,11 +89,14 @@ export default function DeliveryEstimate({
     }
   }, [orderState]);
 
-  // Listen for notifications from the driver service
+  // Update the useEffect that processes notifications to log the full notification content
   useEffect(() => {
     // Get the most recent notification that might be relevant to our order
     const currentOrderId = estimateData?.orderId || "order_123";
     console.log("Order ID - Expected:", currentOrderId);
+
+    // Log all notifications for debugging
+    console.log("All notifications:", notifications);
 
     const orderStatusNotifications = notifications
       .filter((notification) => {
@@ -134,13 +147,30 @@ export default function DeliveryEstimate({
 
     if (orderStatusNotifications.length > 0) {
       const latestNotification = orderStatusNotifications[0];
-      console.log("Processing notification:", latestNotification);
+
+      // Log the complete notification object
+      logEvent(
+        "Order Status Notification",
+        {
+          eventType: latestNotification.eventType || latestNotification.title,
+          message: latestNotification.message,
+          timestamp: latestNotification.timestamp,
+          type: latestNotification.type,
+          id: latestNotification.id,
+          read: latestNotification.read,
+        },
+        latestNotification
+      );
 
       try {
         // First check if we have structured data
         if (latestNotification.data) {
           const notificationData = latestNotification.data;
-          console.log("Using structured data:", notificationData);
+          logEvent(
+            "Processing Structured Data",
+            notificationData,
+            latestNotification
+          );
 
           // Check if this notification is for our order
           const notificationOrderId = notificationData.orderId;
@@ -149,6 +179,15 @@ export default function DeliveryEstimate({
 
           // Handle case-insensitive status matching
           const normalizedStatus = notificationData.status?.toUpperCase();
+          logEvent(
+            "Status Update",
+            {
+              eventType,
+              normalizedStatus,
+              orderId: notificationOrderId,
+            },
+            latestNotification
+          );
 
           // Check event type as well as status
           if (
@@ -173,34 +212,39 @@ export default function DeliveryEstimate({
               };
 
               setDriverDetails(driverDetails);
-              console.log("Driver details set:", driverDetails);
+              logEvent("Driver Details Set", driverDetails);
 
               // First show the driver found animation
               setOrderState("DRIVER_FOUND");
+              logEvent("Order State Changed", "DRIVER_FOUND");
 
               // Then after a short delay, show the driver details
               setTimeout(() => {
                 setOrderState("AWAITING_PICKUP");
                 setWaitingTime(0); // Reset waiting time counter
+                logEvent("Order State Changed", "AWAITING_PICKUP");
               }, 2000);
             } else {
               // If no driver details, just update the state
               setOrderState("AWAITING_PICKUP");
               setWaitingTime(0); // Reset waiting time counter
+              logEvent(
+                "Order State Changed",
+                "AWAITING_PICKUP (No driver details)"
+              );
             }
           } else if (normalizedStatus === "CANCELLED") {
             setOrderState("CANCELLED");
+            logEvent("Order State Changed", "CANCELLED");
           } else if (normalizedStatus) {
             // For any other status, update accordingly
             setOrderState(normalizedStatus as OrderState);
+            logEvent("Order State Changed", normalizedStatus);
           }
         }
         // If no structured data, try to extract information from the message
         else if (typeof latestNotification.message === "string") {
-          console.log(
-            "Extracting data from message:",
-            latestNotification.message
-          );
+          logEvent("Processing Message Text", latestNotification.message);
 
           // Extract driver name if present
           const driverMatch = latestNotification.message.match(
@@ -208,8 +252,14 @@ export default function DeliveryEstimate({
           );
           const driverName = driverMatch ? driverMatch[1] : null;
 
+          if (driverName) {
+            logEvent("Driver Name Extracted", driverName);
+          }
+
           // Determine status from message content
           if (latestNotification.message.includes("accepted")) {
+            logEvent("Message Indicates", "Order Accepted");
+
             if (driverName) {
               const driverDetails = {
                 id: "driver_id",
@@ -223,30 +273,35 @@ export default function DeliveryEstimate({
               };
 
               setDriverDetails(driverDetails);
-              console.log(
-                "Driver details extracted from message:",
-                driverDetails
-              );
+              logEvent("Driver Details Extracted", driverDetails);
 
               // First show the driver found animation
               setOrderState("DRIVER_FOUND");
+              logEvent("Order State Changed", "DRIVER_FOUND");
 
               // Then after a short delay, show the driver details
               setTimeout(() => {
                 setOrderState("AWAITING_PICKUP");
                 setWaitingTime(0); // Reset waiting time counter
+                logEvent("Order State Changed", "AWAITING_PICKUP");
               }, 2000);
             } else {
               // If no driver details, just update the state
               setOrderState("AWAITING_PICKUP");
               setWaitingTime(0); // Reset waiting time counter
+              logEvent(
+                "Order State Changed",
+                "AWAITING_PICKUP (No driver details)"
+              );
             }
           } else if (latestNotification.message.includes("cancelled")) {
             setOrderState("CANCELLED");
+            logEvent("Order State Changed", "CANCELLED");
           }
         }
       } catch (error) {
         console.error("Error processing notification:", error);
+        logEvent("Error Processing Notification", error);
       }
     }
   }, [notifications, estimateData]);
@@ -265,57 +320,6 @@ export default function DeliveryEstimate({
     setWaitingTime(0);
     setOrderState("WAITING_FOR_DRIVER");
   };
-
-  // Add a function to send a test notification for driver acceptance
-  const sendTestDriverAcceptance = () => {
-    const orderId = estimateData?.orderId || "order_123";
-
-    sendStructuredNotification("success", "Order Accepted", {
-      orderId: orderId,
-      status: "AWAITING_PICKUP",
-      estimatedArrival: "5 minutes",
-      message: "Driver has accepted your order",
-      driver: {
-        id: "driver_123",
-        name: "Michael Chen",
-        rating: 4.8,
-        trips: 1243,
-        vehicleType: "Toyota Prius",
-        vehicleNumber: "ABC 123",
-        image: "/placeholder.svg?height=100&width=100",
-      },
-      currentLocation: {
-        lat: 44.6470226,
-        lng: -63.5942508,
-      },
-    });
-  };
-
-  const sendTestStatusUpdate = (status: string) => {
-    const orderId = estimateData?.orderId || "order_123";
-    sendStructuredNotification("info", "OrderStatusUpdated", {
-      orderId: orderId,
-      status: status,
-    });
-  };
-
-  const sendTestDriverLocation = () => {
-    const orderId = estimateData?.orderId || "order_123";
-    sendStructuredNotification("info", "DriverLiveLocation", {
-      orderId: orderId,
-      location: {
-        lat: 44.6470226,
-        lng: -63.5942508,
-      },
-    });
-  };
-
-  const deliverySteps = [
-    { id: "AWAITING_PICKUP", label: "Awaiting Pickup" },
-    { id: "IN_TRANSIT", label: "In Transit" },
-    { id: "ARRIVED", label: "Arrived" },
-    { id: "DELIVERED", label: "Delivered" },
-  ];
 
   return (
     <motion.div
@@ -626,35 +630,6 @@ export default function DeliveryEstimate({
             Track Delivery
           </div>
         </motion.button>
-      </div>
-      {/* Demo controls - only for testing */}
-      <div className="mt-auto bg-gray-50 p-4 rounded-lg border border-gray-200">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">
-          Demo Controls
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={sendTestDriverLocation}
-            className="bg-blue-100 text-blue-700 p-2 rounded text-xs"
-          >
-            Update Driver Location
-          </button>
-          <button
-            onClick={sendTestDriverAcceptance}
-            className="bg-green-100 text-green-700 p-2 rounded text-xs font-medium"
-          >
-            Driver Accepts Order
-          </button>
-          {deliverySteps.map((step) => (
-            <button
-              key={step.id}
-              onClick={() => sendTestStatusUpdate(step.id)}
-              className="bg-gray-100 text-gray-700 p-2 rounded text-xs"
-            >
-              Set {step.label}
-            </button>
-          ))}
-        </div>
       </div>
     </motion.div>
   );

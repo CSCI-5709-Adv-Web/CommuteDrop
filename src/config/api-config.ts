@@ -1,12 +1,20 @@
 // Update the API_CONFIG and ENDPOINTS to include the new payment service endpoints
 
 export const API_CONFIG = {
-  AUTH_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087/api",
+  AUTH_BASE_URL:
+    import.meta.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087/api",
   TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
-  LOCATION_SERVICE_URL: import.meta.env.VITE_LOCATION_SERVICE_URL || "http://localhost:5001/location",
-  ORDER_SERVICE_URL: import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
-  PAYMENT_SERVICE_URL: import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9000",
-  MAPS_API_KEY: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY || "",
+  LOCATION_SERVICE_URL:
+    import.meta.env.VITE_LOCATION_SERVICE_URL ||
+    "http://localhost:5001/location",
+  ORDER_SERVICE_URL:
+    import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
+  PAYMENT_SERVICE_URL:
+    import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9000",
+  MAPS_API_KEY:
+    import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
+    "",
   TIMEOUT: 15000,
   DEFAULT_COUNTRY: "Canada",
   DEFAULT_PROVINCE: "Nova Scotia",
@@ -16,22 +24,28 @@ export const API_CONFIG = {
   // Update service configurations for token service with more specific scopes
   SERVICES: {
     location: {
-      clientId: import.meta.env.VITE_LOCATION_CLIENT_ID || "location_service_client",
-      clientSecret: import.meta.env.VITE_LOCATION_CLIENT_SECRET || "location_service_secret",
+      clientId:
+        import.meta.env.VITE_LOCATION_CLIENT_ID || "location_service_client",
+      clientSecret:
+        import.meta.env.VITE_LOCATION_CLIENT_SECRET ||
+        "location_service_secret",
       scopes: ["location.read", "location.write"],
     },
     order: {
       clientId: import.meta.env.VITE_ORDER_CLIENT_ID || "order_service_client",
-      clientSecret: import.meta.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
+      clientSecret:
+        import.meta.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
       scopes: ["order.read", "order.write"],
     },
     payment: {
-      clientId: import.meta.env.VITE_PAYMENT_CLIENT_ID || "payment_service_client",
-      clientSecret: import.meta.env.VITE_PAYMENT_CLIENT_SECRET || "payment_service_secret",
+      clientId:
+        import.meta.env.VITE_PAYMENT_CLIENT_ID || "payment_service_client",
+      clientSecret:
+        import.meta.env.VITE_PAYMENT_CLIENT_SECRET || "payment_service_secret",
       scopes: ["payment.read", "payment.write"],
     },
   },
-}
+};
 
 export const ENDPOINTS = {
   // Auth endpoints
@@ -98,5 +112,4 @@ export const ENDPOINTS = {
     REGION: `${API_CONFIG.LOCATION_SERVICE_URL}/region`,
     HEALTH: `${API_CONFIG.LOCATION_SERVICE_URL}/health`,
   },
-}
-
+};

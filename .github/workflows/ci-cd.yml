@@ -49,7 +49,6 @@ jobs:
 
       - name: Apply Kubernetes Resources
         run: |
-          kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f k8s/zookeeper-deployment.yaml
           kubectl apply -f k8s/kafka-deployment.yaml
           kubectl apply -f k8s/CommuneDrop-ConfigMap.yaml

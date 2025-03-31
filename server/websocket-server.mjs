@@ -383,10 +383,10 @@
 //   `Sample notification structure: ${JSON.stringify(sampleNotification)}`,
 //   "info"
 // );
-const { Server } = require("socket.io");
-const { createServer } = require("http");
-const { v4: uuidv4 } = require("uuid");
-const { Kafka } = require("kafkajs");
+import { Server } from "socket.io";
+import { createServer } from "http";
+import { v4 as uuidv4 } from "uuid";
+import { Kafka } from "kafkajs";
 
 // Create HTTP server
 const httpServer = createServer();

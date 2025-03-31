@@ -17,9 +17,7 @@ const io = new Server(httpServer, {
 // Initialize Kafka client
 const kafka = new Kafka({
   clientId: "notification-server",
-  brokers: process.env.KAFKA_BROKERS
-    ? process.env.KAFKA_BROKERS.split(",")
-    : ["kafka-service:9092"],
+  brokers: ["kafka-service:9092"],
 });
 
 // Create a consumer

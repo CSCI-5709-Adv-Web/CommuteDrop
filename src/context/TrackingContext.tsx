@@ -92,8 +92,7 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
     return id1 === id2 || id1.includes(id2) || id2.includes(id1);
   };
 
-  // Update the notification filtering logic in the TrackingContext to handle both eventType and title fields
-  // Update the useEffect that listens for notifications
+  // Update the notification filtering logic in the TrackingContext to handle the standardized format
   useEffect(() => {
     // Only process notifications if we're tracking an order
     if (!isTracking || !trackingOrderId) return;
@@ -101,81 +100,25 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
     console.log("Checking notifications for order:", trackingOrderId);
     console.log("Available notifications:", notifications);
 
-    // Find the most recent notifications that match our tracking criteria
+    // Find the most recent notifications that match our tracking criteria using the standardized format
     const recentNotifications = [...notifications]
       .filter((notification) => {
-        // Check both eventType and title fields
-        const eventType = notification.eventType || notification.title;
-
-        // First check if we have data with orderId
-        if (notification.data && notification.data.orderId) {
-          const notificationOrderId = notification.data.orderId;
-          const isMatchingOrder = orderIdsMatch(
-            notificationOrderId,
-            trackingOrderId
-          );
-
-          console.log(
-            "Checking notification data.orderId:",
-            notificationOrderId,
-            "against tracking:",
-            trackingOrderId,
-            "Match:",
-            isMatchingOrder
-          );
-
-          return (
-            isMatchingOrder &&
-            [
-              "OrderStatusUpdated",
-              "Order Accepted",
-              "DriverLiveLocation",
-            ].includes(eventType)
-          );
+        // Check if this notification is for our order using the standardized format
+        if (
+          notification.data &&
+          notification.data.orderId === trackingOrderId
+        ) {
+          return [
+            "OrderStatusUpdated",
+            "Order Accepted",
+            "DriverAssigned",
+            "DriverLiveLocation",
+          ].includes(notification.eventType);
         }
 
-        // If no data.orderId, check the message for the order ID
+        // Fallback to message content check for backward compatibility
         if (typeof notification.message === "string") {
-          const extractedOrderId = extractOrderIdFromMessage(
-            notification.message
-          );
-          console.log("Extracted orderId from message:", extractedOrderId);
-
-          if (extractedOrderId) {
-            const isMatchingOrder = orderIdsMatch(
-              extractedOrderId,
-              trackingOrderId
-            );
-            console.log(
-              "Checking message orderId:",
-              extractedOrderId,
-              "against tracking:",
-              trackingOrderId,
-              "Match:",
-              isMatchingOrder
-            );
-            return (
-              isMatchingOrder &&
-              [
-                "OrderStatusUpdated",
-                "Order Accepted",
-                "DriverLiveLocation",
-              ].includes(eventType)
-            );
-          }
-
-          // If no specific order ID found, check if the message contains our tracking ID
-          const containsOrderId =
-            notification.message.includes(trackingOrderId);
-          console.log("Checking if message contains orderId:", containsOrderId);
-          return (
-            containsOrderId &&
-            [
-              "OrderStatusUpdated",
-              "Order Accepted",
-              "DriverLiveLocation",
-            ].includes(eventType)
-          );
+          return notification.message.includes(trackingOrderId);
         }
 
         return false;
@@ -189,18 +132,17 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
 
     // Process driver location updates
     const locationUpdate = recentNotifications.find(
-      (n) =>
-        n.eventType === "DriverLiveLocation" || n.title === "DriverLiveLocation"
+      (n) => n.eventType === "DriverLiveLocation"
     );
 
-    if (locationUpdate) {
+    if (locationUpdate && locationUpdate.data) {
       console.log("Found location update:", locationUpdate);
 
       try {
-        // Check if we have location data in the data object
-        if (locationUpdate.data && locationUpdate.data.currentLocation) {
-          const locationData = locationUpdate.data.currentLocation;
+        // Get location data from the standardized format
+        const locationData = locationUpdate.data.data?.location;
 
+        if (locationData && locationData.lat && locationData.lng) {
           setDriverLocation({
             lat: locationData.lat,
             lng: locationData.lng,
@@ -208,40 +150,7 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
             speed: locationData.speed,
             timestamp: new Date(locationUpdate.timestamp).getTime(),
           });
-          console.log("Updated driver location from data.currentLocation");
-        }
-        // If not in data.currentLocation, check if lat/lng are directly in data
-        else if (
-          locationUpdate.data &&
-          locationUpdate.data.lat &&
-          locationUpdate.data.lng
-        ) {
-          setDriverLocation({
-            lat: locationUpdate.data.lat,
-            lng: locationUpdate.data.lng,
-            heading: locationUpdate.data.heading,
-            speed: locationUpdate.data.speed,
-            timestamp: new Date(locationUpdate.timestamp).getTime(),
-          });
-          console.log("Updated driver location from data");
-        }
-        // Last resort: try to parse the message
-        else if (typeof locationUpdate.message === "string") {
-          try {
-            const locationData = JSON.parse(locationUpdate.message);
-            if (locationData.lat && locationData.lng) {
-              setDriverLocation({
-                lat: locationData.lat,
-                lng: locationData.lng,
-                heading: locationData.heading,
-                speed: locationData.speed,
-                timestamp: new Date(locationUpdate.timestamp).getTime(),
-              });
-              console.log("Updated driver location from parsed message");
-            }
-          } catch (e) {
-            console.error("Error parsing location data from message:", e);
-          }
+          console.log("Updated driver location from standardized data");
         }
       } catch (e) {
         console.error("Error processing driver location data:", e);
@@ -249,77 +158,36 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     // Process order status updates
-    const statusUpdate = recentNotifications.find(
-      (n) =>
-        n.eventType === "OrderStatusUpdated" ||
-        n.eventType === "Order Accepted" ||
-        n.title === "OrderStatusUpdated" ||
-        n.title === "Order Accepted"
+    const statusUpdate = recentNotifications.find((n) =>
+      ["OrderStatusUpdated", "Order Accepted", "DriverAssigned"].includes(
+        n.eventType
+      )
     );
 
-    if (statusUpdate) {
+    if (statusUpdate && statusUpdate.data) {
       console.log("Found status update:", statusUpdate);
 
       try {
-        // First check if we have all the data we need in the data object
-        if (statusUpdate.data && statusUpdate.data.orderId) {
-          console.log("Using data from notification.data:", statusUpdate.data);
+        const eventData = statusUpdate.data;
 
-          // Map status if needed (e.g., "AWAITING_PICKUP" to "accepted")
-          let status = statusUpdate.data.status;
-          if (status === "AWAITING_PICKUP") status = "accepted";
-          else if (status === "IN_PROGRESS") status = "in_progress";
-          else if (status === "DELIVERED") status = "delivered";
-          else if (status === "CANCELLED") status = "cancelled";
+        if (eventData.orderId) {
+          // Map status if needed
+          let status = eventData.data?.status || "unknown";
 
-          setOrderStatus({
-            orderId: statusUpdate.data.orderId,
-            status: status.toLowerCase(),
-            timestamp: new Date(statusUpdate.timestamp).getTime(),
-            estimatedArrival: statusUpdate.data.estimatedArrival,
-            message: statusUpdate.data.message || statusUpdate.message,
-            driver: statusUpdate.data.driver,
-          });
-        }
-        // If no structured data, try to extract from the message
-        else {
-          console.log("Extracting data from message text");
-
-          // Extract order ID from the message
-          const extractedOrderId =
-            extractOrderIdFromMessage(statusUpdate.message) || trackingOrderId;
-
-          // Determine status from message content
-          let status = "unknown";
-          if (statusUpdate.message.includes("accepted")) {
-            status = "accepted";
-          } else if (statusUpdate.message.includes("picked up")) {
-            status = "in_progress";
-          } else if (statusUpdate.message.includes("delivered")) {
-            status = "delivered";
-          } else if (statusUpdate.message.includes("cancelled")) {
-            status = "cancelled";
-          }
-
-          // Extract driver name if present
-          const driverMatch = statusUpdate.message.match(
-            /Driver\s+([^\s]+\s+[^\s]+)/
-          );
-          const driverName = driverMatch ? driverMatch[1] : null;
+          // Normalize status names
+          if (status === "AWAITING_PICKUP") status = "DRIVER_PICKUP";
+          else if (status === "IN_PROGRESS") status = "IN_TRANSIT";
 
           setOrderStatus({
-            orderId: extractedOrderId,
+            orderId: eventData.orderId,
             status: status,
             timestamp: new Date(statusUpdate.timestamp).getTime(),
-            message: statusUpdate.message,
-            driver: driverName ? { name: driverName } : undefined,
+            estimatedArrival: eventData.data?.estimatedArrival,
+            message: eventData.data?.message || statusUpdate.message,
+            driver: eventData.data?.driver,
           });
 
-          console.log("Created order status from message:", {
-            orderId: extractedOrderId,
-            status: status,
-            driver: driverName,
-          });
+          console.log("Updated order status from standardized data:", status);
         }
       } catch (e) {
         console.error("Error processing order status data:", e);

@@ -7,16 +7,24 @@ import { AnimatePresence, motion } from "framer-motion";
 import NotificationToast from "./NotificationToast";
 import io from "socket.io-client";
 
-// Update the Notification interface to include eventType
+// Define the standard event structure with consistent outer layer
+export interface StandardEvent {
+  eventType: string; // Type of event (e.g., "OrderStatusUpdated", "DriverAssigned")
+  orderId: string; // ID of the order this event relates to
+  timestamp: number; // When the event occurred (milliseconds since epoch)
+  data: any; // Event-specific data varies based on eventType
+}
+
+// Update the Notification interface to use the standardized event structure
 export interface Notification {
   id: string;
   title: string;
-  eventType?: string; // Add eventType field
+  eventType: string;
   message: string;
   type: "info" | "success" | "warning" | "error";
   timestamp: Date;
   read: boolean;
-  data?: any; // Add a data field for structured notification data
+  data?: any; // Raw data associated with the notification
 }
 
 // Define the context type
@@ -242,19 +250,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Add a method to send structured notifications
+  // Update the sendStructuredNotification method to enforce the standard outer structure
   const sendStructuredNotification = (
     type: "info" | "success" | "warning" | "error",
     eventType: string,
-    data: any
+    eventData: any
   ) => {
-    // Send the notification with both a display message and structured data
-    const message =
-      typeof data === "object"
-        ? data.message || `New ${eventType} notification`
-        : String(data);
+    // Create the standard event structure
+    const standardEvent: StandardEvent = {
+      eventType: eventType,
+      orderId: eventData.orderId || "unknown",
+      timestamp: Date.now(),
+      data: eventData.data || {}, // Event-specific data goes here
+    };
 
-    sendTestNotification(type, eventType, message, data);
+    // Create a human-readable message
+    const message =
+      eventData.message ||
+      `New ${eventType} notification for order #${standardEvent.orderId}`;
+
+    // Send the notification with the standardized structure
+    sendTestNotification(type, eventType, message, standardEvent);
   };
 
   // Create the context value

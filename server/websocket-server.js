@@ -17,7 +17,9 @@ const io = new Server(httpServer, {
 // Initialize Kafka client
 const kafka = new Kafka({
   clientId: "notification-server",
-  brokers: process.env.KAFKA_BROKERS ? process.env.KAFKA_BROKERS.split(",") : ["localhost:9092"],
+  brokers: process.env.KAFKA_BROKERS
+    ? process.env.KAFKA_BROKERS.split(",")
+    : ["kafka-service:9092"],
 });
 
 // Create a consumer
@@ -51,8 +53,14 @@ async function startKafkaConsumer() {
     log("Connected to Kafka", "success");
 
     // Subscribe to user notification topics - now using user-updates-UUID format
-    await consumer.subscribe({ topic: /^user-updates-.*/, fromBeginning: false });
-    log("Subscribed to user notification topics pattern: user-updates-*", "success");
+    await consumer.subscribe({
+      topic: /^user-updates-.*/,
+      fromBeginning: false,
+    });
+    log(
+      "Subscribed to user notification topics pattern: user-updates-*",
+      "success"
+    );
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
@@ -61,21 +69,23 @@ async function startKafkaConsumer() {
           const userId = topic.replace("user-updates-", "");
           log(`${topic}`, "topic");
           log(`Received message on topic: ${topic}`);
-          
+
           // Log the raw message for debugging
           const rawMessage = message.value.toString();
           log(`Raw message: ${rawMessage}`);
-          
+
           // Parse notification data with error handling
           let notificationData;
           try {
             notificationData = JSON.parse(rawMessage);
-            log(`Parsed notification data: ${JSON.stringify(notificationData)}`);
+            log(
+              `Parsed notification data: ${JSON.stringify(notificationData)}`
+            );
           } catch (parseError) {
             log(`Error parsing message: ${parseError.message}`, "error");
             return;
           }
-          
+
           // Check if notificationData is null or undefined
           if (!notificationData) {
             log("Notification data is null or undefined", "error");
@@ -87,24 +97,36 @@ async function startKafkaConsumer() {
             id: uuidv4(),
             // Use eventType as title if available, otherwise use title or default
             eventType: notificationData.eventType || "",
-            title: notificationData.title || notificationData.eventType || "New Notification",
+            title:
+              notificationData.title ||
+              notificationData.eventType ||
+              "New Notification",
             message: notificationData.message || "You have a new notification",
             type: notificationData.type || "info",
             timestamp: new Date(),
             read: false,
             // Pass through the entire data object for client-side processing
-            data: notificationData
+            data: notificationData,
           };
 
           // Send to all connected sockets for this user
           if (connectedUsers.has(userId)) {
             io.to(userId).emit("notification", notification);
-            log(`Notification sent to user ${userId} from topic ${topic}`, "success");
+            log(
+              `Notification sent to user ${userId} from topic ${topic}`,
+              "success"
+            );
           } else {
-            log(`User ${userId} not connected, notification from topic ${topic} not delivered`, "warning");
+            log(
+              `User ${userId} not connected, notification from topic ${topic} not delivered`,
+              "warning"
+            );
           }
         } catch (error) {
-          log(`Error processing message from topic ${topic}: ${error.message}`, "error");
+          log(
+            `Error processing message from topic ${topic}: ${error.message}`,
+            "error"
+          );
         }
       },
     });
@@ -128,7 +150,10 @@ io.on("connection", (socket) => {
   log(`User ID type: ${typeof userId}, length: ${userId.length}`); // Debug line
 
   // Check if the userId looks like a UUID (36 characters with hyphens)
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      userId
+    );
 
   // Format the topic name - ensure we use the UUID format if available
   const topicName = `user-updates-${userId}`;
@@ -136,7 +161,10 @@ io.on("connection", (socket) => {
   log(`User ${userId} will receive notifications from topic: ${topicName}`);
 
   if (!isUuid) {
-    log(`Warning: User ID doesn't appear to be a UUID. This may cause notification issues.`, "warning");
+    log(
+      `Warning: User ID doesn't appear to be a UUID. This may cause notification issues.`,
+      "warning"
+    );
   }
 
   // Add socket to the user's room
@@ -157,16 +185,21 @@ io.on("connection", (socket) => {
       id: uuidv4(),
       eventType: eventType || "",
       title: title || eventType || `Test ${type} Notification`,
-      message: message || `This is a test ${type} notification sent at ${new Date().toLocaleString()}`,
+      message:
+        message ||
+        `This is a test ${type} notification sent at ${new Date().toLocaleString()}`,
       type,
       timestamp: new Date(),
       read: false,
-      data: eventData || data // Pass through the entire data object
+      data: eventData || data, // Pass through the entire data object
     };
 
     // Send to all connected sockets for this user
     io.to(userId).emit("notification", notification);
-    log(`Test notification sent to user ${userId} (direct socket, no Kafka)`, "success");
+    log(
+      `Test notification sent to user ${userId} (direct socket, no Kafka)`,
+      "success"
+    );
     log(`Notification content: ${JSON.stringify(notification)}`, "info");
   });
 
@@ -220,7 +253,10 @@ const sampleNotification = {
   data: {
     status: "IN_TRANSIT",
     estimatedArrival: "10 minutes",
-    message: "Your order is now in transit"
-  }
+    message: "Your order is now in transit",
+  },
 };
-log(`Sample notification structure: ${JSON.stringify(sampleNotification)}`, "info");
+log(
+  `Sample notification structure: ${JSON.stringify(sampleNotification)}`,
+  "info"
+);

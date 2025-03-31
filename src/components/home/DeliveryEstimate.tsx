@@ -449,8 +449,8 @@ export default function DeliveryEstimate({
         <motion.button
           className={`w-full py-4 rounded-xl text-sm font-medium transition-all duration-200 ${
             orderState === "AWAITING_PICKUP"
-              ? "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
-              : "bg-gray-100 text-gray-500 cursor-not-allowed"
+              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20"
+              : "bg-gray-200 text-gray-600 cursor-not-allowed"
           }`}
           disabled={orderState !== "AWAITING_PICKUP"}
           whileHover={

@@ -57,7 +57,7 @@ export default function OrderSummary({
 
         <div className="border-t border-gray-200 pt-3 mt-3">
           <div className="flex justify-between items-center">
-            <span className="font-bold">Total</span>
+            <span className="font-bold text-lg">Total</span>
             <span className="text-xl font-bold">${totalCost}</span>
           </div>
         </div>

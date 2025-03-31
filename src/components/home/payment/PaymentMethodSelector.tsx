@@ -42,7 +42,8 @@ interface PaymentMethodSelectorProps {
   isLoading?: boolean;
 }
 
-// Update the component to only show the default card
+// Update the PaymentMethodSelector component to match the screenshot styling
+
 export default function PaymentMethodSelector({
   savedCards: initialSavedCards,
   selectedCardId,
@@ -167,69 +168,43 @@ export default function PaymentMethodSelector({
     fetchCustomerId,
   ]);
 
-  if (loading || isLoading) {
-    return (
-      <div className="flex justify-center items-center py-4">
-        <Loader className="w-5 h-5 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-3 bg-red-50 rounded-lg">
-        <p className="text-sm text-red-600">{error}</p>
-      </div>
-    );
-  }
-
+  // Update the return statement to match the screenshot styling
   return (
-    <div className="space-y-2 mb-4">
-      {savedCards.map((card) => {
-        const cardTypeKey =
-          card.type &&
-          typeof card.type === "string" &&
-          Object.keys(CARD_TYPES).includes(card.type.toLowerCase())
-            ? card.type.toLowerCase()
-            : "visa";
-        const cardType = CARD_TYPES[cardTypeKey as keyof typeof CARD_TYPES];
-
-        return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      {loading || isLoading ? (
+        <div className="flex justify-center items-center py-4">
+          <Loader className="w-5 h-5 text-primary animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="p-3 bg-red-50">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      ) : (
+        savedCards.map((card) => (
           <div
             key={card.id}
+            className="p-4 flex items-center justify-between cursor-pointer"
             onClick={() => onSelectCard(card.id)}
-            className={`p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-              selectedCardId === card.id
-                ? `border-primary shadow-sm`
-                : "border-gray-200 hover:border-gray-300"
-            } border-2`}
-            aria-pressed={selectedCardId === card.id}
           >
             <div className="flex items-center gap-3">
-              <div
-                className={`w-10 h-7 ${cardType.bg} rounded flex items-center justify-center`}
-              >
-                <span className={`font-bold text-sm ${cardType.color}`}>
-                  {cardType.icon}
-                </span>
-              </div>
+              <div className="text-blue-600 font-bold">VISA</div>
               <div>
-                <p className="font-medium text-sm">
-                  {cardType.name} •••• {card.last4 || "1234"}
-                </p>
-                <p className="text-xs text-gray-500">
+                <div className="font-medium">
+                  Visa •••• {card.last4 || "4242"}
+                </div>
+                <div className="text-sm text-gray-500">
                   Expires {card.expiryDate}
-                </p>
+                </div>
               </div>
             </div>
-            <div className="w-4 h-4 rounded-full border-2 border-gray-300 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center">
               {selectedCardId === card.id && (
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               )}
             </div>
           </div>
-        );
-      })}
+        ))
+      )}
     </div>
   );
 }

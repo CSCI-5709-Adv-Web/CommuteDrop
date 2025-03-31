@@ -77,21 +77,6 @@ export const TrackingProvider: React.FC<{ children: ReactNode }> = ({
     console.log("Stopped tracking order");
   };
 
-  // Helper function to extract order ID from message
-  const extractOrderIdFromMessage = (message: string): string | null => {
-    // Try to match the pattern #followed-by-alphanumeric-chars
-    const orderIdMatch = message.match(/#([a-zA-Z0-9]+)/);
-    if (orderIdMatch && orderIdMatch[1]) {
-      return orderIdMatch[1];
-    }
-    return null;
-  };
-
-  // Helper function to check if two order IDs match or are substrings of each other
-  const orderIdsMatch = (id1: string, id2: string): boolean => {
-    return id1 === id2 || id1.includes(id2) || id2.includes(id1);
-  };
-
   // Update the notification filtering logic in the TrackingContext to handle the standardized format
   useEffect(() => {
     // Only process notifications if we're tracking an order

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Shield,
-  MapPin,
   Clock,
   RefreshCw,
   CheckCircle,
@@ -62,21 +61,6 @@ export default function DeliveryEstimate({
       console.log("Full Notification:", fullNotification);
     }
     console.groupEnd();
-  };
-
-  // Helper function to extract order ID from message
-  const extractOrderIdFromMessage = (message: string): string | null => {
-    // Try to match the pattern #followed-by-alphanumeric-chars
-    const orderIdMatch = message.match(/#([a-zA-Z0-9]+)/);
-    if (orderIdMatch && orderIdMatch[1]) {
-      return orderIdMatch[1];
-    }
-    return null;
-  };
-
-  // Helper function to check if two order IDs match or are substrings of each other
-  const orderIdsMatch = (id1: string, id2: string): boolean => {
-    return id1 === id2 || id1.includes(id2) || id2.includes(id1);
   };
 
   // Simulate waiting time counter
@@ -237,88 +221,6 @@ export default function DeliveryEstimate({
     setWaitingTime(0);
     setOrderState("WAITING_FOR_DRIVER");
   };
-
-  // Update the test notification functions to use the standardized format
-  const sendTestDriverAcceptance = () => {
-    const orderId = estimateData?.orderId || "order_123";
-
-    // Create event with standard outer structure and event-specific data inside data field
-    sendStructuredNotification("success", "Order Accepted", {
-      orderId: orderId,
-      data: {
-        status: "AWAITING_PICKUP",
-        estimatedArrival: "5 minutes",
-        message: "Driver has accepted your order",
-        driver: {
-          id: "driver_123",
-          name: "Michael Chen",
-          rating: 4.8,
-          trips: 1243,
-          vehicleType: "Toyota Prius",
-          vehicleNumber: "ABC 123",
-          image: "/placeholder.svg?height=100&width=100",
-        },
-        location: {
-          lat: 44.6470226,
-          lng: -63.5942508,
-        },
-      },
-    });
-
-    logEvent("Sent Test Driver Acceptance", {
-      eventType: "Order Accepted",
-      orderId: orderId,
-    });
-  };
-
-  const sendTestStatusUpdate = (status: string) => {
-    const orderId = estimateData?.orderId || "order_123";
-
-    // Create event with standard outer structure and event-specific data inside data field
-    sendStructuredNotification("info", "OrderStatusUpdated", {
-      orderId: orderId,
-      data: {
-        status: status,
-        message: `Order status updated to ${status}`,
-      },
-    });
-
-    logEvent("Sent Test Status Update", {
-      eventType: "OrderStatusUpdated",
-      orderId: orderId,
-      status: status,
-    });
-  };
-
-  const sendTestDriverLocation = () => {
-    const orderId = estimateData?.orderId || "order_123";
-
-    // Create event with standard outer structure and event-specific data inside data field
-    sendStructuredNotification("info", "DriverLiveLocation", {
-      orderId: orderId,
-      data: {
-        message: "Driver location updated",
-        location: {
-          lat: 44.6470226,
-          lng: -63.5942508,
-          heading: Math.random() * 360,
-          speed: Math.random() * 50,
-        },
-      },
-    });
-
-    logEvent("Sent Test Driver Location", {
-      eventType: "DriverLiveLocation",
-      orderId: orderId,
-    });
-  };
-
-  const deliverySteps = [
-    { id: "AWAITING_PICKUP", label: "Awaiting Pickup" },
-    { id: "IN_TRANSIT", label: "In Transit" },
-    { id: "ARRIVED", label: "Arrived" },
-    { id: "DELIVERED", label: "Delivered" },
-  ];
 
   return (
     <motion.div
@@ -607,28 +509,6 @@ export default function DeliveryEstimate({
             Your delivery is insured and tracked in real-time
           </span>
         </motion.div>
-
-        {/* Track button - only enabled when driver is found */}
-        <motion.button
-          className={`w-full py-4 rounded-xl text-sm font-medium transition-all duration-200 ${
-            orderState === "AWAITING_PICKUP"
-              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-              : "bg-gray-200 text-gray-600 cursor-not-allowed"
-          }`}
-          disabled={orderState !== "AWAITING_PICKUP"}
-          whileHover={
-            orderState === "AWAITING_PICKUP" ? { scale: 1.01 } : undefined
-          }
-          whileTap={
-            orderState === "AWAITING_PICKUP" ? { scale: 0.99 } : undefined
-          }
-          onClick={onTrack}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Track Delivery
-          </div>
-        </motion.button>
       </div>
     </motion.div>
   );

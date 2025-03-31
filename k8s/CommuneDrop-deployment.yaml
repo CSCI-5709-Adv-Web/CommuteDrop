@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: commune-drop-api
+  labels:
+    app: commune-drop-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: commune-drop-api
+  template:
+    metadata:
+      labels:
+        app: commune-drop-api
+    spec:
+      containers:
+        - name: commune-drop-frontend-container
+          image: jashpatel1511/web-commune-drop-frontend:latest
+          ports:
+            - containerPort: 5173
+              name: frontend
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          env:
+            - name: VITE_LOCATION_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: commune-drop-frontend-configmap
+                  key: VITE_LOCATION_CLIENT_ID
+            - name: VITE_ORDER_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: commune-drop-frontend-configmap
+                  key: VITE_ORDER_CLIENT_ID
+            - name: VITE_SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: commune-drop-frontend-configmap
+                  key: VITE_SUPABASE_URL
+            - name: VITE_WEBSOCKET_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: commune-drop-frontend-configmap
+                  key: VITE_WEBSOCKET_URL
+            # secrets
+            - name: VITE_PUBLIC_GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: commune-drop-frontend-secret
+                  key: VITE_PUBLIC_GOOGLE_MAPS_API_KEY
+            - name: VITE_PUBLIC_STRIPE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: commune-drop-frontend-secret
+                  key: VITE_PUBLIC_STRIPE_API_KEY
+            - name: VITE_LOCATION_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: commune-drop-frontend-secret
+                  key: VITE_LOCATION_CLIENT_SECRET
+            - name: VITE_ORDER_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: commune-drop-frontend-secret
+                  key: VITE_ORDER_CLIENT_SECRET
+            - name: VITE_SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: commune-drop-frontend-secret
+                  key: VITE_SUPABASE_ANON_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+        - name: commune-drop-service
+          image: jashpatel1511/web-commune-drop-service:latest
+          ports:
+            - containerPort: 3001
+              name: service
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: commune-drop-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  selector:
+    app: commune-drop-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5173
+      name: frontend
+    - protocol: TCP
+      port: 81
+      targetPort: 3001
+      name: http
+  type: LoadBalancer

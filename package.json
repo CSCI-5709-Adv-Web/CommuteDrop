@@ -8,7 +8,8 @@
     "dev:docker": "concurrently \"vite --host 0.0.0.0\" \"node server/websocket-server.js\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
     "@aws-sdk/client-location": "^3.750.0",

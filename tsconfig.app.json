@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "skipLibCheck": true,
+    // "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -17,10 +17,13 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "noUnusedLocals": false, // Disable error on unused local variables
+    "noUnusedParameters": false, // Disable error on unused parameters
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

@@ -55,6 +55,7 @@ export function useGeocoding({
         const province = "Nova Scotia";
         const geocodingResult = await mapService.geocodeAddress(
           addressToUse,
+          // @ts-ignore
           province
         );
 

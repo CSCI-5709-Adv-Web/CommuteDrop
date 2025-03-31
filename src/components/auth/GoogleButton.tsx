@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { supabase } from "../../lib/Supabase";
+import { supabase } from "../../lib/supabase";
 import { Loader } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";

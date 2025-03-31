@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
 import NotificationToast from "./NotificationToast";
@@ -15,6 +15,7 @@ export interface Notification {
   type: "info" | "success" | "warning" | "error";
   timestamp: Date;
   read: boolean;
+  data?: any; // Add a data field for structured notification data
 }
 
 // Define the context type
@@ -27,7 +28,14 @@ interface NotificationContextType {
   sendTestNotification: (
     type: "info" | "success" | "warning" | "error",
     title?: string,
-    message?: string
+    message?: string,
+    data?: any
+  ) => void;
+  // Add a method to send a structured notification
+  sendStructuredNotification: (
+    type: "info" | "success" | "warning" | "error",
+    title: string,
+    data: any
   ) => void;
 }
 
@@ -40,11 +48,6 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Remove the incorrect import inside the component:
-  // Replace:
-  //   import type { Socket } from "socket.io-client";
-  //   const [socket, setSocket] = useState<Socket | null>(null);
-  // With:
   const [socket, setSocket] = useState<any | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -54,7 +57,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user, isAuthenticated } = useAuth();
 
   // Update the useEffect that connects to the WebSocket server to handle connection errors gracefully
-
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
@@ -111,12 +113,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         socketInstance.on("notification", (notification: Notification) => {
           console.log("Received notification:", notification);
 
+          // Parse data field if it's a string
+          let parsedData = notification.data;
+          if (
+            typeof notification.message === "string" &&
+            (notification.title === "OrderStatusUpdated" ||
+              notification.title === "DriverLiveLocation")
+          ) {
+            try {
+              parsedData = JSON.parse(notification.message);
+            } catch (e) {
+              console.warn("Could not parse notification message as JSON");
+            }
+          }
+
+          // Create a notification object with the parsed data
+          const newNotification = {
+            ...notification,
+            data: parsedData,
+            timestamp: new Date(notification.timestamp),
+            read: false,
+          };
+
           // Add the notification to the state
-          setNotifications((prev) => [notification, ...prev]);
+          setNotifications((prev) => [newNotification, ...prev]);
           setUnreadCount((prev) => prev + 1);
 
           // Show toast for the new notification
-          setCurrentNotification(notification);
+          setCurrentNotification(newNotification);
           setShowToast(true);
 
           // Auto-hide toast after 5 seconds
@@ -176,10 +200,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const sendTestNotification = (
     type: "info" | "success" | "warning" | "error",
     title?: string,
-    message?: string
+    message?: string,
+    data?: any
   ) => {
     if (socket) {
-      socket.emit("send-test-notification", { type, title, message });
+      socket.emit("send-test-notification", { type, title, message, data });
     } else {
       // Create a local notification when socket is not available
       const notification = {
@@ -191,6 +216,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         type,
         timestamp: new Date(),
         read: false,
+        data,
       };
 
       setNotifications((prev) => [notification, ...prev]);
@@ -209,17 +235,35 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Add a method to send structured notifications
+  const sendStructuredNotification = (
+    type: "info" | "success" | "warning" | "error",
+    title: string,
+    data: any
+  ) => {
+    // Convert data to a string message for display
+    const message = JSON.stringify(data);
+
+    // Send the notification with both the string message and structured data
+    sendTestNotification(type, title, message, data);
+  };
+
+  // Create the context value
+  const contextValue = useMemo(
+    () => ({
+      notifications,
+      unreadCount,
+      markAsRead,
+      markAllAsRead,
+      clearNotifications,
+      sendTestNotification,
+      sendStructuredNotification,
+    }),
+    [notifications, unreadCount]
+  );
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        markAsRead,
-        markAllAsRead,
-        clearNotifications,
-        sendTestNotification,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
 
       {/* Toast notification */}

@@ -181,6 +181,21 @@ export default function DeliveryEstimate({
     console.groupEnd();
   };
 
+  // Helper function to extract order ID from message
+  const extractOrderIdFromMessage = (message: string): string | null => {
+    // Try to match the pattern #followed-by-alphanumeric-chars
+    const orderIdMatch = message.match(/#([a-zA-Z0-9]+)/);
+    if (orderIdMatch && orderIdMatch[1]) {
+      return orderIdMatch[1];
+    }
+    return null;
+  };
+
+  // Helper function to check if two order IDs match or are substrings of each other
+  const orderIdsMatch = (id1: string, id2: string): boolean => {
+    return id1 === id2 || id1.includes(id2) || id2.includes(id1);
+  };
+
   // Simulate waiting time counter
   useEffect(() => {
     if (orderState === "WAITING_FOR_DRIVER") {
@@ -338,6 +353,81 @@ export default function DeliveryEstimate({
   const handleRetry = () => {
     setWaitingTime(0);
     setOrderState("WAITING_FOR_DRIVER");
+  };
+
+  // Update the test notification functions to use the standardized format
+  const sendTestDriverAcceptance = () => {
+    const orderId = estimateData?.orderId || "order_123";
+
+    // Create event with standard outer structure and event-specific data inside data field
+    sendStructuredNotification("success", "Order Accepted", {
+      orderId: orderId,
+      data: {
+        status: "AWAITING_PICKUP",
+        estimatedArrival: "5 minutes",
+        message: "Driver has accepted your order",
+        driver: {
+          id: "driver_123",
+          name: "Michael Chen",
+          rating: 4.8,
+          trips: 1243,
+          vehicleType: "Toyota Prius",
+          vehicleNumber: "ABC 123",
+          image: "/placeholder.svg?height=100&width=100",
+        },
+        location: {
+          lat: 44.6470226,
+          lng: -63.5942508,
+        },
+      },
+    });
+
+    logEvent("Sent Test Driver Acceptance", {
+      eventType: "Order Accepted",
+      orderId: orderId,
+    });
+  };
+
+  const sendTestStatusUpdate = (status: string) => {
+    const orderId = estimateData?.orderId || "order_123";
+
+    // Create event with standard outer structure and event-specific data inside data field
+    sendStructuredNotification("info", "OrderStatusUpdated", {
+      orderId: orderId,
+      data: {
+        status: status,
+        message: `Order status updated to ${status}`,
+      },
+    });
+
+    logEvent("Sent Test Status Update", {
+      eventType: "OrderStatusUpdated",
+      orderId: orderId,
+      status: status,
+    });
+  };
+
+  const sendTestDriverLocation = () => {
+    const orderId = estimateData?.orderId || "order_123";
+
+    // Create event with standard outer structure and event-specific data inside data field
+    sendStructuredNotification("info", "DriverLiveLocation", {
+      orderId: orderId,
+      data: {
+        message: "Driver location updated",
+        location: {
+          lat: 44.6470226,
+          lng: -63.5942508,
+          heading: Math.random() * 360,
+          speed: Math.random() * 50,
+        },
+      },
+    });
+
+    logEvent("Sent Test Driver Location", {
+      eventType: "DriverLiveLocation",
+      orderId: orderId,
+    });
   };
 
   return (

@@ -11,10 +11,6 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    allowedHosts: [
-      "adae20237c7f0499ab8f25b18093eff2-02eabdebe2d7b8c1.elb.us-east-1.amazonaws.com",
-      "*.elb.us-east-1.amazonaws.com",
-      "all",
-    ],
+    allowedHosts: "all",
   },
 });

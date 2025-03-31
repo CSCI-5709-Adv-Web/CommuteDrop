@@ -20,4 +20,4 @@ EXPOSE 5173 3001
 
 # Start the development server
 # This will run both the frontend on 5173 and websocket server on 3001
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev:docker"]

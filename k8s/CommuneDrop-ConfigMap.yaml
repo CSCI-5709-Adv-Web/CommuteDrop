@@ -8,6 +8,6 @@ data:
   VITE_LOCATION_CLIENT_ID: "microservice_location_client"
   VITE_ORDER_CLIENT_ID: "microservice_order_client"
   VITE_SUPABASE_URL: "https://pdymjbbdxlmavkkxxori.supabase.co/"
-  VITE_WEBSOCKET_URL: "http://localhost:3001/"
+  VITE_WEBSOCKET_URL: "http://commune-drop-service:3001/"
   # VITE_WEBSOCKET_URL: "http://commune-drop-service:81/"
 #

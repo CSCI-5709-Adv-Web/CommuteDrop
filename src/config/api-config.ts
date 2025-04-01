@@ -85,20 +85,14 @@ export const ENDPOINTS = {
   // Payment endpoints - updated to match the new Stripe-based API
   PAYMENT: {
     // Customer management
-    CUSTOMER: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/customer`,
-
-    // Payment methods
-    PAYMENT_METHOD: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-method`,
-    PAYMENT_METHOD_DETAILS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-method-details`,
-    PAYMENT_METHODS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-methods/:customerId`,
-
-    // Payments
-    PAYMENT_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-intent`,
-    REFUND: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/refund`,
-
-    // Legacy endpoints (keeping for backward compatibility)
-    CREATE_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/payment-intent`,
-    PROCESS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment/process`,
+    CUSTOMER: `${API_CONFIG.PAYMENT_SERVICE_URL}/customer`,
+    PAYMENT_METHOD: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment-method`,
+    PAYMENT_METHOD_DETAILS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment-method-details`,
+    PAYMENT_METHODS: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment-methods/:customerId`,
+    PAYMENT_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment-intent`,
+    REFUND: `${API_CONFIG.PAYMENT_SERVICE_URL}/refund`,
+    CREATE_INTENT: `${API_CONFIG.PAYMENT_SERVICE_URL}/payment-intent`,
+    PROCESS: `${API_CONFIG.PAYMENT_SERVICE_URL}/process`,
   },
   // Maps endpoints
   MAPS: {

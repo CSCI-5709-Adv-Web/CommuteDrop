@@ -1,8 +1,7 @@
 // Update the API_CONFIG and ENDPOINTS to include the new payment service endpoints
 
 export const API_CONFIG = {
-  AUTH_BASE_URL:
-    import.meta.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087",
+  AUTH_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   LOCATION_SERVICE_URL:
     import.meta.env.VITE_LOCATION_SERVICE_URL ||
@@ -50,10 +49,10 @@ export const API_CONFIG = {
 export const ENDPOINTS = {
   // Auth endpoints
   AUTH: {
-    LOGIN: `${API_CONFIG.AUTH_BASE_URL}/auth/login`,
-    REGISTER: `${API_CONFIG.AUTH_BASE_URL}/auth/register`,
-    REFRESH_TOKEN: `${API_CONFIG.AUTH_BASE_URL}/auth/refresh-token`,
-    VERIFY_EMAIL: `${API_CONFIG.AUTH_BASE_URL}/auth/verify-email`,
+    LOGIN: `${API_CONFIG.AUTH_BASE_URL}/login`,
+    REGISTER: `${API_CONFIG.AUTH_BASE_URL}/register`,
+    REFRESH_TOKEN: `${API_CONFIG.AUTH_BASE_URL}/refresh-token`,
+    VERIFY_EMAIL: `${API_CONFIG.AUTH_BASE_URL}/verify-email`,
   },
 
   TOKEN: {

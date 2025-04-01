@@ -393,6 +393,7 @@ const httpServer = createServer();
 
 // Create Socket.IO server
 const io = new Server(httpServer, {
+  path: "/websocket", // Explicitly set path to match Ingress configuration
   cors: {
     origin: "*", // In production, restrict this to your frontend domain
     methods: ["GET", "POST"],

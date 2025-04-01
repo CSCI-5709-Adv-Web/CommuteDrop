@@ -37,7 +37,7 @@ jobs:
             VITE_PAYMENT_SERVICE_URL=http://payment-service:80
             VITE_ORDER_SERVICE_URL=http://order-service:80/order
             VITE_LOCATION_SERVICE_URL=http://location-service:80/location
-            VITE_API_BASE_URL=http://auth-service:80
+            VITE_API_BASE_URL=http://auth-service.default.svc.cluster.local:80
             
             # Secrets from GitHub Secrets
             VITE_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_PUBLIC_GOOGLE_MAPS_API_KEY }}

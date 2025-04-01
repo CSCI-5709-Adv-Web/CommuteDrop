@@ -23,9 +23,28 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Push Docker Image
-        run: |
-          docker build -t jashpatel1511/web-commune-drop-frontend:latest .
-          docker push jashpatel1511/web-commune-drop-frontend:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: jashpatel1511/web-commune-drop-frontend:latest
+          build-args: |
+            # Hardcoded config values
+            VITE_LOCATION_CLIENT_ID=microservice_location_client
+            VITE_ORDER_CLIENT_ID=microservice_order_client
+            VITE_SUPABASE_URL=https://pdymjbbdxlmavkkxxori.supabase.co/
+            VITE_WEBSOCKET_URL=http://commune-drop-service:3001/
+            VITE_PAYMENT_SERVICE_URL=http://payment-service:80
+            VITE_ORDER_SERVICE_URL=http://order-service:80/order
+            VITE_LOCATION_SERVICE_URL=http://location-service:80/location
+            VITE_API_BASE_URL=http://auth-service:80
+            
+            # Secrets from GitHub Secrets
+            VITE_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_PUBLIC_GOOGLE_MAPS_API_KEY }}
+            VITE_PUBLIC_STRIPE_API_KEY=${{ secrets.VITE_PUBLIC_STRIPE_API_KEY }}
+            VITE_LOCATION_CLIENT_SECRET=${{ secrets.VITE_LOCATION_CLIENT_SECRET }}
+            VITE_ORDER_CLIENT_SECRET=${{ secrets.VITE_ORDER_CLIENT_SECRET }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
   deploy:
     name: Deploy to EKS Cluster
@@ -34,14 +53,14 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # Corrected key name for region
+          aws-region: us-east-1
 
       - name: Update kubeconfig for EKS
         run: |
@@ -54,3 +73,4 @@ jobs:
           kubectl apply -f k8s/CommuneDrop-ConfigMap.yaml
           kubectl apply -f k8s/CommuneDrop-secret.yaml
           kubectl apply -f k8s/CommuneDrop-deployment.yaml
+

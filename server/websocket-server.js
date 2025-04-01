@@ -341,7 +341,7 @@
 // });
 
 // // Start the server and Kafka consumer
-// const PORT = process.env.PORT || 3001;
+// const PORT = import.meta.env.PORT || 3001;
 // httpServer.listen(PORT, () => {
 //   log(`WebSocket server running on port ${PORT}`, "success");
 
@@ -752,7 +752,7 @@ async function checkKafkaTopics() {
 }
 
 // Start the server and Kafka consumer
-const PORT = process.env.PORT || 3001;
+const PORT = import.meta.env.PORT || 3001;
 httpServer.listen(PORT, () => {
   log(`WebSocket server running on port ${PORT}`, "success");
 

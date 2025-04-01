@@ -6,7 +6,7 @@ export default defineConfig({
   base: "/",
   plugins: [react(), tailwindcss()],
   define: {
-    "process.env": {},
+    "import.meta.env": {},
   },
   server: {
     host: "0.0.0.0",

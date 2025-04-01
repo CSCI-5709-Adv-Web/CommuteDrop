@@ -14,7 +14,7 @@ import { paymentService } from "../../services/payment-service";
 
 // Ensure we're loading Stripe outside the component with proper error handling
 const stripePromise = (() => {
-  const apiKey = process.env.VITE_PUBLIC_STRIPE_API_KEY || "";
+  const apiKey = import.meta.env.VITE_PUBLIC_STRIPE_API_KEY || "";
 
   // Check if the key is a secret key
   if (apiKey.startsWith("sk_")) {

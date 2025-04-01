@@ -2,18 +2,18 @@
 
 export const API_CONFIG = {
   AUTH_BASE_URL:
-    process.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087/api",
-  TOKEN_BASE_URL: process.env.VITE_API_BASE_URL || "http://localhost:5087",
+    import.meta.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087/api",
+  TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   LOCATION_SERVICE_URL:
-    process.env.VITE_LOCATION_SERVICE_URL ||
+    import.meta.env.VITE_LOCATION_SERVICE_URL ||
     "http://localhost:5001/location",
   ORDER_SERVICE_URL:
-    process.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
+    import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:9002/order",
   PAYMENT_SERVICE_URL:
-    process.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9000",
+    import.meta.env.VITE_PAYMENT_SERVICE_URL || "http://localhost:9000",
   MAPS_API_KEY:
-    process.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    process.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
+    import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    import.meta.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
     "",
   TIMEOUT: 15000,
   DEFAULT_COUNTRY: "Canada",
@@ -25,23 +25,23 @@ export const API_CONFIG = {
   SERVICES: {
     location: {
       clientId:
-        process.env.VITE_LOCATION_CLIENT_ID || "location_service_client",
+        import.meta.env.VITE_LOCATION_CLIENT_ID || "location_service_client",
       clientSecret:
-        process.env.VITE_LOCATION_CLIENT_SECRET ||
+        import.meta.env.VITE_LOCATION_CLIENT_SECRET ||
         "location_service_secret",
       scopes: ["location.read", "location.write"],
     },
     order: {
-      clientId: process.env.VITE_ORDER_CLIENT_ID || "order_service_client",
+      clientId: import.meta.env.VITE_ORDER_CLIENT_ID || "order_service_client",
       clientSecret:
-        process.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
+        import.meta.env.VITE_ORDER_CLIENT_SECRET || "order_service_secret",
       scopes: ["order.read", "order.write"],
     },
     payment: {
       clientId:
-        process.env.VITE_PAYMENT_CLIENT_ID || "payment_service_client",
+        import.meta.env.VITE_PAYMENT_CLIENT_ID || "payment_service_client",
       clientSecret:
-        process.env.VITE_PAYMENT_CLIENT_SECRET || "payment_service_secret",
+        import.meta.env.VITE_PAYMENT_CLIENT_SECRET || "payment_service_secret",
       scopes: ["payment.read", "payment.write"],
     },
   },

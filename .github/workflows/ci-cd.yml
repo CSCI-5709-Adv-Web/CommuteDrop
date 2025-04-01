@@ -39,7 +39,7 @@ jobs:
             VITE_PAYMENT_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/payment
             VITE_ORDER_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/order
             VITE_LOCATION_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/location
-            VITE_API_BASE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com
+            VITE_API_BASE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/auth
             
             # Secrets from GitHub Secrets
             VITE_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_PUBLIC_GOOGLE_MAPS_API_KEY }}

@@ -2,7 +2,7 @@
 
 export const API_CONFIG = {
   AUTH_BASE_URL:
-    import.meta.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087/api",
+    import.meta.env.VITE_API_BASE_URL + "/api" || "http://localhost:5087",
   TOKEN_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5087",
   LOCATION_SERVICE_URL:
     import.meta.env.VITE_LOCATION_SERVICE_URL ||

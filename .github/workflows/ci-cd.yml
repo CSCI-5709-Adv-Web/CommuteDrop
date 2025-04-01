@@ -33,11 +33,13 @@ jobs:
             VITE_LOCATION_CLIENT_ID=microservice_location_client
             VITE_ORDER_CLIENT_ID=microservice_order_client
             VITE_SUPABASE_URL=https://pdymjbbdxlmavkkxxori.supabase.co/
-            VITE_WEBSOCKET_URL=http://commune-drop-service:3001/
-            VITE_PAYMENT_SERVICE_URL=http://payment-service:80
-            VITE_ORDER_SERVICE_URL=http://order-service:80/order
-            VITE_LOCATION_SERVICE_URL=http://location-service:80/location
-            VITE_API_BASE_URL=http://auth-service.default.svc.cluster.local:80
+            
+            # Updated URLs to use the Ingress ALB
+            VITE_WEBSOCKET_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/websocket/
+            VITE_PAYMENT_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/payment
+            VITE_ORDER_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/order
+            VITE_LOCATION_SERVICE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com/location
+            VITE_API_BASE_URL=http://k8s-default-apigatew-d3ee00e709-426448993.us-east-1.elb.amazonaws.com
             
             # Secrets from GitHub Secrets
             VITE_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_PUBLIC_GOOGLE_MAPS_API_KEY }}
